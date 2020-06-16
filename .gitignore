@@ -1,0 +1,7 @@
+*.sasl.txt
+*.beam
+*.pdf
+archive/
+_images/
+.vscode/
+
