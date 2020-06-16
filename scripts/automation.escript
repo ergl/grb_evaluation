@@ -44,12 +44,9 @@
 
                   , {load, false}
                   , {bench, false}
-                  , {stats, false}
 
                   , {restart, false}
                   , {rebuild, false}
-                  , {ring, true}
-                  , {versions, true}
                   , {cleanup, false}]).
 
 usage() ->
@@ -145,14 +142,6 @@ do_command(bench, _, ClusterMap) ->
     alert("Benchmark finished!"),
     ok;
 
-do_command(stats, _, ClusterMap) ->
-    io:format(
-        "~p~n",
-        [do_in_nodes_par(
-            client_command("report", "/home/borja.deregil/cluster.config"),
-            [hd(client_nodes(ClusterMap))])]),
-    ok;
-
 do_command(restart, _, ClusterMap) ->
     io:format("~p~n", [do_in_nodes_par(server_command("restart"), server_nodes(ClusterMap))]),
     ok;
@@ -163,14 +152,6 @@ do_command(rebuild, _, ClusterMap) ->
 
     do_in_nodes_par(server_command("rebuild"), DBNodes),
     do_in_nodes_par(client_command("rebuild"), ClientNodes),
-    ok;
-
-do_command(ring, {true, StrRingSize}, ClusterMap) ->
-    io:format("~p~n", [do_in_nodes_par(server_command("ring", StrRingSize), server_nodes(ClusterMap))]),
-    ok;
-
-do_command(versions, {true, StrUpperVsn}, ClusterMap) ->
-    io:format("~p~n", [do_in_nodes_par(server_command("versions", StrUpperVsn), server_nodes(ClusterMap))]),
     ok;
 
 do_command(cleanup, _, ClusterMap) ->

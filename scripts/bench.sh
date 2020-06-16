@@ -83,14 +83,6 @@ do_tclean() {
     fi
 }
 
-do_report() {
-    local config_file="${1}"
-
-    pushd "${HOME}/sources/lasp-bench/scripts"
-    ./stats_report.erl "${config_file}"
-    popd
-}
-
 usage() {
     echo "bench.sh [-hdy] [-b <branch>=bench_grb] dl | compile | load [machine] | tc [cluster] [config] | tclean | run [config] | rebuild | report [config]"
 }
@@ -180,11 +172,6 @@ run () {
         "rebuild")
             do_rebuild "${branch}"
             do_compile
-            exit $?
-            ;;
-        "report")
-            local config_file="${2}"
-            do_report "${config_file}"
             exit $?
             ;;
         *)
