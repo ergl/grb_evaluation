@@ -3,7 +3,7 @@
 sudo apt-get update
 
 # Git, Make, and dig and zlib (for hdr_histogram)
-sudo apt-get -y install build-essential git vim dnsutils zlib1g-dev htop numactl
+sudo apt-get -y install ntp build-essential git vim dnsutils zlib1g-dev htop numactl
 node_name=$(uname -n)
 # apollo-2-4 is running Ubuntu 18.04
 if [[ "${node_name}" == "apollo-2-4" ]]; then

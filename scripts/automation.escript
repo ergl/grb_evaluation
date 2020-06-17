@@ -174,6 +174,10 @@ check_nodes(ClusterMap) ->
     UptimeRes = do_in_nodes_par("uptime", AllNodes),
     false = lists:any(fun(Res) -> string:str(Res, "timed out") =/= 0 end, UptimeRes),
 
+    _ = do_in_nodes_par("sudo service ntp stop", AllNodes),
+    _ = do_in_nodes_par("sudo ntpd -gq system.imdea", AllNodes),
+    _ = do_in_nodes_par("sudo service ntp start", AllNodes),
+
     % Set all nodes to performance governor status, then verify
     _ = do_in_nodes_par("echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", AllNodes),
     GovernorStatus = do_in_nodes_par("cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", AllNodes),
