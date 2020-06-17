@@ -45,42 +45,7 @@ mergeSite() {
                  | head -1 \
                  | xargs basename)
 
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "noop_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "noop_send_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "noop_rcv_latencies.csv"
-
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "ping_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "ping_send_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "ping_execute_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "ping_start_tx_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "ping_commit_tx_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "ping_rcv_latencies.csv"
-
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "timed_read_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "tr_send_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "tr_rcv_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "tr_exe_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "tr_start_tx_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "tr_read_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "tr_pvc_async_read_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "tr_replica_diff_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "tr_get_mrvc_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "tr_find_maxvc_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "tr_mat_read_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "tr_fsm_diff_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "tr_commit_latencies.csv"
-
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly_send_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly_rcv_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly_read_took_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly_wait_took_latencies.csv"
-
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "writeonly_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readwrite_latencies.csv"
-
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readwrite_track_latencies.csv"
-    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readwrite_track_commit_latencies.csv"
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly-blue_latencies.csv"
 }
 
 usage() {
