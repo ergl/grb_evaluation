@@ -28,7 +28,7 @@
 -define(CONFIG_DIR, unicode:characters_to_list(io_lib:format("~s/configuration", [?SELF_DIR]))).
 
 -define(GRB_BRANCH, "master").
--define(LASP_BENCH_BRANCH, "coord").
+-define(LASP_BENCH_BRANCH, "bench_grb").
 
 -define(JOIN_TIMEOUT, timer:minutes(5)).
 
