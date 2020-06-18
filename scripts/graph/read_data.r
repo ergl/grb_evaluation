@@ -49,17 +49,10 @@ get_client_threads <- function(Dir) {
 get_total_data <- function(Dir) {
     summary <- read.csv(sprintf("%s/summary.csv", Dir))
 
-    latencies_rw <- read.csv(sprintf("%s/readwrite_track_latencies.csv", Dir))
-    latencies_ronly <- read.csv(sprintf("%s/readonly_latencies.csv", Dir))
-    latencies_rw_commit <- read.csv(sprintf("%s/readwrite_track_commit_latencies.csv", Dir))
+    latencies_ronly <- read.csv(sprintf("%s/readonly-blue_latencies.csv", Dir))
 
     # Remove first row, as it is usually inflated
     summary <- summary[-c(1), ]
-
-    # All issued operations
-    max_total <- max(summary$total)
-    max_total_row <- summary[c(which(summary$total == max_total)), ]
-    max_total_w <- max_total / max_total_row$window
 
     # All committed operations
     max_commit <- max(summary$successful)
@@ -70,19 +63,12 @@ get_total_data <- function(Dir) {
     median_commit <- median(summary$successful)
     median_window <- median(summary$window)
     median_commit_w <- median_commit / median_window
-    commit_ratio <- (sum(summary$successful) / sum(summary$total))
 
-    mean_latency_rw <- mean(latencies_rw$mean) / 1000
     mean_latency_ronly <- mean(latencies_ronly$mean) / 1000
-    mean_latency_rw_commit <- mean(latencies_rw_commit$mean) / 1000
 
 
-    return(data.frame(max_total_w,
-                      max_commit_w,
+    return(data.frame(max_commit_w,
                       median_commit_w,
-                      commit_ratio,
-                      mean_latency_rw,
-                      mean_latency_rw_commit,
                       mean_latency_ronly))
 }
 
@@ -91,37 +77,26 @@ format_data <- function(Dir, Data) {
         return(formatC(string, format="f", big.mark=",", drop0trailing=withoutZeros))
     }
 
-    protocol_name <- toupper(str_extract(str_extract(Dir, "prot=[a-z]+"), "[a-z]+$"))
     thread_info <- get_client_threads(Dir)
-    num_partitions <- as.integer(str_extract(str_extract(Dir, "ring=[0-9]+"), "[0-9]+"))
-    versions <- str_extract(str_extract(Dir, "vsn=[0-9]+"), "[0-9]+")
 
-    if (protocol_name == "RC") {
-        # If read committed, don't include commit ratio, it's always 1
-        format <- sprintf(
-            "|%s|%s (%s)|%s|%f|%f|%f|\n",
-            protocol_name,
-            format_decimal(thread_info$per_machine, withoutZeros=TRUE),
-            format_decimal(thread_info$total, withoutZeros=TRUE),
-            format_decimal(Data$max_total_w),
-            Data$mean_latency_ronly,
-            Data$mean_latency_rw,
-            Data$mean_latency_rw_commit
-        )
-    } else {
-        format <- sprintf(
-            "|%s|%s (%s)|%s|%s|%f|%f|%f|%f|\n",
-            protocol_name,
-            format_decimal(thread_info$per_machine, withoutZeros=TRUE),
-            format_decimal(thread_info$total, withoutZeros=TRUE),
-            format_decimal(Data$max_total_w),
-            format_decimal(Data$max_commit_w),
-            Data$mean_latency_ronly,
-            Data$mean_latency_rw,
-            Data$mean_latency_rw_commit,
-            Data$commit_ratio
-        )
-    }
+    format <- sprintf("|%s (%s)|%s|%s|%s|\n",
+        "Threads",
+        "Total",
+        "Max Thr",
+        "Median Thr",
+        "Ronly Ms"
+    )
+
+    cat(format)
+
+    format <- sprintf(
+        "|%s (%s)|%s|%s|%f|\n",
+        format_decimal(thread_info$per_machine, withoutZeros=TRUE),
+        format_decimal(thread_info$total, withoutZeros=TRUE),
+        format_decimal(Data$max_commit_w),
+        format_decimal(Data$median_commit_w),
+        Data$mean_latency_ronly
+    )
 
     cat(format)
 }
