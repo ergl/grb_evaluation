@@ -51,7 +51,7 @@ do_join() {
     local config_file="${2}"
 
     pushd "${HOME}/sources/${folder}"
-    ./bin/join_cluster_script.erl "${config_file}"
+    ./bin/join_cluster_script.erl -f "${config_file}"
     popd
 }
 
