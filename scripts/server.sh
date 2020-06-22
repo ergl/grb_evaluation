@@ -55,6 +55,15 @@ do_join() {
     popd
 }
 
+do_connect() {
+    local folder="${1}"
+    local config_file="${2}"
+
+    pushd "${HOME}/sources/${folder}"
+    ./bin/connect_dcs.erl -f "${config_file}"
+    popd
+}
+
 do_restart() {
     local node_ip
     local folder="${1}"
@@ -124,6 +133,7 @@ dl <folder>=branch\tDownloads ${APP_NAME} with the selected branch to the given 
 \t\t\tDefault is the given branch name in the local folder.
 compile
 join <config> \tJoins the nodes listed in the config file
+connect_dcs <config> \tConnects all replicas listed in the config file
 start
 stop
 restart \tReboots ${APP_NAME}, cleaning the release
@@ -200,6 +210,17 @@ run() {
 
             local node_file_path="${2}"
             do_join "${branch}" "${node_file_path}"
+            exit $?
+            ;;
+
+        "connect_dcs")
+            if [[ $# -lt 2 ]]; then
+                usage
+                exit 1
+            fi
+
+            local node_file_path="${2}"
+            do_connect "${branch}" "${node_file_path}"
             exit $?
             ;;
 

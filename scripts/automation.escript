@@ -40,6 +40,7 @@
                   , {start, false}
                   , {stop, false}
                   , {join, false}
+                  , {connect_dcs, false}
                   , {prepare, false}
 
                   , {load, false}
@@ -128,6 +129,13 @@ do_command(join, _, ClusterMap) ->
         erlang:exit(ChildPid, kill),
         error
     end;
+
+do_command(connect_dcs, _, ClusterMap) ->
+    [MainNode | _] = server_nodes(ClusterMap),
+    Rep = do_in_nodes_seq(server_command("connect_dcs", "/home/borja.deregil/cluster.config"),
+                          [MainNode]),
+    io:format("~p~n", [Rep]),
+    ok;
 
 do_command(load, _, ClusterMap) ->
     NodeNames = client_nodes(ClusterMap),
