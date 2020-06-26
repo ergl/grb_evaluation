@@ -80,7 +80,7 @@ main(Args) ->
             ok = do_command(Command, CommandArg, ClusterMap)
     end.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Commands
 
@@ -164,13 +164,13 @@ do_command(rebuild, _, ClusterMap) ->
 
 do_command(cleanup, _, ClusterMap) ->
     AllNodes = all_nodes(ClusterMap),
-    ClientNodes = client_nodes(ClusterMap),
+    ServerNodes = server_nodes(ClusterMap),
 
-    io:format("~p~n", [do_in_nodes_par(client_command("tclean"), ClientNodes)]),
+    io:format("~p~n", [do_in_nodes_par(server_command("tclean"), ServerNodes)]),
     io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", AllNodes)]),
     ok.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Command Impl
 
@@ -205,25 +205,25 @@ prepare_server(ClusterMap) ->
     io:format("~p~n", [do_in_nodes_par(server_command("dl"), NodeNames)]),
     _ = do_in_nodes_par(server_command("compile"), NodeNames),
     io:format("~p~n", [do_in_nodes_par(server_command("start"), NodeNames)]),
-    ok.
-
-prepare_lasp_bench(ClusterMap) ->
-    NodeNames = client_nodes(ClusterMap),
-    io:format("~p~n", [do_in_nodes_par(client_command("dl"), NodeNames)]),
-    _ = do_in_nodes_par(client_command("compile"), NodeNames),
-    ok = maps:fold(fun(ClusterName, #{clients := ClusterClients}, _Acc) ->
+    ok = maps:fold(fun(ClusterName, #{servers := ClusterServers}, _Acc) ->
         io:format(
             "~p~n",
             [do_in_nodes_par(
-                client_command("tc", atom_to_list(ClusterName), "/home/borja.deregil/cluster.config"),
-                ClusterClients)
+                server_command("tc", atom_to_list(ClusterName), "/home/borja.deregil/cluster.config"),
+                ClusterServers)
             ]
         ),
         ok
     end, ok, ClusterMap),
     ok.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+prepare_lasp_bench(ClusterMap) ->
+    NodeNames = client_nodes(ClusterMap),
+    io:format("~p~n", [do_in_nodes_par(client_command("dl"), NodeNames)]),
+    _ = do_in_nodes_par(client_command("compile"), NodeNames),
+    ok.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Util
 
@@ -309,9 +309,9 @@ alert(Msg) ->
     safe_cmd("afplay /System/Library/Sounds/Glass.aiff"),
     ok.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% getopt
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 parse_args([]) -> {error, noargs};
 parse_args(Args) ->

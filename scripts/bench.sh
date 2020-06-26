@@ -84,7 +84,7 @@ do_tclean() {
 }
 
 usage() {
-    echo "bench.sh [-hdy] [-b <branch>=bench_grb] dl | compile | load [machine] | tc [cluster] [config] | tclean | run [config] | rebuild | report [config]"
+    echo "bench.sh [-hy] [-b <branch>=bench_grb] dl | compile | load [machine] | run [config] | rebuild | report [config]"
 }
 
 run () {
@@ -94,9 +94,8 @@ run () {
     fi
 
     local branch="bench_grb"
-    local tc_dry_run=0
     local confirm_load=0
-    while getopts ":dyb:h" opt; do
+    while getopts ":yb:h" opt; do
         case $opt in
             h)
                 usage
@@ -104,9 +103,6 @@ run () {
                 ;;
             b)
                 branch="${OPTARG}"
-                ;;
-            d)
-                tc_dry_run=1
                 ;;
             y)
                 confirm_load=1
@@ -145,23 +141,6 @@ run () {
             default_target=$(get_default_load_target)
             local load_target="${2:-${default_target}}"
             do_load "${confirm_load}" "${load_target}"
-            ;;
-        "tc")
-            if [[ "${branch}" != "bench_grb" ]]; then
-                echo "tc script is only available on bench_grb branch"
-                exit 1
-            fi
-            local cluster_name="${2}"
-            local tc_config="${3}"
-            do_tc "${tc_dry_run}" "${cluster_name}" "${tc_config}"
-            ;;
-        "tclean")
-            if [[ "${branch}" != "bench_grb" ]]; then
-                echo "tc script is only available on bench_grb branch"
-                exit 1
-            fi
-            do_tclean
-            exit $?
             ;;
         "run")
             local run_config_file="${2:-${HOME}/sources/lasp-bench/examples/grb.config}"

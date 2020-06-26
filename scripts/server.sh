@@ -83,6 +83,28 @@ do_restart() {
     popd
 }
 
+do_tc() {
+    local folder="${1}"
+    local own_cluster="${2}"
+    local cluster_config="${3}"
+
+    pushd "${HOME}/sources/${folder}"
+
+    escript -c -n ./bin/build_tc_rules.escript -c "${own_cluster}" -f "${cluster_config}"
+
+    popd
+}
+
+do_tclean() {
+    # apollo-2-4 runs Ubuntu, default iface is eth0
+    local node_name=$(uname -n)
+    if [[ "${node_name}" == "apollo-2-4" ]]; then
+        sudo tc qdisc del dev eth0 root
+    else
+        sudo tc qdisc del dev enp1s0 root
+    fi
+}
+
 do_rebuild() {
     local node_ip
     local branch="${1}"
@@ -134,6 +156,8 @@ dl <folder>=branch\tDownloads ${APP_NAME} with the selected branch to the given 
 compile
 join <config> \tJoins the nodes listed in the config file
 connect_dcs <config> \tConnects all replicas listed in the config file
+tc [cluster] [config] \tCreates the netem rules to other clusters
+tclean \tClean up the netem rules
 start
 stop
 restart \tReboots ${APP_NAME}, cleaning the release
@@ -221,6 +245,17 @@ run() {
 
             local node_file_path="${2}"
             do_connect "${branch}" "${node_file_path}"
+            exit $?
+            ;;
+
+        "tc")
+            local cluster_name="${2}"
+            local tc_config="${3}"
+            do_tc "${branch}" "${cluster_name}" "${tc_config}"
+            ;;
+
+        "tclean")
+            do_tclean
             exit $?
             ;;
 
