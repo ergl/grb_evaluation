@@ -54,8 +54,10 @@ do_rebuild() {
 
 do_run() {
     local config="${1}"
+    local node="${2}"
+    local port="${3}"
     pushd "${HOME}/sources/lasp-bench"
-    ./_build/default/bin/lasp_bench "${config}"
+    "BOOTSTRAP_NODE=${node}" "BOOTSTRAP_PORT=${port}" ./_build/default/bin/lasp_bench "${config}"
     popd
 }
 
@@ -143,9 +145,11 @@ run () {
             do_load "${confirm_load}" "${load_target}"
             ;;
         "run")
-            local run_config_file="${2:-${HOME}/sources/lasp-bench/examples/grb.config}"
+            local run_config_file="${2}"
+            local bootstrap_node="${3}"
+            local bootstrap_port="${4:-7878}"
             echo -e "Runnig with ${run_config_file}\n"
-            do_run "${run_config_file}"
+            do_run "${run_config_file}" ${bootstrap_node} ${bootstrap_port}
             exit $?
             ;;
         "rebuild")

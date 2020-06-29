@@ -148,8 +148,20 @@ do_command(load, _, ClusterMap) ->
 
 do_command(bench, _, ClusterMap) ->
     NodeNames = client_nodes(ClusterMap),
+    BootstrapInfo = build_bootstrap_info(ClusterMap),
+    BootstrapPort = 7878,
     pmap(fun(Node) -> transfer_config(Node, "run.config") end, NodeNames),
-    do_in_nodes_par(client_command("run", "/home/borja.deregil/run.config"), NodeNames),
+
+    pmap(fun(Node) ->
+        Command = client_command(
+            "run",
+            "/home/borja.deregil/run.config",
+            atom_to_list(maps:get(Node, BootstrapInfo)),
+            integer_to_list(BootstrapPort)
+        ),
+        Cmd = io_lib:format("~s \"~s\" ~s", [?IN_NODES_PATH, Command, atom_to_list(Node)]),
+        safe_cmd(Cmd)
+    end, NodeNames),
     alert("Benchmark finished!"),
     ok;
 
@@ -245,6 +257,12 @@ client_command(Command) ->
 client_command(Command, Arg) ->
     io_lib:format("./bench.sh -b ~s ~s ~s", [?LASP_BENCH_BRANCH, Command, Arg]).
 
+client_command(Command, Arg1, Arg2, Arg3) ->
+    io_lib:format(
+        "./bench.sh -b ~s ~s ~s ~s ~s",
+        [?LASP_BENCH_BRANCH, Command, Arg1, Arg2, Arg3]
+    ).
+
 transfer_script(Node, File) ->
     transfer_from(Node, ?SELF_DIR, File).
 
@@ -260,11 +278,20 @@ transfer_from(Node, Path, File) ->
 
 all_nodes(Map) ->
     lists:usort(lists:flatten([S ++ C || #{servers := S, clients := C} <- maps:values(Map)])).
+
 server_nodes(Map) ->
     lists:usort(lists:flatten([N || #{servers := N} <- maps:values(Map)])).
+
 client_nodes(Map) ->
     lists:usort(lists:flatten([N || #{clients := N} <- maps:values(Map)])).
 
+build_bootstrap_info(Map) ->
+    maps:fold(fun(_, #{servers := Servers, clients := Clients}, Acc) ->
+        [BootstrapNode | _] = lists:usort(Servers),
+        lists:foldl(fun(Elt, ListAcc) ->
+            ListAcc#{Elt => BootstrapNode}
+        end, Acc, Clients)
+    end, #{}, Map).
 
 do_in_nodes_seq(Command, Nodes) ->
     Cmd = io_lib:format("~s \"~s\" ~s", [?IN_NODES_PATH, Command, list_to_str(Nodes)]),
