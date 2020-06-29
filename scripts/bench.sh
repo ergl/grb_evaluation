@@ -57,7 +57,9 @@ do_run() {
     local node="${2}"
     local port="${3}"
     pushd "${HOME}/sources/lasp-bench"
-    "BOOTSTRAP_NODE=${node}" "BOOTSTRAP_PORT=${port}" ./_build/default/bin/lasp_bench "${config}"
+    (
+        export BOOTSTRAP_NODE="${node}"; export BOOTSTRAP_PORT="${port}"; ./_build/default/bin/lasp_bench "${config}"
+    )
     popd
 }
 
