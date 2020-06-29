@@ -104,7 +104,8 @@ do_command(stop, _, ClusterMap) ->
 
 do_command(prepare, Arg, ClusterMap) ->
     ok = do_command(join, Arg, ClusterMap),
-    ok = do_command(load, Arg, ClusterMap),
+    ok = do_command(connect_dcs, Arg, ClusterMap),
+    % ok = do_command(load, Arg, ClusterMap),
     alert("Prepare finished!"),
     ok;
 
@@ -132,8 +133,10 @@ do_command(join, _, ClusterMap) ->
 
 do_command(connect_dcs, _, ClusterMap) ->
     [MainNode | _] = server_nodes(ClusterMap),
-    Rep = do_in_nodes_seq(server_command("connect_dcs", "/home/borja.deregil/cluster.config"),
-                          [MainNode]),
+    Rep = do_in_nodes_seq(
+        server_command("connect_dcs", "/home/borja.deregil/cluster.config"),
+        [MainNode]
+    ),
     io:format("~p~n", [Rep]),
     ok;
 
@@ -229,17 +232,18 @@ prepare_lasp_bench(ClusterMap) ->
 
 server_command(Command) ->
     io_lib:format("./server.sh -b ~s ~s", [?GRB_BRANCH, Command]).
+
 server_command(Command, Arg) ->
     io_lib:format("./server.sh -b ~s ~s ~s", [?GRB_BRANCH, Command, Arg]).
+
+server_command(Command, Arg1, Arg2) ->
+    io_lib:format("./server.sh -b ~s ~s ~s ~s", [?GRB_BRANCH, Command, Arg1, Arg2]).
 
 client_command(Command) ->
     io_lib:format("./bench.sh -b ~s ~s", [?LASP_BENCH_BRANCH, Command]).
 
 client_command(Command, Arg) ->
     io_lib:format("./bench.sh -b ~s ~s ~s", [?LASP_BENCH_BRANCH, Command, Arg]).
-
-client_command(Command, Arg1, Arg2) ->
-    io_lib:format("./bench.sh -b ~s ~s ~s ~s", [?LASP_BENCH_BRANCH, Command, Arg1, Arg2]).
 
 transfer_script(Node, File) ->
     transfer_from(Node, ?SELF_DIR, File).
