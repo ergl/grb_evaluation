@@ -69,9 +69,11 @@ main(Args) ->
         {ok, Opts = #{config := ConfigFile}} ->
             {ok, ConfigTerms} = file:consult(ConfigFile),
             {clusters, ClusterMap} = lists:keyfind(clusters, 1, ConfigTerms),
+            {ring_size, RingSize} = lists:keyfind(ring_size, 1, ConfigTerms),
 
             erlang:put(dry_run, maps:get(dry_run, Opts, false)),
             erlang:put(silent, maps:get(verbose, Opts, false)),
+            erlang:put(ring_size, RingSize),
 
             Command = maps:get(command, Opts),
             CommandArg = maps:get(command_arg, Opts, false),
@@ -243,13 +245,16 @@ prepare_lasp_bench(ClusterMap) ->
 %% Util
 
 server_command(Command) ->
-    io_lib:format("./server.sh -b ~s ~s", [?GRB_BRANCH, Command]).
+    Ring = get_default(ring_size, 32),
+    io_lib:format("./server.sh -r ~b -b ~s ~s", [Ring, ?GRB_BRANCH, Command]).
 
 server_command(Command, Arg) ->
-    io_lib:format("./server.sh -b ~s ~s ~s", [?GRB_BRANCH, Command, Arg]).
+    Ring = get_default(ring_size, 32),
+    io_lib:format("./server.sh -r ~b -b ~s ~s ~s", [Ring, ?GRB_BRANCH, Command, Arg]).
 
 server_command(Command, Arg1, Arg2) ->
-    io_lib:format("./server.sh -b ~s ~s ~s ~s", [?GRB_BRANCH, Command, Arg1, Arg2]).
+    Ring = get_default(ring_size, 32),
+    io_lib:format("./server.sh -r ~b -b ~s ~s ~s ~s", [Ring, ?GRB_BRANCH, Command, Arg1, Arg2]).
 
 client_command(Command) ->
     io_lib:format("./bench.sh -b ~s ~s", [?LASP_BENCH_BRANCH, Command]).
