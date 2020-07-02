@@ -32,6 +32,8 @@
 
 -define(JOIN_TIMEOUT, timer:minutes(5)).
 
+-define(CONF, configuration).
+
 -define(COMMANDS, [ {check, false}
                   , {server, false}
                   , {clients, false}
@@ -67,19 +69,24 @@ main(Args) ->
             halt(1);
 
         {ok, Opts = #{config := ConfigFile}} ->
+            _ = ets:new(?CONF, [set, named_table]),
+
             {ok, ConfigTerms} = file:consult(ConfigFile),
             {clusters, ClusterMap} = lists:keyfind(clusters, 1, ConfigTerms),
             {ring_size, RingSize} = lists:keyfind(ring_size, 1, ConfigTerms),
 
-            erlang:put(dry_run, maps:get(dry_run, Opts, false)),
-            erlang:put(silent, maps:get(verbose, Opts, false)),
-            erlang:put(ring_size, RingSize),
+            true = ets:insert(?CONF, {dry_run, maps:get(dry_run, Opts, false)}),
+            true = ets:insert(?CONF, {silent, maps:get(verbose, Opts, false)}),
+            true = ets:insert(?CONF, {ring_size, RingSize}),
 
             Command = maps:get(command, Opts),
             CommandArg = maps:get(command_arg, Opts, false),
 
             io:format("Running command: ~p (arg ~p)~n", [Command, CommandArg]),
-            ok = do_command(Command, CommandArg, ClusterMap)
+
+            ok = do_command(Command, CommandArg, ClusterMap),
+            true = ets:delete(?CONF),
+            ok
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -245,15 +252,15 @@ prepare_lasp_bench(ClusterMap) ->
 %% Util
 
 server_command(Command) ->
-    Ring = get_default(ring_size, 32),
+    Ring = get_conf(ring_size),
     io_lib:format("./server.sh -r ~b -b ~s ~s", [Ring, ?GRB_BRANCH, Command]).
 
 server_command(Command, Arg) ->
-    Ring = get_default(ring_size, 32),
+    Ring = get_conf(ring_size),
     io_lib:format("./server.sh -r ~b -b ~s ~s ~s", [Ring, ?GRB_BRANCH, Command, Arg]).
 
 server_command(Command, Arg1, Arg2) ->
-    Ring = get_default(ring_size, 32),
+    Ring = get_conf(ring_size),
     io_lib:format("./server.sh -r ~b -b ~s ~s ~s ~s", [Ring, ?GRB_BRANCH, Command, Arg1, Arg2]).
 
 client_command(Command) ->
@@ -312,21 +319,20 @@ list_to_str(Nodes) ->
     lists:foldl(fun(Elem, Acc) -> Acc ++ io_lib:format("~s ", [Elem]) end, "", Nodes).
 
 safe_cmd(Cmd) ->
-    case get_default(silent, false) of
+    case get_conf(silent, false) of
         true -> ok;
         false -> ok = io:format("~s~n", [Cmd])
     end,
-    case get_default(dry_run, false) of
+    case get_conf(dry_run, false) of
         true -> "";
         false -> os:cmd(Cmd)
     end.
 
-get_default(Key, Default) ->
-    case erlang:get(Key) of
-        undefined ->
-            Default;
-        Val ->
-            Val
+get_conf(Key) -> get_conf(Key, undefined).
+get_conf(Key, Default) ->
+    case ets:lookup(?CONF, Key) of
+        [] -> Default;
+        [{Key, Val}] -> Val
     end.
 
 pmap(F, L) ->

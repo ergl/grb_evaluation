@@ -172,7 +172,7 @@ run() {
     fi
 
     local branch="master"
-    local ring_number="64"
+    local ring_number
     while getopts ":b:dr:h" opt; do
         case $opt in
             h)
