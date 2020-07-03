@@ -6,10 +6,11 @@ arg0 <- sub("--file=(.*)", "\\1", grep("--file=", commandArgs(), value = TRUE))
 packages.to.install <- c("getopt", "stringr")
 
 for(p in packages.to.install) {
-    print(p)
     if (suppressWarnings(!require(p, character.only = TRUE))) {
         install.packages(p, repos = "http://lib.stat.cmu.edu/R/CRAN")
-        library(p, character.only=TRUE)
+        suppressPackageStartupMessages(
+            library(p, character.only=TRUE, quietly = TRUE, warn.conflicts = FALSE)
+        )
     }
 }
 
