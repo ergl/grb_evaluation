@@ -2,7 +2,7 @@
 
 packages.to.install <- c("lemon",
                          "plyr",
-                        #  "grid",
+                         "grid",
                          "getopt",
                          "proto",
                          "gridExtra",
@@ -17,42 +17,13 @@ for(p in packages.to.install) {
     }
 }
 
-df <- read.csv("../../basic_replication_test/general.csv")
-
-y_format_thousand_comma <- function(x) {
-    return(format(x, big.mark = ",", scientific = FALSE))
+format_thousand_comma <- function(x) {
+    return(format(x/1000, big.mark = ",", scientific = FALSE))
 }
 
-no_br_color <- "#F2818F"
-br_color <- "#1C5BD0"
-
-legend_title <- "Local communication" # No title
-legend_breaks <- c(0, 1)
-legend_labels <- c("All-to-all", "Broadcast Tree (fanout 2)")
-legend_values <- c(no_br_color, br_color)
-
-throughput <- ggplot(df, aes(x=factor(clusters), y=throughput, fill=factor(broadcast_tree))) +
-    geom_bar(position="dodge", stat="identity", colour="black", size=0.25, width=0.5) +
-
-    scale_y_continuous(breaks=seq(0, 1000000, by=50000),
-                       labels=y_format_thousand_comma,
-                       expand=c(0,0)) +
-
-    coord_cartesian(ylim=c(0,1000000)) +
-
-    scale_fill_manual(name=legend_title,
-                      breaks=legend_breaks,
-                      labels=legend_labels,
-                      values=legend_values) +
-
-    labs(title = "Readonly blue transactions with 3 nodes per cluster",
-         x = "Number of clusters",
-         y = "Maximum Throughput (tps)") +
-
-    theme_minimal(base_size=10) +
-
-    theme(plot.title = element_text(size=10, margin=margin(10,0,10,0), hjust=0.5),
-          plot.margin = margin(0,10,0,0),
+plot_theme <- theme_minimal(base_size=10) +
+    theme(plot.title = element_blank(),
+          plot.margin = margin(15,20,15,0),
 
           axis.title.x = element_text(size=9, margin=margin(10,0,0,0)),
           axis.title.y = element_text(size=9, margin=margin(0,10,0,10)),
@@ -71,9 +42,62 @@ throughput <- ggplot(df, aes(x=factor(clusters), y=throughput, fill=factor(broad
           legend.text = element_text(size=6),
           legend.box.background = element_rect(color="white", fill="white"))
 
-ggsave(filename = "./general_bench.png",
-       plot = throughput,
+df <- read.csv("../../basic_replication_test/dynamic/general.csv")
+
+df_keys <- df[df$exp == "keys", ]
+df_replicas <- df[df$exp == "replicas", ]
+df_fraction <- df[df$exp == "fraction", ]
+df_partitions <- df[df$exp == "partitions", ]
+
+partition_plot <- ggplot(df_partitions, aes(x=factor(partitions), y=throughput, group=1)) +
+    geom_point(size=1.5) +
+    geom_line() +
+    geom_vline(xintercept=4, size=0.5, color="#807F80") +
+    scale_y_continuous(breaks=seq(0, 1000000, by=25000),
+                       labels=format_thousand_comma,
+                       expand=c(0,0)) +
+    coord_cartesian(ylim=c(0,325000)) +
+    labs(x = "Partitions", y = "Throughput (Ktps)") +
+    plot_theme
+
+replica_plot <- ggplot(df_replicas, aes(x=factor(replicas), y=throughput, group=1)) +
+    geom_point(size=1.5) +
+    geom_line() +
+    geom_vline(xintercept=2, size=0.5, color="#807F80") +
+    scale_y_continuous(breaks=seq(0, 1000000, by=25000),
+                       labels=format_thousand_comma,
+                       expand=c(0,0)) +
+    coord_cartesian(ylim=c(0,325000)) +
+    labs(x = "Replicas", y = "Throughput (Ktps)") +
+    plot_theme
+
+keys_plot <- ggplot(df_keys, aes(x=factor(keys), y=throughput, group=1)) +
+    geom_point(size=1.5) +
+    geom_line() +
+    geom_vline(xintercept=3, size=0.5, color="#807F80") +
+    scale_y_continuous(breaks=seq(0, 1000000, by=25000),
+                       labels=format_thousand_comma,
+                       expand=c(0,0)) +
+    coord_cartesian(ylim=c(0,500000)) +
+    labs(x = "Operations", y = "Throughput (Ktps)") +
+    plot_theme
+
+fraction_plot <- ggplot(df_fraction, aes(x=factor(fraction), y=throughput, group=1)) +
+    geom_point(size=1.5) +
+    geom_line() +
+    geom_vline(xintercept=2, size=0.5, color="#807F80") +
+    scale_y_continuous(breaks=seq(0, 1000000, by=25000),
+                       labels=format_thousand_comma,
+                       expand=c(0,0)) +
+    coord_cartesian(ylim=c(0,325000)) +
+    labs(x = "Update Transactions (%)", y = "Throughput (Ktps)") +
+    plot_theme
+
+combined <- grid.arrange(partition_plot, replica_plot, keys_plot, fraction_plot, ncol=1)
+
+ggsave(filename = "./dynamic_bench.png",
+       plot = combined,
        device = "png",
        width = 5,
-       height = 4.5,
-       dpi = 150)
+       height = 16,
+       dpi = 300)
