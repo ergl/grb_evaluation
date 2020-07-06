@@ -127,7 +127,7 @@ run () {
             local bootstrap_node="${3}"
             local bootstrap_port="${4:-7878}"
             echo -e "Runnig with ${run_config_file}\n"
-            do_run "${run_config_file}" ${bootstrap_node} ${bootstrap_port}
+            do_run "${run_config_file}" "${bootstrap_node}" "${bootstrap_port}"
             exit $?
             ;;
         "rebuild")
