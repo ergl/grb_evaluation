@@ -63,30 +63,6 @@ do_run() {
     popd
 }
 
-do_tc() {
-    local dry_run="${1}"
-    local own_cluster="${2}"
-    local cluster_config="${3}"
-
-    pushd "${HOME}/sources/lasp-bench/scripts"
-    if [[ "${dry_run}" -eq 1 ]]; then
-        escript -c -n ./build_tc_rules.escript -d -c "${own_cluster}" -f "${cluster_config}"
-    else
-        escript -c -n ./build_tc_rules.escript -c "${own_cluster}" -f "${cluster_config}"
-    fi
-    popd
-}
-
-do_tclean() {
-    # apollo-2-4 runs Ubuntu, default iface is eth0
-    local node_name=$(uname -n)
-    if [[ "${node_name}" == "apollo-2-4" ]]; then
-        sudo tc qdisc del dev eth0 root
-    else
-        sudo tc qdisc del dev enp1s0 root
-    fi
-}
-
 usage() {
     echo "bench.sh [-hy] [-b <branch>=bench_grb] dl | compile | load [machine] | run [config] | rebuild | report [config]"
 }
