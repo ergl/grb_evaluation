@@ -35,6 +35,7 @@
 -define(CONF, configuration).
 
 -define(COMMANDS, [ {check, false}
+                  , {sync, false}
                   , {server, false}
                   , {clients, false}
                   , {prologue, false}
@@ -94,10 +95,12 @@ main(Args) ->
 %% Commands
 
 do_command(check, _, ClusterMap) -> ok = check_nodes(ClusterMap);
+do_command(sync, _, ClusterMap) -> ok = sync_nodes(ClusterMap);
 do_command(server, _, ClusterMap) -> ok = prepare_server(ClusterMap);
 do_command(clients, _, ClusterMap) -> ok = prepare_lasp_bench(ClusterMap);
 do_command(prologue, _, ClusterMap) ->
     ok = check_nodes(ClusterMap),
+    ok = sync_nodes(ClusterMap),
     ok = prepare_server(ClusterMap),
     ok = prepare_lasp_bench(ClusterMap),
     alert("Prologue finished!"),
@@ -206,10 +209,6 @@ check_nodes(ClusterMap) ->
     UptimeRes = do_in_nodes_par("uptime", AllNodes),
     false = lists:any(fun(Res) -> string:str(Res, "timed out") =/= 0 end, UptimeRes),
 
-    _ = do_in_nodes_par("sudo service ntp stop", AllNodes),
-    _ = do_in_nodes_par("sudo ntpd -gq system.imdea", AllNodes),
-    _ = do_in_nodes_par("sudo service ntp start", AllNodes),
-
     % Set all nodes to performance governor status, then verify
     _ = do_in_nodes_par("echo performance | sudo tee /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", AllNodes),
     GovernorStatus = do_in_nodes_par("cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor", AllNodes),
@@ -222,6 +221,14 @@ check_nodes(ClusterMap) ->
         transfer_script(Node, "bench.sh"),
         transfer_config(Node, "cluster.config")
     end, AllNodes),
+    ok.
+
+sync_nodes(ClusterMap) ->
+    io:format("Resyncing NTP on all nodes~n"),
+    AllNodes = all_nodes(ClusterMap),
+    _ = do_in_nodes_par("sudo service ntp stop", AllNodes),
+    _ = do_in_nodes_par("sudo ntpd -gq system.imdea", AllNodes),
+    _ = do_in_nodes_par("sudo service ntp start", AllNodes),
     ok.
 
 prepare_server(ClusterMap) ->
