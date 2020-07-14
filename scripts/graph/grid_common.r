@@ -34,6 +34,7 @@ load_benchmark <- function(Dir, Tstart, Tend)
 
     ## Convert timing information in latencies from usecs -> msecs
     latencies[4:6] <- latencies[4:6] / 1000
+    latencies[8] <- latencies[8] / 1000
 
     ## Trim values off that are outside our range of times
     if (is.null(Tstart)) { Tstart = 0 }

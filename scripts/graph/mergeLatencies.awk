@@ -67,7 +67,7 @@ FNR >= 2 {
 }
 
 END {
-  print "elapsed, window, n, min, mean, max, errors"
+  print "elapsed, window, n, min, mean, max, errors, median"
   for (i = 1; i <= max_nr; i++) {
 
     # means(i, k, 0) contains the `n` for line `i` of file `k`
@@ -96,7 +96,9 @@ END {
     # print max
     printf("%s,", a[i, 10])
     # print errors
-    printf("%s", a[i, 11])
+    printf("%s,", a[i, 11])
+    # print median (only from the first file)
+    printf("%s", a[i, 6])
     print ""
   }
   print ""

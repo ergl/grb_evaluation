@@ -70,27 +70,36 @@ get_total_data <- function(Dir) {
     mean_latency_ronly <- 0
     mean_latency_wonly <- 0
     mean_latency_rw <- 0
+    median_latency_ronly <- 0
+    median_latency_wonly <- 0
+    median_latency_rw <- 0
 
     if (file.exists(ronly_file)) {
         latencies_ronly <- read.csv(ronly_file)
         mean_latency_ronly <- mean(latencies_ronly$mean) / 1000
+        median_latency_ronly <- mean(latencies_ronly$median) / 1000
     }
 
     if (file.exists(wonly_file)) {
         latencies_wonly <- read.csv(wonly_file)
         mean_latency_wonly <- mean(latencies_wonly$mean) / 1000
+        median_latency_wonly <- mean(latencies_wonly$median) / 1000
     }
 
     if (file.exists(rw_file)) {
         latencies_rw <- read.csv(rw_file)
         mean_latency_rw <- mean(latencies_rw$mean) / 1000
+        median_latency_rw <- mean(latencies_rw$median) / 1000
     }
 
     return(data.frame(max_commit_w,
                       median_commit_w,
                       mean_latency_ronly,
                       mean_latency_wonly,
-                      mean_latency_rw))
+                      mean_latency_rw,
+                      median_latency_ronly,
+                      median_latency_wonly,
+                      median_latency_rw))
 }
 
 format_data <- function(Dir, Data) {
@@ -100,27 +109,33 @@ format_data <- function(Dir, Data) {
 
     thread_info <- get_client_threads(Dir)
 
-    format <- sprintf("|%s (%s)|%s|%s|%s|%s|%s|\n",
+    format <- sprintf("|%s (%s)|%s|%s|%s|%s|%s|%s|%s|%s|\n",
         "Threads",
         "Total",
         "Max Thr",
         "Median Thr",
         "Ronly Ms",
         "Wonly Ms",
-        "R/W"
+        "R/W",
+        "Ronly median",
+        "Wonly median",
+        "R/W median"
     )
 
     cat(format)
 
     format <- sprintf(
-        "|%s (%s)|%s|%s|%f|%f|%f|\n",
+        "|%s (%s)|%s|%s|%f|%f|%f|%f|%f|%f|\n",
         format_decimal(thread_info$per_machine, withoutZeros=TRUE),
         format_decimal(thread_info$total, withoutZeros=TRUE),
         format_decimal(Data$max_commit_w),
         format_decimal(Data$median_commit_w),
         Data$mean_latency_ronly,
         Data$mean_latency_wonly,
-        Data$mean_latency_rw
+        Data$mean_latency_rw,
+        Data$median_latency_ronly,
+        Data$median_latency_wonly,
+        Data$median_latency_rw
     )
 
     cat(format)

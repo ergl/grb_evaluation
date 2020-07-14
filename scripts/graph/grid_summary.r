@@ -120,10 +120,13 @@ latency_base <- ggplot(b$latencies, aes(x = elapsed)) +
 
                       legend.key.size = unit(35, 'pt'))
 
-# Plot min and max latencies
-latency_plot <- latency_base + labs(title = "Minimum and Mean Latency") +
+# Plot min, median and mean latencies
+latency_plot <- latency_base + labs(title = "Minimum, Median and Mean Latency") +
             geom_smooth(aes(y = min, color = "min"), size=1) +
             geom_point(aes(y = min, color = "min"), size=4.0) +
+
+            geom_smooth(aes(y = median, color = "median"), size=1) +
+            geom_point(aes(y = median, color = "median"), size=4.0) +
 
             geom_smooth(aes(y = mean, color = "mean"), size=1) +
             geom_point(aes(y = mean, color = "mean"), size=4.0) +
