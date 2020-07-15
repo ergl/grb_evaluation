@@ -74,11 +74,15 @@ main(Args) ->
 
             {ok, ConfigTerms} = file:consult(ConfigFile),
             {clusters, ClusterMap} = lists:keyfind(clusters, 1, ConfigTerms),
-            {ring_size, RingSize} = lists:keyfind(ring_size, 1, ConfigTerms),
+
+            RingTuple = lists:keyfind(ring_size, 1, ConfigTerms),
+            PruneTuple = lists:keyfind(prune_interval_ms, 1, ConfigTerms),
+            ReplicationTuple = lists:keyfind(replication_interval_ms, 1, ConfigTerms),
+            BroadcastTuple = lists:keyfind(local_broadcast_interval_ms, 1, ConfigTerms),
 
             true = ets:insert(?CONF, {dry_run, maps:get(dry_run, Opts, false)}),
             true = ets:insert(?CONF, {silent, maps:get(verbose, Opts, false)}),
-            true = ets:insert(?CONF, {ring_size, RingSize}),
+            true = ets:insert(?CONF, [RingTuple, PruneTuple, ReplicationTuple, BroadcastTuple]),
 
             Command = maps:get(command, Opts),
             CommandArg = maps:get(command_arg, Opts, false),
@@ -259,16 +263,23 @@ prepare_lasp_bench(ClusterMap) ->
 %% Util
 
 server_command(Command) ->
-    Ring = get_conf(ring_size),
-    io_lib:format("./server.sh -r ~b -b ~s ~s", [Ring, ?GRB_BRANCH, Command]).
+    io_lib:format("~s ~s", [server_template(), Command]).
 
 server_command(Command, Arg) ->
-    Ring = get_conf(ring_size),
-    io_lib:format("./server.sh -r ~b -b ~s ~s ~s", [Ring, ?GRB_BRANCH, Command, Arg]).
+    io_lib:format("~s ~s ~s", [server_template(), Command, Arg]).
 
 server_command(Command, Arg1, Arg2) ->
+    io_lib:format("~s ~s ~s ~s", [server_template(), Command, Arg1, Arg2]).
+
+server_template() ->
     Ring = get_conf(ring_size),
-    io_lib:format("./server.sh -r ~b -b ~s ~s ~s ~s", [Ring, ?GRB_BRANCH, Command, Arg1, Arg2]).
+    Prune = get_conf(prune_interval_ms),
+    Repl = get_conf(replication_interval_ms),
+    Broad = get_conf(local_broadcast_interval_ms),
+    io_lib:format(
+        "./server.sh -r ~b -p ~b -l ~b -u ~b -b ~s",
+        [Ring, Prune, Broad, Repl, ?GRB_BRANCH]
+    ).
 
 client_command(Command) ->
     io_lib:format("./bench.sh -b ~s ~s", [?LASP_BENCH_BRANCH, Command]).
