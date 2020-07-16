@@ -16,6 +16,7 @@ for(p in packages.to.install) {
 
 params = matrix(c(
     'help', 'h', 0, "logical",
+    'verbose', 'v', 0, "logical",
     'data_dir', 'i', 2, "character"
 ), ncol=4, byrow=TRUE)
 
@@ -28,6 +29,12 @@ if (!is.null(opt$help)) {
 if(!is.character(opt$data_dir)) {
     cat(paste(getopt(params, command = basename(arg0), usage = TRUE)))
     q(status=1)
+}
+
+verbose <- if (!is.null(opt$verbose)) {
+    1
+} else {
+    0
 }
 
 get_client_threads <- function(Dir) {
@@ -144,28 +151,30 @@ format_data <- function(Dir, Data) {
 
     thread_info <- get_client_threads(Dir)
 
-    cat(sprintf("\nThreads: %s (%s)\n",
+    if (verbose) {
+        cat(sprintf("\nThreads: %s (%s)\n",
                 format_decimal(thread_info$per_machine, withoutZeros=TRUE),
                 format_decimal(thread_info$total, withoutZeros=TRUE)))
 
-    cat(sprintf("Max Thr: %s\n", format_decimal(Data$max_commit_w)))
-    cat(sprintf("Median Thr: %s\n", format_decimal(Data$median_commit_w)))
+        cat(sprintf("Max Thr: %s\n", format_decimal(Data$max_commit_w)))
+        cat(sprintf("Median Thr: %s\n", format_decimal(Data$median_commit_w)))
 
-    cat("\nNo Barrier\n")
-    cat(sprintf("Ronly Mean / Median Ms: %f / %f\n", Data$mean_latency_ronly, Data$median_latency_ronly))
-    cat(sprintf("Wonly Mean / Median Ms: %f / %f\n", Data$mean_latency_wonly, Data$median_latency_wonly))
-    cat(sprintf("RW Mean /Median Ms: %f / %f\n", Data$mean_latency_rw, Data$median_latency_rw))
+        cat("\nNo Barrier\n")
+        cat(sprintf("Ronly Mean / Median Ms: %f / %f\n", Data$mean_latency_ronly, Data$median_latency_ronly))
+        cat(sprintf("Wonly Mean / Median Ms: %f / %f\n", Data$mean_latency_wonly, Data$median_latency_wonly))
+        cat(sprintf("RW Mean /Median Ms: %f / %f\n", Data$mean_latency_rw, Data$median_latency_rw))
 
-    cat("\nPost-commit Barrier\n")
-    cat(sprintf("Ronly Mean / Median Ms: %f / %f\n", Data$mean_latency_ronly_barrier, Data$median_latency_ronly_barrier))
-    cat(sprintf("Wonly Mean / Median Ms: %f / %f\n", Data$mean_latency_wonly_barrier, Data$median_latency_wonly_barrier))
-    cat(sprintf("RW Mean /Median Ms: %f / %f\n", Data$mean_latency_rw_barrier, Data$median_latency_rw_barrier))
+        cat("\nPost-commit Barrier\n")
+        cat(sprintf("Ronly Mean / Median Ms: %f / %f\n", Data$mean_latency_ronly_barrier,   Data$median_latency_ronly_barrier))
+        cat(sprintf("Wonly Mean / Median Ms: %f / %f\n", Data$mean_latency_wonly_barrier,   Data$median_latency_wonly_barrier))
+        cat(sprintf("RW Mean /Median Ms: %f / %f\n", Data$mean_latency_rw_barrier,  Data$median_latency_rw_barrier))
+        cat("\nCSV\n")
+    }
 
-    cat("\nCSV\n")
     cat("threads,throughput,ronly_mean,wonly_mean,rw_mean,ronly_median,wonly_median,rw_median,ronly_barrier_mean,wonly_barrier_mean,rw_barrier_mean,ronly_barrier_median,wonly_barrier_median,rw_barrier_median\n")
     cat(sprintf(
-        "%s,%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f \n",
-        thread_info$per_machine,
+        "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f \n",
+        format_decimal(thread_info$per_machine, withoutZeros=TRUE),
         Data$max_commit_w,
         Data$mean_latency_ronly,
         Data$mean_latency_wonly,
