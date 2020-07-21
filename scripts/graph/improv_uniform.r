@@ -21,22 +21,6 @@ format_thousand_comma <- function(x) {
     return(format(x/1000, big.mark = ",", scientific = FALSE))
 }
 
-# legend_title <- "Replication"
-# legend_labels <- c("Basic Replication",
-#                    "Basic Replication (projection)",
-#                    "Uniform Replication",
-#                    "Uniform Replication (projection)",
-#                    "Uniform Replication (improved)",
-#                    "Uniform Replication (improved, projection)",)
-
-# legend_breaks <- c("pvc", "pvc_linear", "socket", "socket_linear", "shackle_linear")
-# legend_values <- c("red", "blue", "green")
-
-# legend_params <- scale_colour_manual(name=legend_title,
-#                                      breaks=legend_breaks,
-#                                      labels=legend_labels,
-#                                      values=legend_values)
-
 plot_theme <- theme_minimal(base_size=10) +
     theme(plot.title = element_text(size=9, margin=margin(0,0,10,0)),
           plot.margin = margin(15,20,15,0),
