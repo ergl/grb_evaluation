@@ -103,11 +103,12 @@ do_command(check, _, ClusterMap) -> ok = check_nodes(ClusterMap);
 do_command(sync, _, ClusterMap) -> ok = sync_nodes(ClusterMap);
 do_command(server, _, ClusterMap) -> ok = prepare_server(ClusterMap);
 do_command(clients, _, ClusterMap) -> ok = prepare_lasp_bench(ClusterMap);
-do_command(prologue, _, ClusterMap) ->
+do_command(prologue, Arg, ClusterMap) ->
     ok = check_nodes(ClusterMap),
     ok = sync_nodes(ClusterMap),
     ok = prepare_server(ClusterMap),
     ok = prepare_lasp_bench(ClusterMap),
+    ok = do_command(latencies, Arg, ClusterMap),
     alert("Prologue finished!"),
     ok;
 
@@ -122,7 +123,6 @@ do_command(stop, _, ClusterMap) ->
 do_command(prepare, Arg, ClusterMap) ->
     ok = do_command(join, Arg, ClusterMap),
     ok = do_command(connect_dcs, Arg, ClusterMap),
-    ok = do_command(latencies, Arg, ClusterMap),
     % ok = do_command(load, Arg, ClusterMap),
     alert("Prepare finished!"),
     ok;
