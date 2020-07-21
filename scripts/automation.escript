@@ -44,6 +44,7 @@
                   , {stop, false}
                   , {join, false}
                   , {connect_dcs, false}
+                  , {latencies, false}
                   , {prepare, false}
 
                   , {load, false}
@@ -121,6 +122,7 @@ do_command(stop, _, ClusterMap) ->
 do_command(prepare, Arg, ClusterMap) ->
     ok = do_command(join, Arg, ClusterMap),
     ok = do_command(connect_dcs, Arg, ClusterMap),
+    ok = do_command(latencies, Arg, ClusterMap),
     % ok = do_command(load, Arg, ClusterMap),
     alert("Prepare finished!"),
     ok;
@@ -160,6 +162,19 @@ do_command(load, _, ClusterMap) ->
     NodeNames = client_nodes(ClusterMap),
     TargetNode = hd(server_nodes(ClusterMap)),
     io:format("~p~n", [do_in_nodes_seq(client_command("-y load", atom_to_list(TargetNode)), [hd(NodeNames)])]),
+    ok;
+
+do_command(latencies, _, ClusterMap) ->
+    ok = maps:fold(fun(ClusterName, #{servers := ClusterServers}, _Acc) ->
+        io:format(
+            "~p~n",
+            [do_in_nodes_par(
+                server_command("tc", atom_to_list(ClusterName), "/home/borja.deregil/cluster.config"),
+                ClusterServers)
+            ]
+        ),
+        ok
+    end, ok, ClusterMap),
     ok;
 
 do_command(bench, _, ClusterMap) ->
@@ -240,16 +255,6 @@ prepare_server(ClusterMap) ->
     io:format("~p~n", [do_in_nodes_par(server_command("dl"), NodeNames)]),
     _ = do_in_nodes_par(server_command("compile"), NodeNames),
     io:format("~p~n", [do_in_nodes_par(server_command("start"), NodeNames)]),
-    ok = maps:fold(fun(ClusterName, #{servers := ClusterServers}, _Acc) ->
-        io:format(
-            "~p~n",
-            [do_in_nodes_par(
-                server_command("tc", atom_to_list(ClusterName), "/home/borja.deregil/cluster.config"),
-                ClusterServers)
-            ]
-        ),
-        ok
-    end, ok, ClusterMap),
     ok.
 
 prepare_lasp_bench(ClusterMap) ->
