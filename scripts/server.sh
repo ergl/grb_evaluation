@@ -219,7 +219,7 @@ run() {
     local prune_int=50
     local repl_int=5
     local broadcast_int=5
-    while getopts ":r:b:p:l:yu:dh" opt; do
+    while getopts ":r:b:p:l:u:dh" opt; do
         case $opt in
             h)
                 usage
