@@ -76,6 +76,18 @@ main(Args) ->
             {ok, ConfigTerms} = file:consult(ConfigFile),
             {clusters, ClusterMap} = lists:keyfind(clusters, 1, ConfigTerms),
 
+            Servers = ordsets:from_list(server_nodes(ClusterMap)),
+            Clients = ordsets:from_list(client_nodes(ClusterMap)),
+            case ordsets:is_disjoint(Servers, Clients) of
+                false ->
+                    io:fwrite(standard_error,
+                              "Bad cluster map: clients and servers overlap~n",
+                              []),
+                    halt(1);
+                true ->
+                    ok
+            end,
+
             RingTuple = lists:keyfind(ring_size, 1, ConfigTerms),
             PruneTuple = lists:keyfind(prune_interval_ms, 1, ConfigTerms),
             ReplicationTuple = lists:keyfind(replication_interval_ms, 1, ConfigTerms),
