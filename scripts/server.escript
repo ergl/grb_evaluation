@@ -84,7 +84,7 @@ execute_command(restart, Config) ->
 execute_command(rebuild, Config) ->
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
     Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
-    os_cmd(io_lib:format("rm -rf sources/~s", [Branch])),
+    os_cmd(io_lib:format("rm -rf sources/~s/_build", [Branch])),
     os_cmd(io_lib:format("cd sources/~s && git fetch origin", [Branch])),
     os_cmd(io_lib:format("cd sources/~s && git reset --hard origin/~s", [Branch, Branch])),
     os_cmd(io_lib:format("cd sources/~s && ./rebar3 as ~s compile", [Branch, Profile])),
