@@ -38,16 +38,16 @@ verbose <- if (!is.null(opt$verbose)) {
 }
 
 get_client_threads <- function(Dir) {
-    per_machine <- as.integer(str_extract(str_extract(Dir, "t=[0-9]+"), "[0-9]+"))
-    num_clusters <- as.integer(str_extract(str_extract(Dir, "cl=[0-9]+"), "[0-9]+"))
-    client_machines <- as.integer(str_extract(str_extract(Dir, "cm=[0-9]+"), "[0-9]+"))
+    per_machine <- as.integer(str_extract(str_extract(Dir, "t[_=][0-9]+"), "[0-9]+"))
+    num_clusters <- as.integer(str_extract(str_extract(Dir, "cl[_=][0-9]+"), "[0-9]+"))
+    client_machines <- as.integer(str_extract(str_extract(Dir, "cm[_=][0-9]+"), "[0-9]+"))
 
     # If directory contains client machines info, use it
     # otherwise assume it's the same as database machines
     if (!is.na(client_machines)) {
         total <- per_machine * client_machines * num_clusters
     } else {
-        db_machines <- as.integer(str_extract(str_extract(Dir, "dm=[0-9]+"), "[0-9]+"))
+        db_machines <- as.integer(str_extract(str_extract(Dir, "dm[_=][0-9]+"), "[0-9]+"))
         total <- per_machine * db_machines * num_clusters
     }
 
