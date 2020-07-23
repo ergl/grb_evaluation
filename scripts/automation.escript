@@ -34,7 +34,8 @@
 
                   , {restart, false}
                   , {rebuild, false}
-                  , {cleanup, false}]).
+                  , {cleanup, false}
+                  , {pull, true}]).
 
 usage() ->
     Name = filename:basename(escript:script_name()),
@@ -86,6 +87,25 @@ main(Args) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Commands
+
+do_command(pull, {true, Path}, ClusterMap) ->
+    pmap(fun(Node) ->
+        NodeStr = atom_to_list(Node),
+        TargetPath = io_lib:format("~s/~s", [Path, NodeStr]),
+        Cmd0 = io_lib:format("mkdir -p ~s", [TargetPath]),
+        safe_cmd(Cmd0),
+        Cmd1 = io_lib:format(
+            "scp -i ~s borja.deregil@~s:/home/borja.deregil/lasp-bench/tests/current/* ~s",
+            [?SSH_PRIV_KEY, NodeStr, TargetPath]
+        ),
+        safe_cmd(Cmd1),
+        Cmd2 = io_lib:format(
+            "scp -i ~s borja.deregil@~s:/home/borja.deregil/cluster.config ~s",
+            [?SSH_PRIV_KEY, NodeStr, TargetPath]
+        ),
+        safe_cmd(Cmd2),
+    end, client_nodes(ClusterMap)),
+    ok;
 
 do_command(check, _, ClusterMap) -> ok = check_nodes(ClusterMap);
 do_command(sync, _, ClusterMap) -> ok = sync_nodes(ClusterMap);
