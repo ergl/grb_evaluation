@@ -104,6 +104,7 @@ do_command(pull, {true, Path}, ClusterMap) ->
             [?SSH_PRIV_KEY, NodeStr, TargetPath]
         ),
         safe_cmd(Cmd2),
+        ok
     end, client_nodes(ClusterMap)),
     ok;
 
