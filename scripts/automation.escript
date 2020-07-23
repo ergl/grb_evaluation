@@ -95,7 +95,7 @@ do_command(pull, {true, Path}, ClusterMap) ->
         Cmd0 = io_lib:format("mkdir -p ~s", [TargetPath]),
         safe_cmd(Cmd0),
         Cmd1 = io_lib:format(
-            "scp -i ~s borja.deregil@~s:/home/borja.deregil/lasp-bench/tests/current/* ~s",
+            "scp -i ~s borja.deregil@~s:/home/borja.deregil//sources/lasp-bench/tests/current/* ~s",
             [?SSH_PRIV_KEY, NodeStr, TargetPath]
         ),
         safe_cmd(Cmd1),
