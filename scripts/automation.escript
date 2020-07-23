@@ -3,24 +3,6 @@
 -mode(compile).
 -export([main/1]).
 
-%% Example configuration file:
-%% ```cluster.config:
-%% {latencies, #{
-%%     nancy => [{rennes, 10}, {tolouse, 20}],
-%%     rennes => [{nancy, 10}, {tolouse, 15}],
-%%     tolouse => [{rennes, 15}, {nancy, 20}]
-%% }}.
-%%
-%% {clusters, #{
-%%     nancy => #{servers => ['apollo-1-1.imdea', ...],
-%%                clients => ['apollo-2-1.imdea', ...]},
-%%     rennes => #{servers => ['apollo-1-4.imdea', ...],
-%%                 clients => ['apollo-2-4.imdea', ...]},
-%%     tolouse => #{servers => ['apollo-1-7.imdea', ...],
-%%                  clients => ['apollo-2-7.imdea', ...]}
-%% }}.
-%% ```
-
 -define(SELF_DIR, "/Users/ryan/dev/imdea/code/grb_evaluation/scripts").
 -define(SSH_PRIV_KEY, "/Users/ryan/.ssh/imdea_id_ed25519").
 
@@ -88,14 +70,8 @@ main(Args) ->
                     ok
             end,
 
-            RingTuple = lists:keyfind(ring_size, 1, ConfigTerms),
-            PruneTuple = lists:keyfind(prune_interval_ms, 1, ConfigTerms),
-            ReplicationTuple = lists:keyfind(replication_interval_ms, 1, ConfigTerms),
-            BroadcastTuple = lists:keyfind(local_broadcast_interval_ms, 1, ConfigTerms),
-
             true = ets:insert(?CONF, {dry_run, maps:get(dry_run, Opts, false)}),
             true = ets:insert(?CONF, {silent, maps:get(verbose, Opts, false)}),
-            true = ets:insert(?CONF, [RingTuple, PruneTuple, ReplicationTuple, BroadcastTuple]),
 
             Command = maps:get(command, Opts),
             CommandArg = maps:get(command_arg, Opts, false),
@@ -144,7 +120,7 @@ do_command(join, _, ClusterMap) ->
     Parent = self(),
     Reference = erlang:make_ref(),
     ChildFun = fun() ->
-        Reply = do_in_nodes_seq(server_command("join", "/home/borja.deregil/cluster.config"), [hd(NodeNames)]),
+        Reply = do_in_nodes_seq(server_command("join"), [hd(NodeNames)]),
         Parent ! {Reference, Reply}
     end,
     Start = erlang:timestamp(),
@@ -164,7 +140,7 @@ do_command(join, _, ClusterMap) ->
 do_command(connect_dcs, _, ClusterMap) ->
     [MainNode | _] = server_nodes(ClusterMap),
     Rep = do_in_nodes_seq(
-        server_command("connect_dcs", "/home/borja.deregil/cluster.config"),
+        server_command("connect_dcs"),
         [MainNode]
     ),
     io:format("~p~n", [Rep]),
@@ -181,7 +157,7 @@ do_command(latencies, _, ClusterMap) ->
         io:format(
             "~p~n",
             [do_in_nodes_par(
-                server_command("tc", atom_to_list(ClusterName), "/home/borja.deregil/cluster.config"),
+                server_command("tc", atom_to_list(ClusterName)),
                 ClusterServers)
             ]
         ),
@@ -248,7 +224,7 @@ check_nodes(ClusterMap) ->
     % Transfer server, bench and cluster config
     io:format("Transfering benchmark config files (server, bench, cluster)...~n"),
     pmap(fun(Node) ->
-        transfer_script(Node, "server.sh"),
+        transfer_script(Node, "server.escript"),
         transfer_script(Node, "bench.sh"),
         transfer_config(Node, "cluster.config")
     end, AllNodes),
@@ -264,7 +240,7 @@ sync_nodes(ClusterMap) ->
 
 prepare_server(ClusterMap) ->
     NodeNames = server_nodes(ClusterMap),
-    io:format("~p~n", [do_in_nodes_par(server_command("dl"), NodeNames)]),
+    io:format("~p~n", [do_in_nodes_par(server_command("download"), NodeNames)]),
     _ = do_in_nodes_par(server_command("compile"), NodeNames),
     io:format("~p~n", [do_in_nodes_par(server_command("start"), NodeNames)]),
     ok.
@@ -280,23 +256,10 @@ prepare_lasp_bench(ClusterMap) ->
 %% Util
 
 server_command(Command) ->
-    io_lib:format("~s ~s", [server_template(), Command]).
+    io_lib:format("./server.escript -v -f /home/borja.deregil/cluster.config -c ~s", [Command]).
 
 server_command(Command, Arg) ->
-    io_lib:format("~s ~s ~s", [server_template(), Command, Arg]).
-
-server_command(Command, Arg1, Arg2) ->
-    io_lib:format("~s ~s ~s ~s", [server_template(), Command, Arg1, Arg2]).
-
-server_template() ->
-    Ring = get_conf(ring_size),
-    Prune = get_conf(prune_interval_ms),
-    Repl = get_conf(replication_interval_ms),
-    Broad = get_conf(local_broadcast_interval_ms),
-    io_lib:format(
-        "./server.sh -r ~b -p ~b -l ~b -u ~b -b ~s",
-        [Ring, Prune, Broad, Repl, ?GRB_BRANCH]
-    ).
+    io_lib:format("./server.escript -v -f /home/borja.deregil/cluster.config -c ~s=~s", [Command, Arg]).
 
 client_command(Command) ->
     io_lib:format("./bench.sh -b ~s ~s", [?LASP_BENCH_BRANCH, Command]).
@@ -363,7 +326,6 @@ safe_cmd(Cmd) ->
         false -> os:cmd(Cmd)
     end.
 
-get_conf(Key) -> get_conf(Key, undefined).
 get_conf(Key, Default) ->
     case ets:lookup(?CONF, Key) of
         [] -> Default;
