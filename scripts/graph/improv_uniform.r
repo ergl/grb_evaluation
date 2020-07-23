@@ -21,6 +21,24 @@ format_thousand_comma <- function(x) {
     return(format(x/1000, big.mark = ",", scientific = FALSE))
 }
 
+# ugly hack, learn how to use geom_abline
+add_linear_regresion <- function(frame, offset, transport_name, new_transport_name) {
+    base <- subset(frame, transport == transport_name & replicas == 1)$throughput
+    a <- frame[offset, ]
+    b <- frame[offset + 1, ]
+    c <- frame[offset + 2, ]
+    a$transport <- new_transport_name
+    a$throughput <- base
+    b$transport <- new_transport_name
+    b$throughput <- base * 2
+    c$transport <- new_transport_name
+    c$throughput <- base * 3
+    frame[nrow(frame) + 1, ] <- a
+    frame[nrow(frame) + 1, ] <- b
+    frame[nrow(frame) + 1, ] <- c
+    return(frame)
+}
+
 plot_theme <- theme_minimal(base_size=10) +
     theme(plot.title = element_text(size=9, margin=margin(0,0,10,0)),
           plot.margin = margin(15,20,15,0),
@@ -45,55 +63,23 @@ plot_theme <- theme_minimal(base_size=10) +
 df <- read.csv("../../validate_improved_replication/general.csv")
 
 df_replicas <- df[df$exp == "replicas", ]
+# add new experiment name factors, so we can add rows with new exp. names
 df_replicas$transport <- factor(
     df_replicas$transport,
-    levels=c(levels(df_replicas$transport), "shackle_linear", "socket_linear", "pvc_linear")
+    levels=c(levels(df_replicas$transport),
+             "shackle_linear",
+             "socket_linear",
+             "pvc_linear",
+             "shackle_delay_linear")
 )
 
-df_shackle_base <- subset(df_replicas, transport == "shackle" & replicas == 1)$throughput
-shackle_a <- df_replicas[1, ]
-shackle_a$transport <- "shackle_linear"
-shackle_a$throughput <- df_shackle_base
-shackle_b <- df_replicas[2, ]
-shackle_b$transport <- "shackle_linear"
-shackle_b$throughput <- df_shackle_base * 2
-shackle_c <- df_replicas[3, ]
-shackle_c$transport <- "shackle_linear"
-shackle_c$throughput <- df_shackle_base * 3
-df_replicas[nrow(df_replicas) + 1, ] <- shackle_a
-df_replicas[nrow(df_replicas) + 1, ] <- shackle_b
-df_replicas[nrow(df_replicas) + 1, ] <- shackle_c
+df_replicas <- add_linear_regresion(df_replicas, 1, "shackle", "shackle_linear")
+df_replicas <- add_linear_regresion(df_replicas, 4, "socket", "socket_linear")
+df_replicas <- add_linear_regresion(df_replicas, 7, "pvc", "pvc_linear")
+df_replicas <- add_linear_regresion(df_replicas, 10, "shackle_delay", "shackle_delay_linear")
 
-df_socket_base <- subset(df_replicas, transport == "socket" & replicas == 1)$throughput
-shackle_a <- df_replicas[4, ]
-shackle_a$transport <- "socket_linear"
-shackle_a$throughput <- df_socket_base
-shackle_b <- df_replicas[5, ]
-shackle_b$transport <- "socket_linear"
-shackle_b$throughput <- df_socket_base * 2
-shackle_c <- df_replicas[6, ]
-shackle_c$transport <- "socket_linear"
-shackle_c$throughput <- df_socket_base * 3
-df_replicas[nrow(df_replicas) + 1, ] <- shackle_a
-df_replicas[nrow(df_replicas) + 1, ] <- shackle_b
-df_replicas[nrow(df_replicas) + 1, ] <- shackle_c
-
-df_pvc_base <- subset(df_replicas, transport == "pvc" & replicas == 1)$throughput
-shackle_a <- df_replicas[7, ]
-shackle_a$transport <- "pvc_linear"
-shackle_a$throughput <- df_pvc_base
-shackle_b <- df_replicas[8, ]
-shackle_b$transport <- "pvc_linear"
-shackle_b$throughput <- df_pvc_base * 2
-shackle_c <- df_replicas[9, ]
-shackle_c$transport <- "pvc_linear"
-shackle_c$throughput <- df_pvc_base * 3
-df_replicas[nrow(df_replicas) + 1, ] <- shackle_a
-df_replicas[nrow(df_replicas) + 1, ] <- shackle_b
-df_replicas[nrow(df_replicas) + 1, ] <- shackle_c
-
-replica_plot <- ggplot(df_replicas[df_replicas$transport %in% c("shackle", "socket", "pvc"), ],
-                      aes(x=replicas, y=throughput, group=transport, color=transport)) +
+replica_plot <- ggplot(df_replicas[df_replicas$transport %in% c("shackle", "socket", "pvc", "shackle_delay"), ],
+                      aes(x=factor(replicas), y=throughput, group=transport, color=transport)) +
 
     geom_point(size=1.5) +
     geom_line() +
@@ -103,9 +89,9 @@ replica_plot <- ggplot(df_replicas[df_replicas$transport %in% c("shackle", "sock
     coord_cartesian(ylim=c(0,400000)) +
     scale_colour_manual(
         name="",
-        breaks=c("shackle", "socket", "pvc"),
-        labels=c("New Uniform Repl.", "Old Uniform Repl.", "Basic Repl."),
-        values=c("red", "blue", "orange")
+        breaks=c("shackle", "socket", "pvc", "shackle_delay"),
+        labels=c("New Uniform Repl.", "Old Uniform Repl.", "Basic Repl.", "Delay clocks"),
+        values=c("red", "blue", "orange", "black")
     ) +
     labs(title="Replication Comparison", x = "Replicas", y = "Throughput (Ktps)") +
     plot_theme
@@ -164,13 +150,39 @@ replica_plot3 <- ggplot(df_replicas[df_replicas$transport %in% c("pvc", "pvc_lin
     labs(title="Basic Replication", x = "Replicas", y = "Throughput (Ktps)") +
     plot_theme
 
-combined <- grid.arrange(grid.arrange(replica_plot,
-                                      replica_plot1, nrow=1),
-                         grid.arrange(replica_plot2,
-                                      replica_plot3, nrow=1),
-                         ncol=1)
+replica_plot4 <- ggplot(df_replicas[df_replicas$transport %in% c("shackle_delay", "shackle_delay_linear"), ],
+                       aes(x=factor(replicas), y=throughput, group=transport, color=transport)) +
 
-ggsave(filename = "./uniform_bench_improved.pdf",
+    geom_point(size=1.5) +
+    geom_line() +
+    scale_y_continuous(breaks=seq(0, 1000000, by=25000),
+                       labels=format_thousand_comma,
+                       expand=c(0,0)) +
+    coord_cartesian(ylim=c(0,400000)) +
+    scale_colour_manual(
+        name="",
+        breaks=c("shackle_delay", "shackle_delay_linear"),
+        labels=c("Experimental", "Expected"),
+        values=c("red", "blue")
+    ) +
+    labs(title="New Uniform Replication (10s clocks)", x = "Replicas", y = "Throughput (Ktps)") +
+    plot_theme
+
+
+combined <- grid.arrange(grid.arrange(replica_plot4,
+                                      replica_plot1, nrow=1),
+                        grid.arrange(replica_plot2,
+                                      replica_plot3, nrow=1),
+                        ncol=1)
+
+ggsave(filename = "./uniform_bench_improved_general.pdf",
+       plot = replica_plot,
+       device = "pdf",
+       width = 5,
+       height = 5,
+       dpi = 300)
+
+ggsave(filename = "./uniform_bench_improved_comparison.pdf",
        plot = combined,
        device = "pdf",
        width = 10,
