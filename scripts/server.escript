@@ -61,7 +61,7 @@ execute_command(download, Config) ->
 
 execute_command(compile, Config) ->
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    Profile = get_config_key(grb_profile, Config, ?DEFAULT_PROFILE),
+    Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
     os_cmd(io_lib:format("cd sources/~s && ./rebar3 as ~s compile", [Branch, Profile])),
     os_cmd(io_lib:format("cd sources/~s && ./rebar3 as ~s release -n ~s", [Branch, Profile, ?APP_NAME])),
     ok;
@@ -74,7 +74,7 @@ execute_command(stop, Config) ->
 
 execute_command(restart, Config) ->
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    Profile = get_config_key(grb_profile, Config, ?DEFAULT_PROFILE),
+    Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
     ok = stop_grb(Config),
     os_cmd(io_lib:format("rm -rf sources/~s/_build/~s/rel", [Branch, Profile])),
     os_cmd(io_lib:format("cd sources/~s && ./rebar3 as ~s release -n ~s", [Branch, Profile, ?APP_NAME])),
@@ -83,7 +83,7 @@ execute_command(restart, Config) ->
 
 execute_command(rebuild, Config) ->
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    Profile = get_config_key(grb_profile, Config, ?DEFAULT_PROFILE),
+    Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
     os_cmd(io_lib:format("rm -rf sources/~s", [Branch])),
     os_cmd(io_lib:format("cd sources/~s && git fetch origin", [Branch])),
     os_cmd(io_lib:format("cd sources/~s && git reset --hard origin/~s", [Branch, Branch])),
@@ -127,15 +127,15 @@ execute_command(connect_dcs, Config) ->
 start_grb(Config) ->
     IP = get_current_ip_addres(),
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    Profile = get_config_key(grb_profile, Config, ?DEFAULT_PROFILE),
+    Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
 
-    VSN_LOG_SIZE = get_config_key(version_log_size, Config, 100),
-    RIAK_RING_SIZE = get_config_key(ring_creation_size, Config, 32),
-    SELF_HB_INTERVAL_MS = get_config_key(self_blue_heartbeat_interval, Config, 10),
-    REPLICATION_INTERVAL_MS = get_config_key(basic_replication_interval, Config, 15),
-    UNIFORM_REPLICATION_INTERVAL_MS = get_config_key(uniform_replication_interval, Config, 10000),
-    BCAST_KNOWN_VC_INTERVAL_MS = get_config_key(local_broadcast_interval, Config, 8),
-    COMMITTED_BLUE_PRUNE_INTERVAL_MS = get_config_key(prune_committed_blue_interval, Config, 25),
+    VSN_LOG_SIZE = get_config_key(version_log_size, Config, 50),
+    RIAK_RING_SIZE = get_config_key(ring_creation_size, Config, 64),
+    SELF_HB_INTERVAL_MS = get_config_key(self_blue_heartbeat_interval, Config, 5),
+    REPLICATION_INTERVAL_MS = get_config_key(basic_replication_interval, Config, 5),
+    UNIFORM_REPLICATION_INTERVAL_MS = get_config_key(uniform_replication_interval, Config, 5000),
+    BCAST_KNOWN_VC_INTERVAL_MS = get_config_key(local_broadcast_interval, Config, 5),
+    COMMITTED_BLUE_PRUNE_INTERVAL_MS = get_config_key(prune_committed_blue_interval, Config, 50),
 
     Cmd = io_lib:format(
         "VSN_LOG_SIZE=~b SELF_HB_INTERVAL_MS=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b RIAK_RING_SIZE=~b IP=~s ./sources/~s/_build/~s/rel/~s/bin/env start",
@@ -163,7 +163,7 @@ start_grb(Config) ->
 stop_grb(Config) ->
     IP = get_current_ip_addres(),
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    Profile = get_config_key(grb_profile, Config, ?DEFAULT_PROFILE),
+    Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
     Cmd = io_lib:format(
         "IP=~s ./sources/~s/_build/~s/rel/~s/bin/env stop",
         [IP, Branch, Profile, ?APP_NAME]
