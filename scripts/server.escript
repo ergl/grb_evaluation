@@ -6,6 +6,13 @@
 -define(APP_NAME, grb).
 -define(DEFAULT_BRANCH, "master").
 -define(DEFAULT_PROFILE, "default").
+-define(DEFAULT_LOG_SIZE, 25).
+-define(DEFAULT_RING_SIZE, 64).
+-define(DEFAULT_HB_INTERVAL, 5).
+-define(DEFAULT_REPL_INTERVAL, 5).
+-define(DEFAULT_UNI_REPL_INTERVAL, 5000).
+-define(DEFAULT_BCAST_INTERVAL, 5).
+-define(DEFAULT_PRUNE_INTERVAL, 50).
 -define(REPO_URL, "https://github.com/ergl/grb.git").
 -define(COMMANDS, [ {download, false}
                   , {compile, false}
@@ -129,13 +136,13 @@ start_grb(Config) ->
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
     Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
 
-    VSN_LOG_SIZE = get_config_key(version_log_size, Config, 50),
-    RIAK_RING_SIZE = get_config_key(ring_creation_size, Config, 64),
-    SELF_HB_INTERVAL_MS = get_config_key(self_blue_heartbeat_interval, Config, 5),
-    REPLICATION_INTERVAL_MS = get_config_key(basic_replication_interval, Config, 5),
-    UNIFORM_REPLICATION_INTERVAL_MS = get_config_key(uniform_replication_interval, Config, 5000),
-    BCAST_KNOWN_VC_INTERVAL_MS = get_config_key(local_broadcast_interval, Config, 5),
-    COMMITTED_BLUE_PRUNE_INTERVAL_MS = get_config_key(prune_committed_blue_interval, Config, 50),
+    VSN_LOG_SIZE = get_config_key(version_log_size, Config, ?DEFAULT_LOG_SIZE),
+    RIAK_RING_SIZE = get_config_key(ring_creation_size, Config, ?DEFAULT_RING_SIZE),
+    SELF_HB_INTERVAL_MS = get_config_key(self_blue_heartbeat_interval, Config, ?DEFAULT_HB_INTERVAL),
+    REPLICATION_INTERVAL_MS = get_config_key(basic_replication_interval, Config, ?DEFAULT_REPL_INTERVAL),
+    UNIFORM_REPLICATION_INTERVAL_MS = get_config_key(uniform_replication_interval, Config, ?DEFAULT_UNI_REPL_INTERVAL),
+    BCAST_KNOWN_VC_INTERVAL_MS = get_config_key(local_broadcast_interval, Config, ?DEFAULT_BCAST_INTERVAL),
+    COMMITTED_BLUE_PRUNE_INTERVAL_MS = get_config_key(prune_committed_blue_interval, Config, ?DEFAULT_PRUNE_INTERVAL),
 
     Cmd = io_lib:format(
         "VSN_LOG_SIZE=~b SELF_HB_INTERVAL_MS=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b RIAK_RING_SIZE=~b IP=~s ./sources/~s/_build/~s/rel/~s/bin/env start",
