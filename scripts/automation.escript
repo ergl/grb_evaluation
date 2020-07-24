@@ -33,13 +33,23 @@
                   , {bench, false}
 
                   , {restart, false}
+                  , {recompile, false}
                   , {rebuild, false}
                   , {cleanup, false}
                   , {pull, true}]).
 
 usage() ->
     Name = filename:basename(escript:script_name()),
-    Commands = lists:foldl(fun(El, Acc) -> io_lib:format("~s | ~p", [Acc, El]) end, "", [C || {C, _} <- ?COMMANDS]),
+    Commands = lists:foldl(fun({Command, NeedsArg}, Acc) ->
+        CommandStr = case NeedsArg of
+            true -> io_lib:format("~s=arg", [Command]);
+            false -> io_lib:format("~s", [Command])
+        end,
+        case Acc of
+            "" -> io_lib:format("< ~s", [CommandStr]);
+            _ -> io_lib:format("~s | ~s", [Acc, CommandStr])
+        end
+    end, "", ?COMMANDS),
     ok = io:fwrite(
         standard_error,
         "Usage: [-ds] ~s -f <config-file> -c <command=arg>~nCommands: ~s~n",
@@ -122,7 +132,8 @@ do_command(prologue, Arg, ClusterMap) ->
     ok;
 
 do_command(start, _, ClusterMap) ->
-    do_in_nodes_par(server_command("start"), server_nodes(ClusterMap)),
+    Rep = do_in_nodes_par(server_command("start"), server_nodes(ClusterMap)),
+    io:format("~p~n", [Rep]),
     ok;
 
 do_command(stop, _, ClusterMap) ->
@@ -203,6 +214,10 @@ do_command(bench, _, ClusterMap) ->
         safe_cmd(Cmd)
     end, NodeNames),
     alert("Benchmark finished!"),
+    ok;
+
+do_command(recompile, _, ClusterMap) ->
+    io:format("~p~n", [do_in_nodes_par(server_command("recompile"), server_nodes(ClusterMap))]),
     ok;
 
 do_command(restart, _, ClusterMap) ->

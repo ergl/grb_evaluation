@@ -18,6 +18,7 @@
                   , {compile, false}
                   , {start, false}
                   , {stop, false}
+                  , {recompile, false}
                   , {restart, false}
                   , {rebuild, false}
                   , {tc, true}
@@ -78,6 +79,13 @@ execute_command(start, Config) ->
 
 execute_command(stop, Config) ->
     ok = stop_grb(Config);
+
+execute_command(recompile, Config) ->
+    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
+    Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
+    os_cmd(io_lib:format("rm -rf sources/~s/_build/~s/rel", [Branch, Profile])),
+    os_cmd(io_lib:format("cd sources/~s && ./rebar3 as ~s release -n ~s", [Branch, Profile, ?APP_NAME])),
+    ok;
 
 execute_command(restart, Config) ->
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
