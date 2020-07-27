@@ -31,6 +31,8 @@
 
                   , {load, false}
                   , {bench, false}
+                  , {brutal_client_kill, false}
+                  , {brutal_server_kill, false}
 
                   , {restart, false}
                   , {recompile, false}
@@ -116,6 +118,18 @@ do_command(pull, {true, Path}, ClusterMap) ->
         safe_cmd(Cmd2),
         ok
     end, client_nodes(ClusterMap)),
+    ok;
+
+do_command(brutal_client_kill, _, ClusterMap) ->
+    NodeNames = client_nodes(ClusterMap),
+    Res = do_in_nodes_par("pkill -9 beam", NodeNames),
+    io:format("~p~n", [Res]),
+    ok;
+
+do_command(brutal_server_kill, _, ClusterMap) ->
+    NodeNames = server_nodes(ClusterMap),
+    Res = do_in_nodes_par("pkill -9 beam", NodeNames),
+    io:format("~p~n", [Res]),
     ok;
 
 do_command(check, _, ClusterMap) -> ok = check_nodes(ClusterMap);
