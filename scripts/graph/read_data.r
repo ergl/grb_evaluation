@@ -173,9 +173,10 @@ format_data <- function(Dir, Data) {
 
     cat("threads,throughput,ronly_mean,wonly_mean,rw_mean,ronly_median,wonly_median,rw_median,ronly_barrier_mean,wonly_barrier_mean,rw_barrier_mean,ronly_barrier_median,wonly_barrier_median,rw_barrier_median\n")
     cat(sprintf(
-        "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f \n",
+        "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f \n",
         thread_info$per_machine,
         Data$max_commit_w,
+        Data$median_commit_w,
         Data$mean_latency_ronly,
         Data$mean_latency_wonly,
         Data$mean_latency_rw,

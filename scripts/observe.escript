@@ -10,22 +10,13 @@ usage() ->
     Name = filename:basename(escript:script_name()),
     io:fwrite(standard_error, "Usage: ~s <erlang-node>~n", [Name]).
 
-main([NodeString]) ->
-    case inet:getaddr(NodeString, inet) of
-        {error, Reason} ->
-            io:fwrite(standard_error, "Bad node: ~p~n", [Reason]),
-            usage(),
-            halt(1);
-
-        {ok, IPAddr} ->
-            NodeName = list_to_atom("grb@" ++ inet:ntoa(IPAddr)),
-            true = net_kernel:connect_node(NodeName),
-            ok = observer:start(),
-            process_flag(trap_exit, true),
-            io:format("Press ^C to quit~n"),
-            receive
-                {'EXIT', _, _} -> ok
-            end
+main([NodeName]) ->
+    true = net_kernel:connect_node(list_to_atom(NodeName)),
+    ok = observer:start(),
+    process_flag(trap_exit, true),
+    io:format("Press ^C to quit~n"),
+    receive
+        {'EXIT', _, _} -> ok
     end;
 
 main(_) ->

@@ -45,8 +45,8 @@ plot_theme <- theme_minimal(base_size=10) +
 df <- read.csv("../../replication_comparison/general.csv")
 df_replicas <- df[df$exp == "replicas", ]
 
-replica_plot <- ggplot(df_replicas,
-                      aes(x=factor(replicas), y=throughput, group=replication, color=replication)) +
+replica_plot <- ggplot(df_replicas, aes(x=factor(replicas), y=throughput,
+                                        group=replication, color=replication)) +
 
     geom_point(size=1.5) +
     geom_line() +
@@ -57,10 +57,10 @@ replica_plot <- ggplot(df_replicas,
     scale_colour_manual(
         name="",
         breaks=c("cure", "uniform", "pvc"),
-        labels=c("Cure", "Uniform", "Baseline"),
+        labels=c("Cure", "Uniform Replication", "Cure Baseline"),
         values=c("red", "blue", "orange")
     ) +
-    labs(title="Replication Comparison", x = "Replicas", y = "Throughput (Ktps)") +
+    labs(title="Replication Comparison", x = "Replicas", y = "Max. Throughput (Ktps)") +
     plot_theme
 
 ggsave(filename = "./replication_comparison.pdf",
