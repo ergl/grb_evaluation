@@ -13,6 +13,7 @@
 -define(DEFAULT_UNI_REPL_INTERVAL, 5000).
 -define(DEFAULT_BCAST_INTERVAL, 5).
 -define(DEFAULT_PRUNE_INTERVAL, 50).
+-define(DEFAULT_CLOCK_INTERVAL, 10000).
 -define(REPO_URL, "https://github.com/ergl/grb.git").
 -define(COMMANDS, [ {download, false}
                   , {compile, false}
@@ -151,13 +152,14 @@ start_grb(Config) ->
     UNIFORM_REPLICATION_INTERVAL_MS = get_config_key(uniform_replication_interval, Config, ?DEFAULT_UNI_REPL_INTERVAL),
     BCAST_KNOWN_VC_INTERVAL_MS = get_config_key(local_broadcast_interval, Config, ?DEFAULT_BCAST_INTERVAL),
     COMMITTED_BLUE_PRUNE_INTERVAL_MS = get_config_key(prune_committed_blue_interval, Config, ?DEFAULT_PRUNE_INTERVAL),
+    UNIFORM_CLOCK_INTERVAL_MS = get_config_key(remote_clock_broadcast_interval, Config, ?DEFAULT_CLOCK_INTERVAL),
 
     Cmd = io_lib:format(
-        "VSN_LOG_SIZE=~b SELF_HB_INTERVAL_MS=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b RIAK_RING_SIZE=~b IP=~s ./sources/~s/_build/~s/rel/~s/bin/env start",
+        "VSN_LOG_SIZE=~b SELF_HB_INTERVAL_MS=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b RIAK_RING_SIZE=~b IP=~s ./sources/~s/_build/~s/rel/~s/bin/env start",
         [VSN_LOG_SIZE, SELF_HB_INTERVAL_MS,
         REPLICATION_INTERVAL_MS, UNIFORM_REPLICATION_INTERVAL_MS,
-        BCAST_KNOWN_VC_INTERVAL_MS, COMMITTED_BLUE_PRUNE_INTERVAL_MS,
-        RIAK_RING_SIZE, IP,
+        UNIFORM_CLOCK_INTERVAL_MS, BCAST_KNOWN_VC_INTERVAL_MS,
+        COMMITTED_BLUE_PRUNE_INTERVAL_MS, RIAK_RING_SIZE, IP,
         Branch, Profile, ?APP_NAME]),
 
     os_cmd(Cmd),
