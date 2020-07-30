@@ -44,6 +44,7 @@ plot_theme <- theme_minimal(base_size=10) +
 
 df <- read.csv("../../replication_comparison/general.csv")
 df_replicas <- df[df$exp == "replicas", ]
+df_replicas <- df_replicas[df_replicas$replication != "pvc", ]
 
 replica_plot <- ggplot(df_replicas, aes(x=factor(replicas), y=throughput,
                                         group=replication, color=replication)) +
@@ -56,9 +57,9 @@ replica_plot <- ggplot(df_replicas, aes(x=factor(replicas), y=throughput,
     coord_cartesian(ylim=c(0,400000)) +
     scale_colour_manual(
         name="",
-        breaks=c("cure", "uniform", "pvc"),
-        labels=c("Cure", "Uniform Replication", "Cure Baseline"),
-        values=c("red", "blue", "orange")
+        breaks=c("cure", "uniform", "delay_send_clocks", "remote_uvc"),
+        labels=c("Cure", "Uniform Replication", "Delay Clocks", "Delay uniformVC computation"),
+        values=c("red", "blue", "green", "orange")
     ) +
     labs(title="Replication Comparison", x = "Replicas", y = "Max. Throughput (Ktps)") +
     plot_theme
