@@ -23,15 +23,8 @@ mergeSiteLatency() {
 }
 
 mergeSite() {
-    local apollo="${1}"
-    local folder="${2}"
-
-    local glob
-    if [[ "${apollo}" -eq 1 ]]; then
-        glob="apollo-*"
-    else
-        glob="bench-*"
-    fi
+    local folder="${1}"
+    local glob="apollo-*"
 
     # $glob not quoted to allow glob expansion
     # shellcheck disable=SC2086
@@ -56,41 +49,10 @@ mergeSite() {
 }
 
 usage() {
-    echo -e "merge.sh [-hd] input-folder
-    -a\t\tMerge nodes from apollo
-    -h\t\tShows this help"
+    echo -e "merge.sh <input-folder>"
 }
 
 run() {
-    if [[ $# -eq 0 ]]; then
-        usage
-        exit 1
-    fi
-
-    local apollo=0
-    while getopts ":ah" opt; do
-        case $opt in
-            a)
-                apollo=1
-                ;;
-            h)
-                usage
-                exit 0
-                ;;
-            :)
-                echo "Option -${OPTARG} requires an argument"
-                usage
-                exit 1
-                ;;
-            *)
-                usage
-                exit 1
-                ;;
-        esac
-    done
-
-    shift $((OPTIND - 1))
-
     if [[ $# -ne 1 ]]; then
         usage
         exit 1
@@ -102,7 +64,7 @@ run() {
         exit 1
     fi
 
-    mergeSite "${apollo}" "${input_folder}"
+    mergeSite "${input_folder}"
     exit $?
 }
 
