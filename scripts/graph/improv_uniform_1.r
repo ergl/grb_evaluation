@@ -42,9 +42,8 @@ plot_theme <- theme_minimal(base_size=10) +
           legend.text = element_text(size=6),
           legend.box.background = element_rect(color="black", fill="white"))
 
-df <- read.csv("../../replication_comparison-1/general.csv")
-df <- df[df$replication %in% c("cure", "uniform", "uniform_nouvc"), ]
-# df <- df[df$replication != "improved_nouvc_pretx", ]
+df <- read.csv("../../replication_comparison-2/results.csv")
+df <- df[df$replication != "uniform_new_uvc", ]
 df_readonly <- df[df$exp == "reads", ]
 df_updates <- df[df$exp == "updates", ]
 
@@ -52,23 +51,17 @@ scales <- scale_colour_manual(  name=""
                               , breaks=c("cure",
                                          "uniform",
                                          "uniform_nouvc")
-                                        #  "improved",
-                                        #  "improved_nouvc",
-                                        #  "improved_nouvc_remtx")
+                                        #  "uniform_new_uvc")
 
                               , labels=c("Cure",
                                          "Uniform",
                                          "Uniform (no uniformVC)")
-                                         # "Modified Uniform",
-                                         # "Modified Uniform (no uniformVC)",
-                                         # "Modified Uniform (no uniformVC + remove Txs during repl.)")
+                                        #  "Uniform (new uniformVC)")
 
                               , values=c("red",
                                          "blue",
                                          "purple"))
-                                        #  "green",
-                                        #  "orange",
-                                        #  "black"))
+                                        #  "green"))
 
 reads_plot <- ggplot(df_readonly, aes(x=factor(replicas), y=throughput,
                                         group=replication, color=replication)) +
