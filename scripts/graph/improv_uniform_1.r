@@ -44,31 +44,31 @@ plot_theme <- theme_minimal(base_size=10) +
 
 df <- read.csv("../../replication_comparison-2/results.csv")
 df <- df[df$replication != "uniform_new_uvc", ]
-df <- df[df$replication != "cure", ]
-df <- df[df$replication != "uniform", ]
-# df <- df[df$replication != "uniform_nouvc", ]
+df <- df[df$replication != "uniform_nouvc", ]
 df_readonly <- df[df$exp == "reads", ]
 df_updates <- df[df$exp == "updates", ]
 
 scales <- scale_colour_manual(  name=""
-                              , breaks=c(
-                                #   "cure",
-                                        #  "uniform",
+                              , breaks=c("cure",
+                                         "uniform",
                                          "uniform_nouvc",
-                                         "uniform_no_append")
+                                         "uniform_no_append",
+                                         "uniform_no_append_no_uvc_all_zeros",
+                                         "uniform_no_append_no_uvc")
 
-                              , labels=c(
-                                #   "Cure",
-                                        #  "Uniform",
+                              , labels=c("Cure",
+                                         "Uniform",
                                          "Uniform (no uniformVC)",
-                                         "Uniform (no remote append)")
+                                         "Uniform (no remote append)",
+                                         "Uniform (no remote append, no uniformVC, all zeros)",
+                                         "Uniform (no remote append, no uniformVC, empty)")
 
                               , values=c("red",
-                                         "blue"
-                                        #  "purple",
-                                        #  "green"
-                                         ))
-                                        #  "green"))
+                                         "blue",
+                                         "purple",
+                                         "green",
+                                         "orange",
+                                         "brown"))
 
 reads_plot <- ggplot(df_readonly, aes(x=factor(replicas), y=throughput,
                                         group=replication, color=replication)) +
@@ -98,31 +98,24 @@ updates_plot <- ggplot(df_updates, aes(x=factor(replicas), y=throughput,
     labs(title="Updates only, 1 object", x = "Replicas", y = "Max. Throughput (Ktps)") +
     plot_theme
 
-# get_legend <- function(arg_plot) {
-#     tmp <- ggplot_gtable(ggplot_build(arg_plot))
-#     leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
-#     legend <- tmp$grobs[[leg]]
-#     return(legend)
-# }
+get_legend <- function(arg_plot) {
+    tmp <- ggplot_gtable(ggplot_build(arg_plot))
+    leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
+    legend <- tmp$grobs[[leg]]
+    return(legend)
+}
 
-# combined_legend <- get_legend(reads_plot)
-# combined <- grid.arrange(grid.arrange(reads_plot + theme(legend.position = "none"),
-#                                      updates_plot + theme(legend.position = "none"),
-#                                      nrow=1),
-#                          combined_legend,
-#                          ncol=1,
-#                          heights=c(0.9,0.1))
-
-# ggsave(filename = "./replication_comparison_1.pdf",
-#        plot = combined,
-#        device = "pdf",
-#        width = 15,
-#        height = 8,
-#        dpi = 300)
+combined_legend <- get_legend(reads_plot)
+combined <- grid.arrange(grid.arrange(reads_plot + theme(legend.position = "none"),
+                                     updates_plot + theme(legend.position = "none"),
+                                     nrow=1),
+                         combined_legend,
+                         ncol=1,
+                         heights=c(0.9,0.1))
 
 ggsave(filename = "./replication_comparison_1.pdf",
-       plot = updates_plot,
+       plot = combined,
        device = "pdf",
-       width = 8,
+       width = 15,
        height = 8,
        dpi = 300)
