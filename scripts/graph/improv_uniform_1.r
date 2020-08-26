@@ -72,8 +72,8 @@ scales <- scale_colour_manual(  name=""
                                          "blue",
                                          "green",
                                          "orange",
-                                         "purple",
-                                         "black"))
+                                         "black",
+                                         "purple"))
 
 reads_plot <- ggplot(df_readonly, aes(x=factor(replicas), y=throughput,
                                         group=replication, color=replication)) +
