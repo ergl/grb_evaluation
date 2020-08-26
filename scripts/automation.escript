@@ -16,7 +16,8 @@
 
 -define(CONF, configuration).
 
--define(COMMANDS, [ {check, false}
+-define(COMMANDS, [ {reboot, false}
+                  , {check, false}
                   , {sync, false}
                   , {server, false}
                   , {clients, false}
@@ -99,6 +100,11 @@ main(Args) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% Commands
+
+do_command(reboot, _, ClusterMap) ->
+    AllNodes = all_nodes(ClusterMap),
+    io:format("~p~n", [do_in_nodes_par("sudo reboot", AllNodes)]),
+    ok;
 
 do_command(pull, {true, Path}, ClusterMap) ->
     pmap(fun(Node) ->
