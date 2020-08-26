@@ -43,32 +43,25 @@ plot_theme <- theme_minimal(base_size=10) +
           legend.box.background = element_rect(color="black", fill="white"))
 
 df <- read.csv("../../replication_comparison-2/results.csv")
-df <- df[df$replication != "uniform_new_uvc", ]
-df <- df[df$replication != "uniform_nouvc", ]
+df <- df[df$replication %in% c("cure", "uniform", "uniform_no_append", "uniform_no_append_delay"), ]
 df_readonly <- df[df$exp == "reads", ]
 df_updates <- df[df$exp == "updates", ]
 
 scales <- scale_colour_manual(  name=""
                               , breaks=c("cure",
                                          "uniform",
-                                         "uniform_nouvc",
                                          "uniform_no_append",
-                                         "uniform_no_append_no_uvc_all_zeros",
-                                         "uniform_no_append_no_uvc")
+                                         "uniform_no_append_delay")
 
                               , labels=c("Cure",
                                          "Uniform",
-                                         "Uniform (no uniformVC)",
                                          "Uniform (no remote append)",
-                                         "Uniform (no remote append, no uniformVC, all zeros)",
-                                         "Uniform (no remote append, no uniformVC, empty)")
+                                         "Uniform (no remote append, delay clocks)")
 
                               , values=c("red",
                                          "blue",
-                                         "purple",
                                          "green",
-                                         "orange",
-                                         "black"))
+                                         "orange"))
 
 reads_plot <- ggplot(df_readonly, aes(x=factor(replicas), y=throughput,
                                         group=replication, color=replication)) +
