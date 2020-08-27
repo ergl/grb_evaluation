@@ -46,9 +46,8 @@ df <- read.csv("../../replication_comparison-2/results.csv")
 df <- df[df$replication %in% c("cure",
                                "uniform",
                                "uniform_no_append",
-                               "uniform_no_append_delay_1",
-                               "uniform_no_append_delay_10",
-                               "uniform_no_append_delay_hb_1"), ]
+                               "uniform_no_append_delay_hb_1",
+                               "uniform_no_append_remote_delay_hb_1"), ]
 
 df_readonly <- df[df$exp == "reads", ]
 df_updates <- df[df$exp == "updates", ]
@@ -57,22 +56,19 @@ scales <- scale_colour_manual(  name=""
                               , breaks=c("cure",
                                          "uniform",
                                          "uniform_no_append",
-                                         "uniform_no_append_delay_1",
-                                         "uniform_no_append_delay_10",
-                                         "uniform_no_append_delay_hb_1")
+                                         "uniform_no_append_delay_hb_1",
+                                         "uniform_no_append_remote_delay_hb_1")
 
                               , labels=c("Cure",
                                          "Uniform",
                                          "Uniform (no remote append)",
-                                         "Uniform (no remote append, delay clocks 1 second)",
-                                         "Uniform (no remote append, delay clocks 10 seconds)",
-                                         "Uniform (no remote append, delay heartbeat clocks 1 second)")
+                                         "Uniform (no remote append, delay heartbeat clocks 1 second)",
+                                         "Uniform (no remote append, delay heartbeat clocks 1 second, recompute on remote)")
 
                               , values=c("red",
                                          "blue",
                                          "green",
                                          "orange",
-                                         "black",
                                          "purple"))
 
 reads_plot <- ggplot(df_readonly, aes(x=factor(replicas), y=throughput,
