@@ -114,7 +114,7 @@ combined <- grid.arrange(grid.arrange(reads_plot + theme(legend.position = "none
                          ncol=1,
                          heights=c(0.9,0.1))
 
-ggsave(filename = "./replication_comparison_1.pdf",
+ggsave(filename = "./replication_tuning.pdf",
        plot = combined,
        device = "pdf",
        width = 15,
