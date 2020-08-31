@@ -42,42 +42,31 @@ plot_theme <- theme_minimal(base_size=10) +
           legend.text = element_text(size=6),
           legend.box.background = element_rect(color="black", fill="white"))
 
+replication_types <- c("cure", "uniform", "no_append", "remote_ets_public")
 df <- read.csv("../../improve_remote_append/results.csv")
-df <- df[df$replication != "async_append", ]
-df <- df[df$replication != "ets_public", ]
-df <- df[df$replication != "ets_public_parallel", ]
+df <- df[df$replication %in% replication_types, ]
 df_readonly <- df[df$exp == "reads", ]
 df_updates <- df[df$exp == "updates", ]
 
 alpha_scales <- scale_alpha_manual(values = c(1,1,0.25,0.25,0.25,1))
 scales <- scale_colour_manual(  name=""
-                              , breaks=c("empty_append",
-                                         "ets",
-                                         "remote_ets_public",
-                                         "old_cure",
-                                         "old_uniform",
-                                         "old_uniform_no_append")
+                              , breaks=replication_types
 
-                              , labels=c("Uniform (empty append)",
-                                         "Uniform (private ETS)",
-                                         "Uniform (remote public ETS)",
-                                         "Old Cure",
-                                         "Old Uniform",
-                                         "Old Uniform (no remote append)")
+                              , labels=c("Cure",
+                                         "Uniform",
+                                         "Uniform (no remote append)",
+                                         "Uniform (remote public ETS)")
 
                               , values=c("red",
                                          "blue",
                                          "green",
-                                         "black",
-                                         "orange",
-                                         "purple"))
+                                         "orange"))
 
 reads_plot <- ggplot(df_readonly, aes(x=factor(replicas), y=throughput,
-                                        group=replication, color=replication, alpha=replication)) +
+                                        group=replication, color=replication)) +
 
     geom_point(size=1.5) +
     geom_line() +
-    alpha_scales +
     scale_y_continuous(breaks=seq(0, 1000000, by=50000),
                        labels=format_thousand_comma,
                        expand=c(0,0)) +
@@ -88,11 +77,10 @@ reads_plot <- ggplot(df_readonly, aes(x=factor(replicas), y=throughput,
     plot_theme
 
 updates_plot <- ggplot(df_updates, aes(x=factor(replicas), y=throughput,
-                                        group=replication, color=replication, alpha=replication)) +
+                                        group=replication, color=replication)) +
 
     geom_point(size=1.5) +
     geom_line() +
-    alpha_scales +
     scale_y_continuous(breaks=seq(0, 1000000, by=25000),
                        labels=format_thousand_comma,
                        expand=c(0,0)) +
