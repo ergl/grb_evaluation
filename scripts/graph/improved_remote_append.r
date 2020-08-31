@@ -48,7 +48,6 @@ df <- df[df$replication %in% replication_types, ]
 df_readonly <- df[df$exp == "reads", ]
 df_updates <- df[df$exp == "updates", ]
 
-alpha_scales <- scale_alpha_manual(values = c(1,1,0.25,0.25,0.25,1))
 scales <- scale_colour_manual(  name=""
                               , breaks=replication_types
 
