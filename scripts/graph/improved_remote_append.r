@@ -42,7 +42,7 @@ plot_theme <- theme_minimal(base_size=10) +
           legend.text = element_text(size=6),
           legend.box.background = element_rect(color="black", fill="white"))
 
-replication_types <- c("cure", "uniform", "no_append", "remote_ets_public")
+replication_types <- c("cure", "uniform", "no_append", "remote_ets_public", "remote_ets_public_hb")
 df <- read.csv("../../improve_remote_append/results.csv")
 df <- df[df$replication %in% replication_types, ]
 df_readonly <- df[df$exp == "reads", ]
@@ -55,12 +55,14 @@ scales <- scale_colour_manual(  name=""
                               , labels=c("Cure",
                                          "Uniform",
                                          "Uniform (no remote append)",
-                                         "Uniform (remote public ETS)")
+                                         "Uniform (remote public ETS)",
+                                         "Uniform (remote public ETS, delay hb clocks 100ms)")
 
                               , values=c("red",
                                          "blue",
                                          "green",
-                                         "orange"))
+                                         "orange",
+                                         "purple"))
 
 reads_plot <- ggplot(df_readonly, aes(x=factor(replicas), y=throughput,
                                         group=replication, color=replication)) +
