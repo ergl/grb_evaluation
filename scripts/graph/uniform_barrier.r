@@ -44,6 +44,7 @@ plot_theme <- theme_minimal(base_size=10) +
           legend.box.background = element_rect(color="black", fill="white"))
 
 df <- read.csv("../../uniform_barrier/results.csv")
+df_write <- df[df$exp == "write_only", ]
 df <- df[df$exp == "write_barrier", ]
 
 throughput_plot <- ggplot(df, aes(x=factor(replication), y=throughput,
@@ -57,6 +58,17 @@ throughput_plot <- ggplot(df, aes(x=factor(replication), y=throughput,
     labs(x = "Replication Interval", y = "Throughput (Ktps)") +
     plot_theme
 
+write_throughput_plot <- ggplot(df_write, aes(x=factor(replication), y=throughput,
+                                              group=exp, color=exp)) +
+    geom_point(size=1.5) +
+    geom_line() +
+    scale_y_continuous(breaks=seq(0, 1000000, by=10000),
+                       labels=format_thousand_comma,
+                       expand=c(0,0)) +
+    coord_cartesian(ylim=c(0,200000)) +
+    labs(x = "Replication Interval", y = "Throughput (Ktps)") +
+    plot_theme
+
 latencies_plot <- ggplot(df, aes(x=factor(replication), y=wonly_barrier_median,
                                  group=exp, color=exp)) +
     geom_point(size=1.5) +
@@ -65,13 +77,30 @@ latencies_plot <- ggplot(df, aes(x=factor(replication), y=wonly_barrier_median,
     labs(x = "Replication Interval", y = "Median Latency (ms)") +
     plot_theme
 
-combined <- grid.arrange(throughput_plot + theme(legend.position = "none"),
-                         latencies_plot + theme(legend.position = "none"),
-                         nrow=1)
+write_latencies_plot <- ggplot(df_write, aes(x=factor(replication), y=wonly_median,
+                                 group=exp, color=exp)) +
+    geom_point(size=1.5) +
+    geom_line() +
+    scale_y_continuous(breaks=seq(0, 3, by=0.25), expand=c(0,0)) +
+    coord_cartesian(ylim=c(0,3)) +
+    labs(x = "Replication Interval", y = "Median Latency (ms)") +
+    plot_theme
+
+combined_barrier <- grid.arrange(throughput_plot + theme(legend.position = "none"),
+                                 latencies_plot + theme(legend.position = "none"),
+                                 nrow=1)
+
+combined_write <- grid.arrange(write_throughput_plot + theme(legend.position = "none"),
+                               write_latencies_plot + theme(legend.position = "none"),
+                               nrow=1)
+
+combined <- grid.arrange(combined_barrier,
+                         combined_write,
+                         ncol=1)
 
 ggsave(filename = "./barrier.pdf",
        plot = combined,
        device = "pdf",
        width = 15,
-       height = 8,
+       height = 10,
        dpi = 300)
