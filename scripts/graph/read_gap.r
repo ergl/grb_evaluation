@@ -43,7 +43,7 @@ plot_theme <- theme_minimal(base_size=10) +
           legend.box.background = element_rect(color="black", fill="white"))
 
 df <- read.csv("../../read_only_gap/results.csv")
-to_keep <- c("cure", "uniform", "no_clocks", "no_clocks_max", "no_clocks_max_svc")
+to_keep <- c("cure", "uniform", "no_clocks", "svc", "no_clocks_svc")
 df <- df[df$replication %in% to_keep, ]
 df_readonly <- df[df$exp == "reads", ]
 
@@ -53,14 +53,14 @@ scales <- scale_colour_manual(  name=""
                               , labels=c("Cure",
                                          "Uniform",
                                          "Disable heartbeat clocks",
-                                         "Disable heartbeat clocks + max_at_keys",
-                                         "Disable heartbeat clocks + max_at_keys + use stableVC")
+                                         "Use stableVC for snapshot",
+                                         "Disable heartbeat clocks + use stableVC for snapshot")
 
                               , values=c("red",
                                          "blue",
                                          "green",
                                          "purple",
-                                         "black"))
+                                         "orange"))
 
 reads_plot <- ggplot(df_readonly, aes(x=factor(replicas), y=throughput,
                                         group=replication, color=replication)) +
