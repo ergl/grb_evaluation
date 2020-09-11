@@ -14,6 +14,9 @@
 -define(DEFAULT_BCAST_INTERVAL, 5).
 -define(DEFAULT_PRUNE_INTERVAL, 50).
 -define(DEFAULT_CLOCK_INTERVAL, 10000).
+-define(DEFAULT_RED_INTERVAL, 50).
+-define(DEFAULT_RED_DELIVERY, 100).
+-define(DEFAULT_RED_PRUNE, 500).
 -define(REPO_URL, "https://github.com/ergl/grb.git").
 -define(COMMANDS, [ {download, false}
                   , {compile, false}
@@ -153,14 +156,20 @@ start_grb(Config) ->
     BCAST_KNOWN_VC_INTERVAL_MS = get_config_key(local_broadcast_interval, Config, ?DEFAULT_BCAST_INTERVAL),
     COMMITTED_BLUE_PRUNE_INTERVAL_MS = get_config_key(prune_committed_blue_interval, Config, ?DEFAULT_PRUNE_INTERVAL),
     UNIFORM_CLOCK_INTERVAL_MS = get_config_key(remote_clock_broadcast_interval, Config, ?DEFAULT_CLOCK_INTERVAL),
+    RED_HB_INTERVAL_MS = get_config_key(red_heartbeat_interval, Config, ?DEFAULT_RED_INTERVAL),
+    RED_DELIVER_INTERVAL_MS = get_config_key(red_delivery_interval, Config, ?DEFAULT_RED_DELIVERY),
+    RED_PRUNE_INTERVAL = get_config_key(red_prune_interval, Config, ?DEFAULT_RED_PRUNE),
 
-    Cmd = io_lib:format(
-        "VSN_LOG_SIZE=~b SELF_HB_INTERVAL_MS=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b RIAK_RING_SIZE=~b IP=~s ./sources/~s/_build/~s/rel/~s/bin/env start",
-        [VSN_LOG_SIZE, SELF_HB_INTERVAL_MS,
-        REPLICATION_INTERVAL_MS, UNIFORM_REPLICATION_INTERVAL_MS,
-        UNIFORM_CLOCK_INTERVAL_MS, BCAST_KNOWN_VC_INTERVAL_MS,
-        COMMITTED_BLUE_PRUNE_INTERVAL_MS, RIAK_RING_SIZE, IP,
-        Branch, Profile, ?APP_NAME]),
+    EnvVarString = io_lib:format(
+        "VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_HB_INTERVAL_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b IP=~s",
+        [VSN_LOG_SIZE, RIAK_RING_SIZE, SELF_HB_INTERVAL_MS,
+         REPLICATION_INTERVAL_MS, UNIFORM_REPLICATION_INTERVAL_MS,
+         BCAST_KNOWN_VC_INTERVAL_MS, COMMITTED_BLUE_PRUNE_INTERVAL_MS,
+         UNIFORM_CLOCK_INTERVAL_MS, RED_HB_INTERVAL_MS,
+         RED_DELIVER_INTERVAL_MS, RED_PRUNE_INTERVAL, IP]),
+
+    Cmd = io_lib:format("~s ./sources/~s/_build/~s/rel/~s/bin/env start",
+        [EnvVarString, Branch, Profile, ?APP_NAME]),
 
     os_cmd(Cmd),
 
