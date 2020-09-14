@@ -39,6 +39,8 @@ mergeSite() {
                  | xargs basename)
 
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "ping_latencies.csv"
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "uniform-barrier_latencies.csv"
+
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly-blue_latencies.csv"
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "writeonly-blue_latencies.csv"
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "read-write-blue_latencies.csv"
@@ -46,6 +48,13 @@ mergeSite() {
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly-blue-barrier_latencies.csv"
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "writeonly-blue-barrier_latencies.csv"
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "read-write-blue-barrier_latencies.csv"
+
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly-red_latencies.csv"
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "writeonly-red_latencies.csv"
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "read-write-red_latencies.csv"
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly-red-barrier_latencies.csv"
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "writeonly-red-barrier_latencies.csv"
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "read-write-red-barrier_latencies.csv"
 }
 
 usage() {

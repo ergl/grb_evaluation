@@ -18,6 +18,7 @@
 -define(DEFAULT_RED_INTERVAL, 50).
 -define(DEFAULT_RED_DELIVERY, 100).
 -define(DEFAULT_RED_PRUNE, 500).
+-define(DEFAULT_RED_COORD_SIZE, 500).
 -define(REPO_URL, "https://github.com/ergl/grb.git").
 -define(COMMANDS, [
     {download, false},
@@ -195,9 +196,10 @@ start_grb(Config) ->
     RED_HB_INTERVAL_MS = get_config_key(red_heartbeat_interval, Config, ?DEFAULT_RED_INTERVAL),
     RED_DELIVER_INTERVAL_MS = get_config_key(red_delivery_interval, Config, ?DEFAULT_RED_DELIVERY),
     RED_PRUNE_INTERVAL = get_config_key(red_prune_interval, Config, ?DEFAULT_RED_PRUNE),
+    RED_COORD_SIZE = get_config_key(red_coord_pool_size, Config, ?DEFAULT_RED_COORD_SIZE),
 
     EnvVarString = io_lib:format(
-        "VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_HB_INTERVAL_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b IP=~s",
+        "VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_HB_INTERVAL_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_COORD_POOL_SIZE=~b IP=~s",
         [
             VSN_LOG_SIZE,
             RIAK_RING_SIZE,
@@ -210,6 +212,7 @@ start_grb(Config) ->
             RED_HB_INTERVAL_MS,
             RED_DELIVER_INTERVAL_MS,
             RED_PRUNE_INTERVAL,
+            RED_COORD_SIZE,
             IP
         ]
     ),
