@@ -15,10 +15,10 @@
 -define(DEFAULT_BCAST_INTERVAL, 5).
 -define(DEFAULT_PRUNE_INTERVAL, 50).
 -define(DEFAULT_CLOCK_INTERVAL, 10000).
--define(DEFAULT_RED_INTERVAL, 50).
--define(DEFAULT_RED_DELIVERY, 100).
--define(DEFAULT_RED_PRUNE, 500).
--define(DEFAULT_RED_COORD_SIZE, 500).
+-define(DEFAULT_RED_INTERVAL, 5).
+-define(DEFAULT_RED_DELIVERY, 10).
+-define(DEFAULT_RED_PRUNE, 20).
+-define(DEFAULT_RED_COORD_SIZE, 50).
 -define(REPO_URL, "https://github.com/ergl/grb.git").
 -define(COMMANDS, [
     {download, false},
