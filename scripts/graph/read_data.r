@@ -70,9 +70,9 @@ get_total_data <- function(Dir) {
     median_window <- median(summary$window)
     median_commit_w <- median_commit / median_window
 
-    ronly_file <- sprintf("%s/readonly-blue_latencies.csv", Dir)
-    wonly_file <- sprintf("%s/writeonly-blue_latencies.csv", Dir)
-    rw_file <- sprintf("%s/read-write-blue_latencies.csv", Dir)
+    ronly_file <- sprintf("%s/readonly-red_latencies.csv", Dir)
+    wonly_file <- sprintf("%s/writeonly-red_latencies.csv", Dir)
+    rw_file <- sprintf("%s/read-write-red_latencies.csv", Dir)
 
     mean_latency_ronly <- 0
     mean_latency_wonly <- 0
