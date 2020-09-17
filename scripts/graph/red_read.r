@@ -43,23 +43,26 @@ plot_theme <- theme_minimal(base_size=10) +
           legend.box.background = element_rect(color="black", fill="white"))
 
 df <- read.csv("../../red_coord/results.csv")
-to_keep <- c("cure", "uniform", "uniform_red")
+to_keep <- c("cure", "old_uniform", "uniform_blue", "uniform_red")
 df <- df[df$replication %in% to_keep, ]
-df <- df[df$replicas != 1, ]
 df_readonly <- df[df$exp == "reads", ]
+df_updates <- df[df$exp == "updates", ]
 
-title_text <- "Reads only, 1 object, 20ms RTT"
+reads_title_text <- "Reads only, 1 object, 20ms RTT"
+updates_title_text <- "Updates only, 1 object, 20ms RTT"
 
 scales <- scale_colour_manual(  name=""
                               , breaks=to_keep
 
                               , labels=c("Cure",
+                                         "Old Uniform",
                                          "Uniform (100% blue)",
                                          "Uniform (100% red)")
 
                               , values=c("red",
                                          "blue",
-                                         "green"))
+                                         "green",
+                                         "orange"))
 
 throughput_plot <- ggplot(df_readonly, aes(x=factor(replicas), y=throughput,
                                         group=replication, color=replication)) +
@@ -70,20 +73,49 @@ throughput_plot <- ggplot(df_readonly, aes(x=factor(replicas), y=throughput,
                        labels=format_thousand_comma,
                        expand=c(0,0)) +
 
-    coord_cartesian(ylim=c(0,1000000)) +
+    coord_cartesian(ylim=c(0,800000)) +
     scales +
-    labs(title=title_text, x = "Replicas", y = "Max. Throughput (Ktps)") +
+    labs(title=reads_title_text, x = "Replicas", y = "Max. Throughput (Ktps)") +
     plot_theme
 
-latency_plot <- ggplot(df_readonly, aes(x=factor(replicas), y=ronly_median,
+throughput_writes_plot <- ggplot(df_updates, aes(x=factor(replicas), y=throughput,
                                         group=replication, color=replication)) +
 
     geom_point(size=1.5) +
     geom_line() +
-    scale_y_continuous(breaks=seq(0, 40, by=1),
+    scale_y_continuous(breaks=seq(0, 500000, by=25000),
+                       labels=format_thousand_comma,
                        expand=c(0,0)) +
 
-    coord_cartesian(ylim=c(0,40)) +
+    coord_cartesian(ylim=c(0,200000)) +
+    scales +
+    labs(title=updates_title_text, x = "Replicas", y = "Max. Throughput (Ktps)") +
+    plot_theme
+
+latency_plot <- ggplot(df_readonly, aes(x=factor(replicas), group=replication, color=replication)) +
+
+    geom_point(size=1.5, aes(y=ronly_median, color=replication)) +
+    geom_line(aes(y=ronly_median, color=replication)) +
+    geom_point(size=1.5, aes(y=red_ronly_median, color=replication)) +
+    geom_line(aes(y=red_ronly_median, color=replication)) +
+    scale_y_continuous(breaks=seq(0, 40, by=2),
+                       expand=c(0,0)) +
+
+    coord_cartesian(ylim=c(1,40)) +
+    scales +
+    labs(x = "Replicas", y = "Median Latency (ms)") +
+    plot_theme
+
+latency_writes_plot <- ggplot(df_updates, aes(x=factor(replicas), group=replication, color=replication)) +
+
+    geom_point(size=1.5, aes(y=wonly_median, color=replication)) +
+    geom_line(aes(y=wonly_median, color=replication)) +
+    geom_point(size=1.5, aes(y=red_wonly_median, color=replication)) +
+    geom_line(aes(y=red_wonly_median, color=replication)) +
+    scale_y_continuous(breaks=seq(0, 50, by=2),
+                       expand=c(0,0)) +
+
+    coord_cartesian(ylim=c(1,45)) +
     scales +
     labs(x = "Replicas", y = "Median Latency (ms)") +
     plot_theme
@@ -96,9 +128,18 @@ get_legend <- function(arg_plot) {
 }
 
 combined_legend <- get_legend(throughput_plot)
-combined <- grid.arrange(grid.arrange(throughput_plot + theme(legend.position = "none"),
-                                      latency_plot + theme(legend.position = "none"),
-                                      nrow=1),
+
+reads <- grid.arrange(throughput_plot + theme(legend.position = "none"),
+                      latency_plot + theme(legend.position = "none"),
+                      nrow=1)
+
+updates <- grid.arrange(throughput_writes_plot + theme(legend.position = "none"),
+                        latency_writes_plot + theme(legend.position = "none"),
+                        nrow=1)
+
+
+
+combined <- grid.arrange(grid.arrange(reads, updates, ncol=1),
                          combined_legend,
                          ncol=1,
                          heights=c(0.9,0.1))
@@ -107,5 +148,5 @@ ggsave(filename = "./red_read.pdf",
        plot = combined,
        device = "pdf",
        width = 12,
-       height = 8,
+       height = 10,
        dpi = 300)

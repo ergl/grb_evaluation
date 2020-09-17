@@ -54,6 +54,18 @@ get_client_threads <- function(Dir) {
     return(data.frame(per_machine, total))
 }
 
+latency_for_file <- function(File) {
+    mean <- 0
+    median <- 0
+    if (file.exists(File)) {
+        latencies <- read.csv(File)
+        mean <- mean(latencies$mean) / 1000
+        median <- mean(latencies$median) / 1000
+    }
+
+    return(data.frame(mean, median))
+}
+
 get_total_data <- function(Dir) {
     summary <- read.csv(sprintf("%s/summary.csv", Dir))
 
@@ -70,78 +82,48 @@ get_total_data <- function(Dir) {
     median_window <- median(summary$window)
     median_commit_w <- median_commit / median_window
 
-    ronly_file <- sprintf("%s/readonly-red_latencies.csv", Dir)
-    wonly_file <- sprintf("%s/writeonly-red_latencies.csv", Dir)
-    rw_file <- sprintf("%s/read-write-red_latencies.csv", Dir)
+    r <- latency_for_file(sprintf("%s/readonly-blue_latencies.csv", Dir))
+    blue_mean_latency_ronly <- r$mean
+    blue_median_latency_ronly <- r$median
 
-    mean_latency_ronly <- 0
-    mean_latency_wonly <- 0
-    mean_latency_rw <- 0
-    median_latency_ronly <- 0
-    median_latency_wonly <- 0
-    median_latency_rw <- 0
+    r <- latency_for_file(sprintf("%s/writeonly-blue_latencies.csv", Dir))
+    blue_mean_latency_wonly <- r$mean
+    blue_median_latency_wonly <- r$median
 
-    if (file.exists(ronly_file)) {
-        latencies_ronly <- read.csv(ronly_file)
-        mean_latency_ronly <- mean(latencies_ronly$mean) / 1000
-        median_latency_ronly <- mean(latencies_ronly$median) / 1000
-    }
+    r <- latency_for_file(sprintf("%s/read-write-blue_latencies.csv", Dir))
+    blue_mean_latency_rw <- r$mean
+    blue_median_latency_rw <- r$median
 
-    if (file.exists(wonly_file)) {
-        latencies_wonly <- read.csv(wonly_file)
-        mean_latency_wonly <- mean(latencies_wonly$mean) / 1000
-        median_latency_wonly <- mean(latencies_wonly$median) / 1000
-    }
+    r <- latency_for_file(sprintf("%s/readonly-red_latencies.csv", Dir))
+    red_mean_latency_ronly <- r$mean
+    red_median_latency_ronly <- r$median
 
-    if (file.exists(rw_file)) {
-        latencies_rw <- read.csv(rw_file)
-        mean_latency_rw <- mean(latencies_rw$mean) / 1000
-        median_latency_rw <- mean(latencies_rw$median) / 1000
-    }
+    r <- latency_for_file(sprintf("%s/writeonly-red_latencies.csv", Dir))
+    red_mean_latency_wonly <- r$mean
+    red_median_latency_wonly <- r$median
 
-    ronly_barrier_file <- sprintf("%s/readonly-blue-barrier_latencies.csv", Dir)
-    wonly_barrier_file <- sprintf("%s/writeonly-blue-barrier_latencies.csv", Dir)
-    rw_barrier_file <- sprintf("%s/read-write-blue-barrier_latencies.csv", Dir)
+    r <- latency_for_file(sprintf("%s/read-write-red_latencies.csv", Dir))
+    red_mean_latency_rw <- r$mean
+    red_median_latency_rw <- r$median
 
-    mean_latency_ronly_barrier <- 0
-    mean_latency_wonly_barrier <- 0
-    mean_latency_rw_barrier <- 0
-    median_latency_ronly_barrier <- 0
-    median_latency_wonly_barrier <- 0
-    median_latency_rw_barrier <- 0
-
-    if (file.exists(ronly_barrier_file)) {
-        latencies_ronly <- read.csv(ronly_barrier_file)
-        mean_latency_ronly_barrier <- mean(latencies_ronly$mean) / 1000
-        median_latency_ronly_barrier <- mean(latencies_ronly$median) / 1000
-    }
-
-    if (file.exists(wonly_barrier_file)) {
-        latencies_wonly <- read.csv(wonly_barrier_file)
-        mean_latency_wonly_barrier <- mean(latencies_wonly$mean) / 1000
-        median_latency_wonly_barrier <- mean(latencies_wonly$median) / 1000
-    }
-
-    if (file.exists(rw_barrier_file)) {
-        latencies_rw <- read.csv(rw_barrier_file)
-        mean_latency_rw_barrier <- mean(latencies_rw$mean) / 1000
-        median_latency_rw_barrier <- mean(latencies_rw$median) / 1000
-    }
+    # sprintf("%s/readonly-blue-barrier_latencies.csv", Dir)
+    # sprintf("%s/writeonly-blue-barrier_latencies.csv", Dir)
+    # sprintf("%s/read-write-blue-barrier_latencies.csv", Dir)
 
     return(data.frame(max_commit_w,
                       median_commit_w,
-                      mean_latency_ronly,
-                      mean_latency_wonly,
-                      mean_latency_rw,
-                      median_latency_ronly,
-                      median_latency_wonly,
-                      median_latency_rw,
-                      mean_latency_ronly_barrier,
-                      mean_latency_wonly_barrier,
-                      mean_latency_rw_barrier,
-                      median_latency_ronly_barrier,
-                      median_latency_wonly_barrier,
-                      median_latency_rw_barrier))
+                      blue_mean_latency_ronly,
+                      blue_mean_latency_wonly,
+                      blue_mean_latency_rw,
+                      blue_median_latency_ronly,
+                      blue_median_latency_wonly,
+                      blue_median_latency_rw,
+                      red_mean_latency_ronly,
+                      red_mean_latency_wonly,
+                      red_mean_latency_rw,
+                      red_median_latency_ronly,
+                      red_median_latency_wonly,
+                      red_median_latency_rw))
 }
 
 format_data <- function(Dir, Data) {
@@ -151,44 +133,38 @@ format_data <- function(Dir, Data) {
 
     thread_info <- get_client_threads(Dir)
 
-    if (verbose) {
-        cat(sprintf("\nThreads: %s (%s)\n",
-                format_decimal(thread_info$per_machine, withoutZeros=TRUE),
-                format_decimal(thread_info$total, withoutZeros=TRUE)))
+    # if (verbose) {
+    #     cat(sprintf("\nThreads: %s (%s)\n",
+    #             format_decimal(thread_info$per_machine, withoutZeros=TRUE),
+    #             format_decimal(thread_info$total, withoutZeros=TRUE)))
 
-        cat(sprintf("Max Thr: %s\n", format_decimal(Data$max_commit_w)))
-        cat(sprintf("Median Thr: %s\n", format_decimal(Data$median_commit_w)))
+    #     cat(sprintf("Max Thr: %s\n", format_decimal(Data$max_commit_w)))
+    #     cat(sprintf("Median Thr: %s\n", format_decimal(Data$median_commit_w)))
 
-        cat("\nNo Barrier\n")
-        cat(sprintf("Ronly Mean / Median Ms: %f / %f\n", Data$mean_latency_ronly, Data$median_latency_ronly))
-        cat(sprintf("Wonly Mean / Median Ms: %f / %f\n", Data$mean_latency_wonly, Data$median_latency_wonly))
-        cat(sprintf("RW Mean /Median Ms: %f / %f\n", Data$mean_latency_rw, Data$median_latency_rw))
+    #     cat("\nNo Barrier\n")
+    #     cat(sprintf("Ronly Mean / Median Ms: %f / %f\n", Data$mean_latency_ronly, Data$median_latency_ronly))
+    #     cat(sprintf("Wonly Mean / Median Ms: %f / %f\n", Data$mean_latency_wonly, Data$median_latency_wonly))
+    #     cat(sprintf("RW Mean /Median Ms: %f / %f\n", Data$mean_latency_rw, Data$median_latency_rw))
+    # }
 
-        cat("\nPost-commit Barrier\n")
-        cat(sprintf("Ronly Mean / Median Ms: %f / %f\n", Data$mean_latency_ronly_barrier,   Data$median_latency_ronly_barrier))
-        cat(sprintf("Wonly Mean / Median Ms: %f / %f\n", Data$mean_latency_wonly_barrier,   Data$median_latency_wonly_barrier))
-        cat(sprintf("RW Mean /Median Ms: %f / %f\n", Data$mean_latency_rw_barrier,  Data$median_latency_rw_barrier))
-        cat("\nCSV\n")
-    }
-
-    cat("threads,throughput,ronly_mean,wonly_mean,rw_mean,ronly_median,wonly_median,rw_median,ronly_barrier_mean,wonly_barrier_mean,rw_barrier_mean,ronly_barrier_median,wonly_barrier_median,rw_barrier_median\n")
+    cat("threads,throughput,throughput_med,ronly_mean,wonly_mean,rw_mean,ronly_median,wonly_median,rw_median,red_ronly_mean,red_wonly_mean,red_rw_mean,red_ronly_median,red_wonly_median,red_rw_median\n")
     cat(sprintf(
         "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f \n",
         thread_info$per_machine,
         Data$max_commit_w,
         Data$median_commit_w,
-        Data$mean_latency_ronly,
-        Data$mean_latency_wonly,
-        Data$mean_latency_rw,
-        Data$median_latency_ronly,
-        Data$median_latency_wonly,
-        Data$median_latency_rw,
-        Data$mean_latency_ronly_barrier,
-        Data$mean_latency_wonly_barrier,
-        Data$mean_latency_rw_barrier,
-        Data$median_latency_ronly_barrier,
-        Data$median_latency_wonly_barrier,
-        Data$median_latency_rw_barrier
+        Data$blue_mean_latency_ronly,
+        Data$blue_mean_latency_wonly,
+        Data$blue_mean_latency_rw,
+        Data$blue_median_latency_ronly,
+        Data$blue_median_latency_wonly,
+        Data$blue_median_latency_rw,
+        Data$red_mean_latency_ronly,
+        Data$red_mean_latency_wonly,
+        Data$red_mean_latency_rw,
+        Data$red_median_latency_ronly,
+        Data$red_median_latency_wonly,
+        Data$red_median_latency_rw
     ))
 }
 
