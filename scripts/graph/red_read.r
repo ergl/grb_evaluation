@@ -120,6 +120,29 @@ latency_writes_plot <- ggplot(df_updates, aes(x=factor(replicas), group=replicat
     labs(x = "Replicas", y = "Median Latency (ms)") +
     plot_theme
 
+df_red_updates <- df_updates[df_updates$replication == "uniform_red", ]
+abort_plot <- ggplot(df_red_updates, aes(x=factor(replicas), y=abort_ratio)) +
+    geom_bar(stat='identity') +
+    scale_y_continuous(breaks=seq(0,1,by=0.05), expand=c(0,0)) +
+    coord_cartesian(ylim=c(0,0.25)) +
+    scales +
+    labs(title="Red Updates only / Abort ratio", x = "Replicas", y = "Abort ratio") +
+    plot_theme
+
+total_red_update_thr_plot <- ggplot(df_red_updates, aes(x=factor(replicas), group=replication))+
+    geom_point(size=1.5, aes(y=throughput, color=replication)) +
+    geom_line(aes(y=throughput, color=replication)) +
+    geom_point(size=1.5, aes(y=total_throughput, color=replication)) +
+    geom_line(aes(y=total_throughput, color=replication)) +
+    scale_y_continuous(breaks=seq(0, 500000, by=25000),
+                       labels=format_thousand_comma,
+                       expand=c(0,0)) +
+
+    coord_cartesian(ylim=c(0,65000)) +
+    scales +
+    labs(title=updates_title_text, x = "Replicas", y = "Max. Throughput (Ktps)") +
+    plot_theme
+
 get_legend <- function(arg_plot) {
     tmp <- ggplot_gtable(ggplot_build(arg_plot))
     leg <- which(sapply(tmp$grobs, function(x) x$name) == "guide-box")
@@ -149,4 +172,11 @@ ggsave(filename = "./red_read.pdf",
        device = "pdf",
        width = 12,
        height = 10,
+       dpi = 300)
+
+ggsave(filename = "./red_abort.pdf",
+       plot = abort_plot,
+       device = "pdf",
+       width = 5,
+       height = 5,
        dpi = 300)
