@@ -43,6 +43,7 @@
     {restart, false},
     {recompile, false},
     {rebuild, false},
+    {cleanup_latencies, false},
     {cleanup, false},
     {pull, true}
 ]).
@@ -265,6 +266,10 @@ do_command(rebuild, _, ClusterMap) ->
 
     do_in_nodes_par(server_command("rebuild"), DBNodes),
     do_in_nodes_par(client_command("rebuild"), ClientNodes),
+    ok;
+do_command(cleanup_latencies, _, ClusterMap) ->
+    ServerNodes = server_nodes(ClusterMap),
+    io:format("~p~n", [do_in_nodes_par(server_command("tclean"), ServerNodes)]),
     ok;
 do_command(cleanup, _, ClusterMap) ->
     AllNodes = all_nodes(ClusterMap),
