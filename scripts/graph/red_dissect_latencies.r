@@ -38,35 +38,36 @@ plot_theme <- theme_minimal(base_size=10) +
 
           legend.position = "none")
 
-# df <- read.csv("../../red_coord/latencies.csv")
-# df_readonly <- df[df$exp == "reads", ]
-# df_updates <- df[df$exp == "updates", ]
-# group_by <- "replicas"
-# labels <- c("Replica C", "Replica B", "Leader", "Replica A")
-# reads_title_text <- "Reads only, 1 object, 20ms RTT"
-# updates_title_text <- "Updates only, 1 object, 20ms RTT"
-# throughput_y_coord <- coord_cartesian(ylim=c(0,35000))
-# throughput_y_scale <- scale_y_continuous(breaks=seq(0, 1000000, by=2000),
-#                                            labels=format_thousand_comma,
-#                                            expand=c(0,0))
-
-# latency_y_coord <- coord_cartesian(ylim=c(0,45))
-# latency_y_scale <- scale_y_continuous(breaks=seq(0, 50, by=2),
-#                                       expand=c(0,0),
-#                                       sec.axis = dup_axis())
-
-df <- read.csv("../../red_coord/red_high_latency/results.csv")
-df <- df[df$threads == 250, ]
+df <- read.csv("../../red_coord/latencies.csv")
+df <- df[df$replicas == 4, ]
 df_readonly <- df[df$exp == "reads", ]
 df_updates <- df[df$exp == "updates", ]
-group_by <- "threads"
-labels <- c("Ireland", "Oregon", "Sydney", "N. Virginia (Leader)")
-reads_title_text <- "Reads only, 1 object"
-updates_title_text <- "Updates only, 1 object"
-throughput_y_coord <- coord_cartesian(ylim=c(0,10000))
-throughput_y_scale <- scale_y_continuous(breaks=seq(0, 1000000, by=500),
-                                         labels=format_thousand_comma,
-                                         expand=c(0,0))
+group_by <- "replicas"
+labels <- c("Replica C", "Replica B", "Leader", "Replica A")
+reads_title_text <- "Reads only, 1 object, 20ms RTT"
+updates_title_text <- "Updates only, 1 object, 20ms RTT"
+throughput_y_coord <- coord_cartesian(ylim=c(0,35000))
+throughput_y_scale <- scale_y_continuous(breaks=seq(0, 1000000, by=2000),
+                                           labels=format_thousand_comma,
+                                           expand=c(0,0))
+
+latency_y_coord <- coord_cartesian(ylim=c(0,45))
+latency_y_scale <- scale_y_continuous(breaks=seq(0, 50, by=2),
+                                      expand=c(0,0),
+                                      sec.axis = dup_axis())
+
+# df <- read.csv("../../red_coord/red_high_latency/results.csv")
+# df <- df[df$threads == 250, ]
+# df_readonly <- df[df$exp == "reads", ]
+# df_updates <- df[df$exp == "updates", ]
+# group_by <- "threads"
+# labels <- c("Ireland", "Oregon", "Sydney", "N. Virginia (Leader)")
+# reads_title_text <- "Reads only, 1 object"
+# updates_title_text <- "Updates only, 1 object"
+# throughput_y_coord <- coord_cartesian(ylim=c(0,10000))
+# throughput_y_scale <- scale_y_continuous(breaks=seq(0, 1000000, by=500),
+#                                          labels=format_thousand_comma,
+#                                          expand=c(0,0))
 
 latency_y_coord <- coord_cartesian(ylim=c(0,400))
 latency_y_scale <- scale_y_continuous(breaks=seq(0, 400, by=10),

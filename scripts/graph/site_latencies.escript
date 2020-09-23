@@ -17,16 +17,26 @@ main(Args) ->
             usage(),
             halt(1);
         {ok, #{rest := ResultPath}} ->
-            ConfigFile = config_file(ResultPath),
-            {ok, Terms} = file:consult(ConfigFile),
+            {ok, NumClients} = client_threads(ResultPath),
+            {ok, Terms} = file:consult(config_file(ResultPath)),
             {clusters, ClusterMap} = lists:keyfind(clusters, 1, Terms),
             Results = pmap(fun({Cluster, #{clients := ClientNodes}}) ->
                 Nodes = lists:map(fun erlang:atom_to_list/1, ClientNodes),
                 parse_latencies(ResultPath, Cluster, Nodes)
             end, maps:to_list(ClusterMap)),
             lists:foreach(fun({ClusterStr, ClusterResults}) ->
-                io:format("~n~s~n~s~n", [ClusterStr, ClusterResults])
+                CResults = string:join(string:replace(ClusterResults, "NA", NumClients, all), ""),
+                io:format("~n~s~n~s~n", [ClusterStr, CResults])
             end, Results)
+    end.
+
+client_threads(Path) ->
+    try
+        [_, Match | _] = re:split(Path, "t[_=]"),
+        {match, [{Start, Len}]} = re:run(Match, "[0-9]+"),
+        {ok, binary_to_list(string:slice(Match, Start, Len))}
+    catch _:_ ->
+        {error, no_match}
     end.
 
 config_file(Path) ->
