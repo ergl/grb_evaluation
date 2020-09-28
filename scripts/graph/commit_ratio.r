@@ -39,14 +39,13 @@ verbose <- if (!is.null(opt$verbose)) {
 
 get_total_data <- function(Dir) {
     summary <- read.csv(sprintf("%s/summary.csv", Dir))
-    # total <- sum(summary$total)
-    # abort <- sum(summary$failed)
+    abort_ratio <- sum(summary$failed) / sum(summary$total)
     summary <- summary[-c(1), ]
 
     max_total <- max(summary$total)
     max_total_row <- summary[c(which(summary$total == max_total)), ]
     max_total_w <- max_total / max_total_row$window
-    return(max_total_w)
+    return(data.frame(max_total_w, abort_ratio))
 }
 
 format_data <- function(Dir, Data) {
@@ -55,7 +54,7 @@ format_data <- function(Dir, Data) {
     }
 
 
-    cat(sprintf("%f\n", Data))
+    cat(sprintf("%f\t%f\n", Data$max_total_w, Data$abort_ratio))
 }
 
 input_dir <- opt$data_dir

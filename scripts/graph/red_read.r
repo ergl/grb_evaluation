@@ -42,7 +42,7 @@ plot_theme <- theme_minimal(base_size=10) +
           legend.text = element_text(size=6),
           legend.box.background = element_rect(color="black", fill="white"))
 
-df <- read.csv("../../red_coord/results.csv")
+df <- read.csv("../../red_coord_2/results.csv")
 to_keep <- c("cure", "old_uniform", "uniform_blue", "uniform_red")
 df <- df[df$replication %in% to_keep, ]
 df_readonly <- df[df$exp == "reads", ]

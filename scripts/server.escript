@@ -16,6 +16,7 @@
 -define(DEFAULT_BCAST_INTERVAL, 5).
 -define(DEFAULT_PRUNE_INTERVAL, 50).
 -define(DEFAULT_CLOCK_INTERVAL, 10000).
+-define(DEFAULT_INTER_DC_RED_POOL_SIZE, 16).
 -define(DEFAULT_RED_INTERVAL, 5).
 -define(DEFAULT_RED_DELIVERY, 10).
 -define(DEFAULT_RED_PRUNE, 20).
@@ -133,6 +134,7 @@ execute_command(tclean, _Config) ->
     Iface =
         case inet:gethostname() of
             {ok, "apollo-2-4"} -> "eth0";
+            {ok, "apollo-1-6"} -> "enp1s0.1004";
             _ -> "enp1s0"
         end,
     os_cmd(io_lib:format("sudo tc qdisc del dev ~s root", [Iface])),
@@ -199,13 +201,14 @@ start_grb(Config) ->
         Config,
         ?DEFAULT_CLOCK_INTERVAL
     ),
+    RED_SENDER_POOL_SIZE = get_config_key(inter_dc_red_pool_size, Config, ?DEFAULT_INTER_DC_RED_POOL_SIZE),
     RED_HB_INTERVAL_MS = get_config_key(red_heartbeat_interval, Config, ?DEFAULT_RED_INTERVAL),
     RED_DELIVER_INTERVAL_MS = get_config_key(red_delivery_interval, Config, ?DEFAULT_RED_DELIVERY),
     RED_PRUNE_INTERVAL = get_config_key(red_prune_interval, Config, ?DEFAULT_RED_PRUNE),
     RED_COORD_SIZE = get_config_key(red_coord_pool_size, Config, ?DEFAULT_RED_COORD_SIZE),
 
     EnvVarString = io_lib:format(
-        "VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b INTER_DC_SENDER_POOL_SIZE=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_HB_INTERVAL_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_COORD_POOL_SIZE=~b IP=~s",
+        "VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b INTER_DC_SENDER_POOL_SIZE=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_SENDER_POOL_SIZE=~b RED_HB_INTERVAL_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_COORD_POOL_SIZE=~b IP=~s",
         [
             VSN_LOG_SIZE,
             RIAK_RING_SIZE,
@@ -216,6 +219,7 @@ start_grb(Config) ->
             BCAST_KNOWN_VC_INTERVAL_MS,
             COMMITTED_BLUE_PRUNE_INTERVAL_MS,
             UNIFORM_CLOCK_INTERVAL_MS,
+            RED_SENDER_POOL_SIZE,
             RED_HB_INTERVAL_MS,
             RED_DELIVER_INTERVAL_MS,
             RED_PRUNE_INTERVAL,
@@ -225,7 +229,7 @@ start_grb(Config) ->
     ),
 
     Cmd = io_lib:format(
-        "~s ./sources/~s/_build/~s/rel/~s/bin/env start",
+        "~s ./sources/~s/_build/~s/rel/~s/bin/env daemon",
         [EnvVarString, Branch, Profile, ?APP_NAME]
     ),
 
