@@ -7,9 +7,11 @@
 -define(APP_NAME, grb).
 -define(DEFAULT_BRANCH, "master").
 -define(DEFAULT_PROFILE, "default").
+-define(DEFAULT_OP_LOG_REPLICAS, 20).
 -define(DEFAULT_LOG_SIZE, 25).
 -define(DEFAULT_RING_SIZE, 64).
 -define(DEFAULT_HB_INTERVAL, 5).
+-define(DEFAULT_OP_CHECK_RETRY_MS, 5).
 -define(DEFAULT_INTER_DC_POOL_SIZE, 16).
 -define(DEFAULT_REPL_INTERVAL, 5).
 -define(DEFAULT_UNI_REPL_INTERVAL, 5000).
@@ -164,12 +166,18 @@ start_grb(Config) ->
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
     Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
 
+    OP_LOG_REPLICAS = get_config_key(op_log_replicas, Config, ?DEFAULT_OP_LOG_REPLICAS),
     VSN_LOG_SIZE = get_config_key(version_log_size, Config, ?DEFAULT_LOG_SIZE),
     RIAK_RING_SIZE = get_config_key(ring_creation_size, Config, ?DEFAULT_RING_SIZE),
     SELF_HB_INTERVAL_MS = get_config_key(
         self_blue_heartbeat_interval,
         Config,
         ?DEFAULT_HB_INTERVAL
+    ),
+    OP_CHECK_RETRY_MS = get_config_key(
+        op_prepare_wait_ms,
+        Config,
+        ?DEFAULT_OP_CHECK_RETRY_MS
     ),
     INTER_DC_SENDER_POOL_SIZE = get_config_key(
         inter_dc_pool_size,
@@ -208,11 +216,13 @@ start_grb(Config) ->
     RED_COORD_SIZE = get_config_key(red_coord_pool_size, Config, ?DEFAULT_RED_COORD_SIZE),
 
     EnvVarString = io_lib:format(
-        "VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b INTER_DC_SENDER_POOL_SIZE=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_SENDER_POOL_SIZE=~b RED_HB_INTERVAL_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_COORD_POOL_SIZE=~b IP=~s",
+        "OP_LOG_REPLICAS=~b VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b OP_CHECK_RETRY_MS=~b INTER_DC_SENDER_POOL_SIZE=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_SENDER_POOL_SIZE=~b RED_HB_INTERVAL_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_COORD_POOL_SIZE=~b IP=~s",
         [
+            OP_LOG_REPLICAS,
             VSN_LOG_SIZE,
             RIAK_RING_SIZE,
             SELF_HB_INTERVAL_MS,
+            OP_CHECK_RETRY_MS,
             INTER_DC_SENDER_POOL_SIZE,
             REPLICATION_INTERVAL_MS,
             UNIFORM_REPLICATION_INTERVAL_MS,

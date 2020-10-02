@@ -24,10 +24,12 @@ main(Args) ->
                 Nodes = lists:map(fun erlang:atom_to_list/1, ClientNodes),
                 parse_latencies(ResultPath, Cluster, Nodes)
             end, maps:to_list(ClusterMap)),
+            io:format("================================~n"),
             lists:foreach(fun({ClusterStr, ClusterResults}) ->
                 CResults = string:join(string:replace(ClusterResults, "NA", NumClients, all), ""),
-                io:format("~n~s~n~s~n", [ClusterStr, CResults])
-            end, Results)
+                io:format("~s~n~s~n", [ClusterStr, CResults])
+            end, Results),
+            io:format("================================~n")
     end.
 
 client_threads(Path) ->
@@ -80,6 +82,10 @@ parse_latencies(ResultPath, Cluster, ClientNodes) ->
     end,
 
     _ = MergeLatencies("readonly-red_latencies.csv"),
+    _ = MergeLatencies("readonly-red-track_latencies.csv"),
+    _ = MergeLatencies("readonly-red-track_start_latencies.csv"),
+    _ = MergeLatencies("readonly-red-track_read_latencies.csv"),
+    _ = MergeLatencies("readonly-red-track_commit_latencies.csv"),
     _ = MergeLatencies("writeonly-red_latencies.csv"),
 
     ReadResult =

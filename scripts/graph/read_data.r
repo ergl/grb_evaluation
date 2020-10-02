@@ -168,6 +168,59 @@ format_data <- function(Dir, Data) {
     ))
 }
 
+get_red_data <- function(Dir) {
+    summary <- read.csv(sprintf("%s/summary.csv", Dir))
+    summary <- summary[-c(1), ]
+
+    max_commit <- max(summary$successful)
+    max_commit_row <- summary[c(which(summary$successful == max_commit)), ]
+    max_commit_w <- max_commit / max_commit_row$window
+
+    median_commit <- median(summary$successful)
+    median_window <- median(summary$window)
+    median_commit_w <- median_commit / median_window
+
+    r <- latency_for_file(sprintf("%s/readonly-red-track_latencies.csv", Dir))
+    overall_mean <- r$mean
+    overall_median <- r$median
+
+    r <- latency_for_file(sprintf("%s/readonly-red-track_start_latencies.csv", Dir))
+    start_mean <- r$mean
+    start_median <- r$median
+
+    r <- latency_for_file(sprintf("%s/readonly-red-track_read_latencies.csv", Dir))
+    read_mean <- r$mean
+    read_median <- r$median
+
+    r <- latency_for_file(sprintf("%s/readonly-red-track_commit_latencies.csv", Dir))
+    commit_mean <- r$mean
+    commit_median <- r$median
+
+    return(data.frame(max_commit_w, median_commit_w,
+                      overall_mean, overall_median,
+                      start_mean, start_median,
+                      read_mean, read_median,
+                      commit_mean, commit_median))
+}
+
+format_red_data <- function(Dir, Data) {
+    format_decimal <- function(string, ..., withoutZeros = FALSE) {
+        return(formatC(string, format="f", big.mark=",", drop0trailing=withoutZeros))
+    }
+
+    thread_info <- get_client_threads(Dir)
+    cat("threads,throughput,throughput_med,overall_mean,overall_median,start_mean,start_median,read_mean,read_median,commit_mean,commit_median\n")
+    cat(sprintf(
+        "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
+        thread_info$per_machine,
+        Data$max_commit_w, Data$median_commit_w,
+        Data$overall_mean, Data$overall_median,
+        Data$start_mean, Data$start_median,
+        Data$read_mean, Data$read_median,
+        Data$commit_mean, Data$commit_median
+    ))
+}
+
 input_dir <- opt$data_dir
-data <- get_total_data(input_dir)
-format_data(input_dir, data)
+# format_data(input_dir, get_total_data(input_dir))
+format_red_data(input_dir, get_red_data(input_dir))

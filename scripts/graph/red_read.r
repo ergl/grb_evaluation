@@ -25,7 +25,7 @@ plot_theme <- theme_minimal(base_size=10) +
     theme(plot.title = element_text(size=9, margin=margin(0,0,10,0)),
           plot.margin = margin(15,20,15,0),
 
-          axis.title.x = element_text(size=9, margin=margin(10,0,0,0)),
+          axis.title.x = element_text(size=9, margin=margin(10,0,-15,0)),
           axis.title.y = element_text(size=9, margin=margin(0,10,0,10)),
           axis.text.x =  element_text(size=7, margin=margin(10,0,0,0)),
           axis.text.y =  element_text(size=7, margin=margin(0,8,0,10)),
@@ -43,6 +43,7 @@ plot_theme <- theme_minimal(base_size=10) +
           legend.box.background = element_rect(color="black", fill="white"))
 
 df <- read.csv("../../red_coord_2/results.csv")
+df <- df[df$replicas != 1, ]
 to_keep <- c("cure", "old_uniform", "uniform_blue", "uniform_red")
 df <- df[df$replication %in% to_keep, ]
 df_readonly <- df[df$exp == "reads", ]
@@ -52,17 +53,17 @@ reads_title_text <- "Reads only, 1 object, 20ms RTT"
 updates_title_text <- "Updates only, 1 object, 20ms RTT"
 
 scales <- scale_colour_manual(  name=""
-                              , breaks=to_keep
+                              , labels=c(`cure` = "Cure",
+                                         `old_uniform` = "Uniform",
+                                         `uniform_blue` = "RedBlue (100% blue)",
+                                         `uniform_red` = "RedBlue (100% red)",
+                                         `z_red_commit` = "RedBlue (100% red), commit latency")
 
-                              , labels=c("Cure",
-                                         "Old Uniform",
-                                         "Uniform (100% blue)",
-                                         "Uniform (100% red)")
-
-                              , values=c("red",
-                                         "blue",
-                                         "green",
-                                         "orange"))
+                              , values=c(`cure` = "red",
+                                         `old_uniform` = "blue",
+                                         `uniform_blue` = "green",
+                                         `uniform_red` = "orange",
+                                         `z_red_commit` = "brown"))
 
 throughput_plot <- ggplot(df_readonly, aes(x=factor(replicas), y=throughput,
                                         group=replication, color=replication)) +
@@ -92,13 +93,18 @@ throughput_writes_plot <- ggplot(df_updates, aes(x=factor(replicas), y=throughpu
     labs(title=updates_title_text, x = "Replicas", y = "Max. Throughput (Ktps)") +
     plot_theme
 
-latency_plot <- ggplot(df_readonly, aes(x=factor(replicas), group=replication, color=replication)) +
+latency_plot <- ggplot(df_readonly, aes(x=factor(replicas), group=replication)) +
 
     geom_point(size=1.5, aes(y=ronly_median, color=replication)) +
     geom_line(aes(y=ronly_median, color=replication)) +
+
+    geom_point(size=1.5, aes(y=red_commit_median, color="z_red_commit")) +
+    geom_line(aes(y=red_commit_median, color="z_red_commit")) +
+
     geom_point(size=1.5, aes(y=red_ronly_median, color=replication)) +
     geom_line(aes(y=red_ronly_median, color=replication)) +
-    scale_y_continuous(breaks=seq(0, 40, by=2),
+
+    scale_y_continuous(breaks=seq(0, 50, by=2),
                        expand=c(0,0)) +
 
     coord_cartesian(ylim=c(1,40)) +
@@ -150,7 +156,7 @@ get_legend <- function(arg_plot) {
     return(legend)
 }
 
-combined_legend <- get_legend(throughput_plot)
+combined_legend <- get_legend(latency_plot)
 
 reads <- grid.arrange(throughput_plot + theme(legend.position = "none"),
                       latency_plot + theme(legend.position = "none"),
@@ -160,18 +166,15 @@ updates <- grid.arrange(throughput_writes_plot + theme(legend.position = "none")
                         latency_writes_plot + theme(legend.position = "none"),
                         nrow=1)
 
-
-
-combined <- grid.arrange(grid.arrange(reads, updates, ncol=1),
-                         combined_legend,
-                         ncol=1,
-                         heights=c(0.9,0.1))
+reads_combined <- grid.arrange(reads, combined_legend,
+                               ncol=1,
+                               heights=c(0.9,0.1))
 
 ggsave(filename = "./red_read.pdf",
-       plot = combined,
+       plot = reads_combined,
        device = "pdf",
-       width = 12,
-       height = 10,
+       width = 10,
+       height = 5,
        dpi = 300)
 
 ggsave(filename = "./red_abort.pdf",
