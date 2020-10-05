@@ -70,7 +70,7 @@ throughput_y_scale <- scale_y_continuous(breaks=seq(0, 1000000, by=2000),
                                            labels=format_thousand_comma,
                                            expand=c(0,0))
 
-latency_y_coord <- coord_cartesian(ylim=c(0,34))
+latency_y_coord <- coord_cartesian(ylim=c(0,40))
 latency_y_scale <- scale_y_continuous(breaks=seq(0, 40, by=2),
                                       expand=c(0,0),
                                       sec.axis = dup_axis(name=""))
