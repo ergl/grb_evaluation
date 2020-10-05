@@ -21,6 +21,11 @@ FNR >= 2 {
   means[FNR - 1, filecount, 0] = $3
   means[FNR - 1, filecount, 1] = $5
 
+  # Build an array of `n` (column 3) and
+  # `median` (column 6)
+  medians[FNR - 1, filecount, 0] = $3
+  medians[FNR - 1, filecount, 1] = $6
+
   if (filecount == 1) {
     # our final file will have as much lines as the first one
     # so keep this updated
@@ -78,12 +83,21 @@ END {
       weighted_avg = weighted_avg + (means[i, k, 0] * means[i, k, 1])
     }
 
+    # here we're doing a weighted average of medians. It's a bit bullshit,
+    # but it's better than nothing
+    weighted_median = 0
+    for (k = 1; k <= filecount; k++) {
+      weighted_median = weighted_median + (medians[i, k, 0] * medians[i, k, 1])
+    }
+
     # sometimes we get a line without ops, in those cases,
     # ignore the latency (don't divide by 0)
     if (total_n[i] != 0 ) {
       weighted_avg = weighted_avg / total_n[i]
+      weighted_median = weighted_median / total_n[i]
     } else {
       weighted_avg = 0
+      weighted_median = 0
     }
 
     # print elapsed, window, n and min
@@ -97,8 +111,8 @@ END {
     printf("%s,", a[i, 10])
     # print errors
     printf("%s,", a[i, 11])
-    # print median (only from the first file)
-    printf("%s", a[i, 6])
+    # print median
+    printf("%s", weighted_median)
     print ""
   }
   print ""
