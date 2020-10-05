@@ -83,6 +83,15 @@ main(Args) ->
             {ok, ConfigTerms} = file:consult(ConfigFile),
             {clusters, ClusterMap} = lists:keyfind(clusters, 1, ConfigTerms),
 
+            {red_leader_cluster, LeaderCluster} = lists:keyfind(red_leader, 1, ConfigTerms),
+            case maps:is_key(LeaderCluster, ClusterMap) of
+                false ->
+                    io:fwrite(standard_error, "Bad cluster map: leader cluster not present ~n", []),
+                    halt(1);
+                true ->
+                    ok
+            end,
+
             Servers = ordsets:from_list(server_nodes(ClusterMap)),
             Clients = ordsets:from_list(client_nodes(ClusterMap)),
             case ordsets:is_disjoint(Servers, Clients) of

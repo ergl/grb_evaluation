@@ -209,7 +209,11 @@ start_grb(Config) ->
         Config,
         ?DEFAULT_CLOCK_INTERVAL
     ),
-    RED_SENDER_POOL_SIZE = get_config_key(inter_dc_red_pool_size, Config, ?DEFAULT_INTER_DC_RED_POOL_SIZE),
+    RED_SENDER_POOL_SIZE = get_config_key(
+        inter_dc_red_pool_size,
+        Config,
+        ?DEFAULT_INTER_DC_RED_POOL_SIZE
+    ),
     RED_HB_INTERVAL_MS = get_config_key(red_heartbeat_interval, Config, ?DEFAULT_RED_INTERVAL),
     RED_DELIVER_INTERVAL_MS = get_config_key(red_delivery_interval, Config, ?DEFAULT_RED_DELIVERY),
     RED_PRUNE_INTERVAL = get_config_key(red_prune_interval, Config, ?DEFAULT_RED_PRUNE),
