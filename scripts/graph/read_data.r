@@ -68,9 +68,15 @@ latency_for_file <- function(File) {
 
 get_total_data <- function(Dir) {
     summary <- read.csv(sprintf("%s/summary.csv", Dir))
+    abort_ratio <- sum(summary$failed) / sum(summary$total)
 
     # Remove first row, as it is usually inflated
     summary <- summary[-c(1), ]
+
+    # All operations
+    max_total <- max(summary$total)
+    max_total_row <- summary[c(which(summary$total == max_total)), ]
+    max_total <- max_total / max_total_row$window
 
     # All committed operations
     max_commit <- max(summary$successful)
@@ -110,7 +116,8 @@ get_total_data <- function(Dir) {
     # sprintf("%s/writeonly-blue-barrier_latencies.csv", Dir)
     # sprintf("%s/read-write-blue-barrier_latencies.csv", Dir)
 
-    return(data.frame(max_commit_w,
+    return(data.frame(max_total,
+                      max_commit_w,
                       median_commit_w,
                       blue_mean_latency_ronly,
                       blue_mean_latency_wonly,
@@ -123,7 +130,8 @@ get_total_data <- function(Dir) {
                       red_mean_latency_rw,
                       red_median_latency_ronly,
                       red_median_latency_wonly,
-                      red_median_latency_rw))
+                      red_median_latency_rw,
+                      abort_ratio))
 }
 
 format_data <- function(Dir, Data) {
@@ -147,25 +155,40 @@ format_data <- function(Dir, Data) {
     #     cat(sprintf("RW Mean /Median Ms: %f / %f\n", Data$mean_latency_rw, Data$median_latency_rw))
     # }
 
-    cat("threads,throughput,throughput_med,ronly_mean,wonly_mean,rw_mean,ronly_median,wonly_median,rw_median,red_ronly_mean,red_wonly_mean,red_rw_mean,red_ronly_median,red_wonly_median,red_rw_median\n")
-    cat(sprintf(
-        "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f \n",
-        thread_info$per_machine,
-        Data$max_commit_w,
-        Data$median_commit_w,
-        Data$blue_mean_latency_ronly,
-        Data$blue_mean_latency_wonly,
-        Data$blue_mean_latency_rw,
-        Data$blue_median_latency_ronly,
-        Data$blue_median_latency_wonly,
-        Data$blue_median_latency_rw,
-        Data$red_mean_latency_ronly,
-        Data$red_mean_latency_wonly,
-        Data$red_mean_latency_rw,
-        Data$red_median_latency_ronly,
-        Data$red_median_latency_wonly,
-        Data$red_median_latency_rw
-    ))
+    headers <- c(
+        "threads",
+        "total_throughput",
+        "throughput",
+        "throughput_med",
+        "ronly_mean",
+        "ronly_median",
+        "wonly_mean",
+        "wonly_median",
+        "red_ronly_mean",
+        "red_ronly_median",
+        "red_wonly_mean",
+        "red_wonly_median",
+        "abort_ratio"
+    )
+
+    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f \n"
+    row_data <- sprintf(row_format,
+                        thread_info$per_machine,
+                        Data$max_total,
+                        Data$max_commit_w,
+                        Data$median_commit_w,
+                        Data$blue_mean_latency_ronly,
+                        Data$blue_median_latency_ronly,
+                        Data$blue_mean_latency_wonly,
+                        Data$blue_median_latency_wonly,
+                        Data$red_mean_latency_ronly,
+                        Data$red_median_latency_ronly,
+                        Data$red_mean_latency_wonly,
+                        Data$red_median_latency_wonly,
+                        Data$abort_ratio)
+
+    cat(sprintf("%s\n", paste(headers, collapse=",")))
+    cat(row_data)
 }
 
 get_red_data <- function(Dir) {
@@ -222,5 +245,5 @@ format_red_data <- function(Dir, Data) {
 }
 
 input_dir <- opt$data_dir
-# format_data(input_dir, get_total_data(input_dir))
-format_red_data(input_dir, get_red_data(input_dir))
+format_data(input_dir, get_total_data(input_dir))
+# format_red_data(input_dir, get_red_data(input_dir))
