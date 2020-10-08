@@ -215,6 +215,14 @@ get_red_data <- function(Dir) {
     read_mean <- r$mean
     read_median <- r$median
 
+    r <- latency_for_file(sprintf("%s/readonly-red-track_prepare_latencies.csv", Dir))
+    prepare_mean <- r$mean
+    prepare_median <- r$median
+
+    r <- latency_for_file(sprintf("%s/readonly-red-track_accept_latencies.csv", Dir))
+    accept_mean <- r$mean
+    accept_median <- r$median
+
     r <- latency_for_file(sprintf("%s/readonly-red-track_commit_latencies.csv", Dir))
     commit_mean <- r$mean
     commit_median <- r$median
@@ -223,6 +231,8 @@ get_red_data <- function(Dir) {
                       overall_mean, overall_median,
                       start_mean, start_median,
                       read_mean, read_median,
+                      prepare_mean, prepare_median,
+                      accept_mean, accept_median,
                       commit_mean, commit_median))
 }
 
@@ -232,18 +242,43 @@ format_red_data <- function(Dir, Data) {
     }
 
     thread_info <- get_client_threads(Dir)
-    cat("threads,throughput,throughput_med,overall_mean,overall_median,start_mean,start_median,read_mean,read_median,commit_mean,commit_median\n")
-    cat(sprintf(
-        "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
-        thread_info$per_machine,
-        Data$max_commit_w, Data$median_commit_w,
-        Data$overall_mean, Data$overall_median,
-        Data$start_mean, Data$start_median,
-        Data$read_mean, Data$read_median,
-        Data$commit_mean, Data$commit_median
-    ))
+
+    headers <- c(
+        "threads",
+        "total_throughput",
+        "throughput",
+        "throughput_med",
+        "overall_mean",
+        "overall_median",
+        "start_mean",
+        "start_median",
+        "read_mean",
+        "read_median",
+        "prepare_mean",
+        "prepare_median",
+        "accept_mean",
+        "accept_median",
+        "commit_mean",
+        "commit_median"
+    )
+
+    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
+    row_data <- sprintf(row_format,
+                        thread_info$per_machine,
+                        Data$max_total,
+                        Data$max_commit_w,
+                        Data$median_commit_w,
+                        Data$overall_mean, Data$overall_median,
+                        Data$start_mean, Data$start_median,
+                        Data$read_mean, Data$read_median,
+                        Data$prepare_mean, Data$prepare_median,
+                        Data$accept_mean, Data$accept_median,
+                        Data$commit_mean, Data$commit_median)
+
+    cat(sprintf("%s\n"), paste(headers, collapse=","))
+    cat(row_data)
 }
 
 input_dir <- opt$data_dir
-format_data(input_dir, get_total_data(input_dir))
-# format_red_data(input_dir, get_red_data(input_dir))
+# format_data(input_dir, get_total_data(input_dir))
+format_red_data(input_dir, get_red_data(input_dir))

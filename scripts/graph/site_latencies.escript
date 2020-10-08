@@ -87,6 +87,8 @@ parse_latencies(ResultPath, Cluster, ClientNodes) ->
     _ = MergeLatencies("readonly-red-track_start_latencies.csv"),
     _ = MergeLatencies("readonly-red-track_read_latencies.csv"),
     _ = MergeLatencies("readonly-red-track_commit_latencies.csv"),
+    _ = MergeLatencies("readonly-red-track_prepare_latencies.csv"),
+    _ = MergeLatencies("readonly-red-track_accept_latencies.csv"),
     _ = MergeLatencies("writeonly-red_latencies.csv"),
 
     ReadResult =
