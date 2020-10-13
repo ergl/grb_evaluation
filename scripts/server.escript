@@ -301,44 +301,43 @@ os_cmd(Cmd) ->
 
 -spec get_current_ip_addres() -> string().
 get_current_ip_addres() ->
-    IFace =
-        case inet:gethostname() of
-            {ok, "apollo-2-4"} -> "eth0";
-            {ok, "apollo-1-6"} -> "enp1s0.1004";
-            _ -> "enp1s0"
-        end,
-    {ok, IFaceInfo} = inet:getifaddrs(),
-    PossibleIPs = get_config_key_all(addr, get_config_key(IFace, IFaceInfo)),
-    ParsedIPs = lists:filtermap(
-        fun
-            (IPv4 = {_, _, _, _}) -> {true, inet:ntoa(IPv4)};
-            (_) -> false
-        end,
-        PossibleIPs
-    ),
-    1 = length(ParsedIPs),
-    hd(ParsedIPs).
+    {ok, Hostname} = inet:gethostname(),
+    ip_for_node(Hostname).
+
+ip_for_node("apollo-1-1") -> "10.10.5.31";
+ip_for_node("apollo-1-2") -> "10.10.5.32";
+ip_for_node("apollo-1-3") -> "10.10.5.33";
+ip_for_node("apollo-1-4") -> "10.10.5.34";
+ip_for_node("apollo-1-5") -> "10.10.5.35";
+ip_for_node("apollo-1-6") -> "10.10.5.36";
+ip_for_node("apollo-1-7") -> "10.10.5.37";
+ip_for_node("apollo-1-8") -> "10.10.5.38";
+ip_for_node("apollo-1-9") -> "10.10.5.39";
+ip_for_node("apollo-1-10") -> "10.10.5.40";
+ip_for_node("apollo-1-11") -> "10.10.5.41";
+ip_for_node("apollo-1-12") -> "10.10.5.42";
+ip_for_node("apollo-2-1") -> "10.10.5.61";
+ip_for_node("apollo-2-2") -> "10.10.5.62";
+ip_for_node("apollo-2-3") -> "10.10.5.63";
+ip_for_node("apollo-2-4") -> "10.10.5.64";
+ip_for_node("apollo-2-5") -> "10.10.5.65";
+ip_for_node("apollo-2-6") -> "10.10.5.66";
+ip_for_node("apollo-2-7") -> "10.10.5.67";
+ip_for_node("apollo-2-8") -> "10.10.5.68";
+ip_for_node("apollo-2-9") -> "10.10.5.69";
+ip_for_node("apollo-2-10") -> "10.10.5.70";
+ip_for_node("apollo-2-11") -> "10.10.5.71";
+ip_for_node("apollo-2-12") -> "10.10.5.72".
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% config
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-get_config_key(Key, Config) ->
-    {Key, Value} = lists:keyfind(Key, 1, Config),
-    Value.
 
 get_config_key(Key, Config, Default) ->
     case lists:keyfind(Key, 1, Config) of
         false -> Default;
         {Key, Value} -> Value
     end.
-
-get_config_key_all(Key, Config) ->
-    get_config_key_all(Key, Config, []).
-
-get_config_key_all(_Key, [], Acc) -> Acc;
-get_config_key_all(Key, [{Key, Val} | Rest], Acc) -> get_config_key_all(Key, Rest, [Val | Acc]);
-get_config_key_all(Key, [{_Other, _} | Rest], Acc) -> get_config_key_all(Key, Rest, Acc).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% getopt
