@@ -43,30 +43,43 @@ main(Args) ->
             io:fwrite(standard_error, "Wrong option: reason ~s~n", [Reason]),
             usage(),
             halt(1);
-        {ok, #{rest := ResultPath}} ->
+        {ok, Opt=#{rest := ResultPath}} ->
             {ok, NumClients} = client_threads(ResultPath),
             {ok, Terms} = file:consult(config_file(ResultPath)),
             {clusters, ClusterMap} = lists:keyfind(clusters, 1, Terms),
+            CheckServers = maps:get(server_reports, Opt, false),
 
             Reports = pmap(
                 fun({Cluster, #{servers := ServerNodes, clients := ClientNodes}}) ->
                     ClusterStr = atom_to_list(Cluster),
-                    AppReports = server_reports(ResultPath, ClusterStr, ServerNodes),
                     Latencies = parse_latencies(ResultPath, ClusterStr, ClientNodes),
-                    {ClusterStr, AppReports, Latencies}
+                    case CheckServers of
+                        true ->
+                            AppReports = server_reports(ResultPath, ClusterStr, ServerNodes),
+                            {ClusterStr, AppReports, Latencies};
+                        false ->
+                            {ClusterStr, Latencies}
+                    end
                 end,
                 maps:to_list(ClusterMap)
             ),
 
             io:format("================================~n"),
             lists:foreach(
-                fun({ClusterStr, ServerReports, Latencies}) ->
-                    Formatted = string:join(string:replace(Latencies, "NA", NumClients, all), ""),
-                    io:format("~n~s~n~p~n~s~n", [
-                        string:to_upper(ClusterStr),
-                        ServerReports,
-                        Formatted
-                    ])
+                fun
+                    ({ClusterStr, Latencies}) ->
+                        Formatted = string:join(string:replace(Latencies, "NA", NumClients, all), ""),
+                        io:format("~n~s~n~s~n", [
+                            string:to_upper(ClusterStr),
+                            Formatted
+                        ]);
+                    ({ClusterStr, ServerReports, Latencies}) ->
+                        Formatted = string:join(string:replace(Latencies, "NA", NumClients, all), ""),
+                        io:format("~n~s~n~p~n~s~n", [
+                            string:to_upper(ClusterStr),
+                            ServerReports,
+                            Formatted
+                        ])
                 end,
                 Reports
             ),
@@ -209,6 +222,10 @@ parse_args_inner([[$- | Flag] | Args], Acc) ->
             parse_flag(Flag, Args, fun(Arg) -> Acc#{config => Arg} end);
         "-file" ->
             parse_flag(Flag, Args, fun(Arg) -> Acc#{config => Arg} end);
+        [$s] ->
+            parse_args_inner(Args, Acc#{server_reports => true});
+        "-server_reports" ->
+            parse_args_inner(Args, Acc#{server_reports => true});
         [$h] ->
             usage(),
             halt(0);

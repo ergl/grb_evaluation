@@ -43,6 +43,7 @@ plot_theme <- theme_minimal(base_size=10) +
           legend.box.background = element_rect(color="black", fill="white"))
 
 df <- read.csv("../../redblue_evaluation/results.csv")
+df <- df[df$replicas != 2, ]
 df$replication <- factor(df$replication, levels=c('cure', 'uniform',
                                                   'redblue_blue', 'redblue_red'))
 df$cluster <- factor(df$cluster, levels=c('all', 'virginia',
@@ -112,7 +113,7 @@ lat_r_plot <- ggplot(df_reads_overall, aes(x=factor(replicas), group=replication
     scale_y_continuous(breaks=seq(0, 50, by=1),
                        expand=c(0,0)) +
 
-    coord_cartesian(ylim=c(0.1,30)) +
+    coord_cartesian(ylim=c(0.1,32)) +
     scales +
     labs(x = "Replicas", y = "Median Latency (ms)") +
     plot_theme
@@ -135,7 +136,7 @@ lat_r_each_plot <- ggplot(df_reads_each, aes(x=factor(cluster),
     scale_y_continuous(breaks=seq(0,40,by=2),
                        expand=c(0,0),
                        sec.axis = dup_axis(name="")) +
-    coord_cartesian(ylim=c(0,34)) +
+    coord_cartesian(ylim=c(0,36)) +
     labs(x = "Replicas", y = "Median Latency (ms)") +
     plot_theme +
     theme(legend.position = "none",
