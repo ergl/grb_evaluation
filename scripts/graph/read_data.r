@@ -193,7 +193,12 @@ format_data <- function(Dir, Data) {
 
 get_red_data <- function(Dir) {
     summary <- read.csv(sprintf("%s/summary.csv", Dir))
+    abort_ratio <- sum(summary$failed) / sum(summary$total)
     summary <- summary[-c(1), ]
+
+    max_total <- max(summary$total)
+    max_total_row <- summary[c(which(summary$total == max_total)), ]
+    max_total <- max_total / max_total_row$window
 
     max_commit <- max(summary$successful)
     max_commit_row <- summary[c(which(summary$successful == max_commit)), ]
@@ -227,13 +232,13 @@ get_red_data <- function(Dir) {
     commit_mean <- r$mean
     commit_median <- r$median
 
-    return(data.frame(max_commit_w, median_commit_w,
+    return(data.frame(max_total, max_commit_w, median_commit_w,
                       overall_mean, overall_median,
                       start_mean, start_median,
                       read_mean, read_median,
                       prepare_mean, prepare_median,
                       accept_mean, accept_median,
-                      commit_mean, commit_median))
+                      commit_mean, commit_median, abort_ratio))
 }
 
 format_red_data <- function(Dir, Data) {
@@ -245,9 +250,7 @@ format_red_data <- function(Dir, Data) {
 
     headers <- c(
         "threads",
-        "total_throughput",
         "throughput",
-        "throughput_med",
         "overall_mean",
         "overall_median",
         "start_mean",
@@ -262,12 +265,10 @@ format_red_data <- function(Dir, Data) {
         "commit_median"
     )
 
-    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n",
+    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n"
     row_data <- sprintf(row_format,
                         thread_info$per_machine,
-                        Data$max_total,
                         Data$max_commit_w,
-                        Data$median_commit_w,
                         Data$overall_mean, Data$overall_median,
                         Data$start_mean, Data$start_median,
                         Data$read_mean, Data$read_median,
@@ -275,7 +276,7 @@ format_red_data <- function(Dir, Data) {
                         Data$accept_mean, Data$accept_median,
                         Data$commit_mean, Data$commit_median)
 
-    cat(sprintf("%s\n"), paste(headers, collapse=","))
+    cat(sprintf("%s\n", paste(headers, collapse=",")))
     cat(row_data)
 }
 
