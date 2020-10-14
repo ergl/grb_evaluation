@@ -17,6 +17,7 @@ for(p in packages.to.install) {
 params = matrix(c(
     'help', 'h', 0, "logical",
     'verbose', 'v', 0, "logical",
+    'header', 'p', 0, "logical",
     'data_dir', 'i', 2, "character"
 ), ncol=4, byrow=TRUE)
 
@@ -35,6 +36,12 @@ verbose <- if (!is.null(opt$verbose)) {
     1
 } else {
     0
+}
+
+print.headers <- if(!is.null(opt$header)) {
+    0
+} else {
+    1
 }
 
 get_client_threads <- function(Dir) {
@@ -187,7 +194,9 @@ format_data <- function(Dir, Data) {
                         Data$red_median_latency_wonly,
                         Data$abort_ratio)
 
-    cat(sprintf("%s\n", paste(headers, collapse=",")))
+    if(print.headers) {
+        cat(sprintf("%s\n", paste(headers, collapse=",")))
+    }
     cat(row_data)
 }
 
@@ -276,7 +285,9 @@ format_red_data <- function(Dir, Data) {
                         Data$accept_mean, Data$accept_median,
                         Data$commit_mean, Data$commit_median)
 
-    cat(sprintf("%s\n", paste(headers, collapse=",")))
+    if(print.headers) {
+        cat(sprintf("%s\n", paste(headers, collapse=",")))
+    }
     cat(row_data)
 }
 

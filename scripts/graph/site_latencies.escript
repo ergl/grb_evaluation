@@ -64,7 +64,10 @@ main(Args) ->
                 maps:to_list(ClusterMap)
             ),
 
-            io:format("================================~n"),
+            GlobalResults = parse_global_latencies(ResultPath),
+            io:format("~s~n", [GlobalResults]),
+
+            io:format("================================"),
             lists:foreach(
                 fun
                     ({ClusterStr, Latencies}) ->
@@ -100,6 +103,20 @@ config_file(Path) ->
     FindConfig = io_lib:format("find ~s -type f -name cluster.config -print", [Path]),
     Matches = nonl(os:cmd(FindConfig)),
     hd(string:split(Matches, "\n", all)).
+
+
+parse_global_latencies(ResultPath) ->
+    MergeAll = io_lib:format("~s ~s", [
+        filename:join([?SELF_DIR, "merge.sh"]),
+        ResultPath
+    ]),
+    _ = os:cmd(MergeAll),
+    ReadResult = io_lib:format("~s -i ~s 2>/dev/null", [
+        filename:join([?SELF_DIR, "read_data.r"]),
+        ResultPath
+    ]),
+
+    nonl(os:cmd(ReadResult)).
 
 server_reports(ResultPath, ClusterStr, ServerNodes) ->
     ReportFile = filename:join([ResultPath, io_lib:format("~s_server_reports.bin", [ClusterStr])]),
@@ -170,7 +187,7 @@ parse_latencies(ResultPath, ClusterStr, BenchNodes) ->
     _ = MergeLatencies("writeonly-red_latencies.csv"),
 
     ReadResult =
-        io_lib:format("~s -i ~s 2>/dev/null", [
+        io_lib:format("~s -p -i ~s 2>/dev/null", [
             filename:join([?SELF_DIR, "read_data.r"]),
             TmpPath
         ]),

@@ -48,11 +48,12 @@ legend_labels <- scale_colour_manual(
     labels=c(`overall_median` = "Transaction Latency",
              `commit_median` = "Commit Latency"),
     values=c(`overall_median` = "red",
-                `commit_median` = "blue")
+             `commit_median` = "blue")
 )
 
-df_combined <- read.csv("../../red_coord_2/progression_results.csv")
-df_each <- read.csv("../../red_coord_2/progression_latencies.csv")
+df <- read.csv("../../redblue_evaluation/progression_results.csv")
+df_combined <- df[df$cluster == "all", ]
+df_each <- df[df$cluster != "all", ]
 title_text <- "Redblue (100% red), R=1, 20ms RTT"
 
 melted <- melt(df_combined,
@@ -66,7 +67,7 @@ combined_plot <- ggplot(melted, aes(x=throughput, y=value, colour=variable, grou
                        labels=format_thousand_comma) +
     scale_y_continuous(breaks=seq(0,50,by=2), expand=c(0,0)) +
     coord_cartesian(xlim=c(0,80000), ylim=c(0,40)) +
-    geom_hline(yintercept=27.5, size=1, color="#807F80") +
+    geom_hline(yintercept=20, size=1, color="#807F80") +
     labs(title=title_text, x = "Throughput (ktps)", y = "Median Latency (ms)") +
     legend_labels +
     plot_theme
@@ -80,17 +81,15 @@ each_plot <- ggplot(melted, aes(x=throughput, y=value, colour=variable, group=va
     geom_point(size=1.5) +
     geom_path() +
     geom_hline(yintercept=20, size=0.5, color="#807F80") +
-    geom_hline(yintercept=30, size=0.5, color="#807F80") +
     scale_x_continuous(breaks=seq(0, 30000, by=5000),
                        labels=format_thousand_comma) +
     scale_y_continuous(breaks=seq(0,50,by=2), expand=c(0,0), sec.axis = dup_axis(name="")) +
     coord_cartesian(xlim=c(0,20000), ylim=c(0,40)) +
-    facet_rep_wrap(~cluster, nrow=2, ncol=2, scales="free_x", labeller=labeller(
+    facet_rep_wrap(~cluster, ncol=1, scales="free_x", labeller=labeller(
         cluster = c(
             `virginia` = "Leader",
             `oregon` = "Replica A",
-            `ireland` = "Replica B",
-            `california` = "Replica C"
+            `ireland` = "Replica B"
         )
     )) +
     labs(title=title_text, x = "Throughput (ktps)", y = "Median Latency (ms)") +
@@ -112,7 +111,7 @@ both <- grid.arrange(combined_plot + theme(legend.position="none"),
 
 final <- grid.arrange(both, combined_legend, ncol=1, heights=c(0.9, 0.1))
 
-ggsave(filename = "./red_progression.pdf",
+ggsave(filename = "./red_progression_3.pdf",
        plot = final,
        device = "pdf",
        width = 15,
