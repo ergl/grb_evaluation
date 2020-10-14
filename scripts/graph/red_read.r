@@ -43,9 +43,10 @@ plot_theme <- theme_minimal(base_size=10) +
           legend.box.background = element_rect(color="black", fill="white"))
 
 df <- read.csv("../../redblue_evaluation/results.csv")
+to_keep <- c("cure", "uniform", "redblue_blue", "redblue_red")
+df <- df[df$replication %in% to_keep, ]
 df <- df[df$replicas != 2, ]
-df$replication <- factor(df$replication, levels=c('cure', 'uniform',
-                                                  'redblue_blue', 'redblue_red'))
+df$replication <- factor(df$replication, levels=to_keep)
 df$cluster <- factor(df$cluster, levels=c('all', 'virginia',
                                           'oregon', 'ireland', 'california'))
 df_reads <- df[df$op == "read", ]

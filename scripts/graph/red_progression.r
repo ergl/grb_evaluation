@@ -52,6 +52,7 @@ legend_labels <- scale_colour_manual(
 )
 
 df <- read.csv("../../redblue_evaluation/progression_results.csv")
+df <- df[df$exp == "red_conn", ]
 df_combined <- df[df$cluster == "all", ]
 df_each <- df[df$cluster != "all", ]
 title_text <- "Redblue (100% red), R=1, 20ms RTT"
@@ -66,7 +67,7 @@ combined_plot <- ggplot(melted, aes(x=throughput, y=value, colour=variable, grou
     scale_x_continuous(breaks=seq(0, 80000, by=5000),
                        labels=format_thousand_comma) +
     scale_y_continuous(breaks=seq(0,50,by=2), expand=c(0,0)) +
-    coord_cartesian(xlim=c(0,80000), ylim=c(0,40)) +
+    coord_cartesian(xlim=c(0,80000), ylim=c(0,30)) +
     geom_hline(yintercept=20, size=1, color="#807F80") +
     labs(title=title_text, x = "Throughput (ktps)", y = "Median Latency (ms)") +
     legend_labels +
@@ -84,8 +85,8 @@ each_plot <- ggplot(melted, aes(x=throughput, y=value, colour=variable, group=va
     scale_x_continuous(breaks=seq(0, 30000, by=5000),
                        labels=format_thousand_comma) +
     scale_y_continuous(breaks=seq(0,50,by=2), expand=c(0,0), sec.axis = dup_axis(name="")) +
-    coord_cartesian(xlim=c(0,20000), ylim=c(0,40)) +
-    facet_rep_wrap(~cluster, ncol=1, scales="free_x", labeller=labeller(
+    coord_cartesian(xlim=c(0,30000), ylim=c(0,32)) +
+    facet_rep_wrap(~cluster, nrow=1, scales="free_x", labeller=labeller(
         cluster = c(
             `virginia` = "Leader",
             `oregon` = "Replica A",
@@ -107,13 +108,14 @@ combined_legend <- get_legend(combined_plot)
 
 both <- grid.arrange(combined_plot + theme(legend.position="none"),
                      each_plot + theme(legend.position="none"),
-                     nrow=1)
+                     nrow=1,
+                     widths=c(0.4,0.6))
 
 final <- grid.arrange(both, combined_legend, ncol=1, heights=c(0.9, 0.1))
 
 ggsave(filename = "./red_progression_3.pdf",
        plot = final,
        device = "pdf",
-       width = 15,
+       width = 20,
        height = 10,
        dpi = 300)

@@ -292,5 +292,5 @@ format_red_data <- function(Dir, Data) {
 }
 
 input_dir <- opt$data_dir
-# format_data(input_dir, get_total_data(input_dir))
-format_red_data(input_dir, get_red_data(input_dir))
+format_data(input_dir, get_total_data(input_dir))
+# format_red_data(input_dir, get_red_data(input_dir))

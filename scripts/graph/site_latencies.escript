@@ -40,7 +40,7 @@ ip_for_node('apollo-2-12.imdea') -> "10.10.5.72".
 main(Args) ->
     case parse_args(Args, []) of
         {error, Reason} ->
-            io:fwrite(standard_error, "Wrong option: reason ~s~n", [Reason]),
+            io:fwrite(standard_error, "Wrong option: reason ~p~n", [Reason]),
             usage(),
             halt(1);
         {ok, Opt=#{rest := ResultPath}} ->
