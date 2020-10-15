@@ -62,6 +62,8 @@ mergeSite() {
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly-red-track_commit_latencies.csv"
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly-red-track_prepare_latencies.csv"
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly-red-track_accept_latencies.csv"
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly-red-track_coordinator_commit_latencies.csv"
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly-red-track_coordinator_commit_barrier_latencies.csv"
 }
 
 usage() {

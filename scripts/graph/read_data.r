@@ -241,13 +241,24 @@ get_red_data <- function(Dir) {
     commit_mean <- r$mean
     commit_median <- r$median
 
+    r <- latency_for_file(sprintf("%s/readonly-red-track_coordinator_commit_latencies.csv", Dir))
+    commit_coord_mean <- r$mean
+    commit_coord_median <- r$median
+
+    r <- latency_for_file(sprintf("%s/readonly-red-track_coordinator_commit_barrier_latencies.csv", Dir))
+    commit_coord_barrier_mean <- r$mean
+    commit_coord_barrier_median <- r$median
+
     return(data.frame(max_total, max_commit_w, median_commit_w,
                       overall_mean, overall_median,
                       start_mean, start_median,
                       read_mean, read_median,
                       prepare_mean, prepare_median,
                       accept_mean, accept_median,
-                      commit_mean, commit_median, abort_ratio))
+                      commit_mean, commit_median,
+                      commit_coord_mean, commit_coord_median,
+                      commit_coord_barrier_mean, commit_coord_barrier_median,
+                      abort_ratio))
 }
 
 format_red_data <- function(Dir, Data) {
@@ -271,10 +282,14 @@ format_red_data <- function(Dir, Data) {
         "accept_mean",
         "accept_median",
         "commit_mean",
-        "commit_median"
+        "commit_median",
+        "commit_coord_barrier_mean",
+        "commit_coord_barrier_median",
+        "commit_coord_mean",
+        "commit_coord_median"
     )
 
-    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n"
+    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n"
     row_data <- sprintf(row_format,
                         thread_info$per_machine,
                         Data$max_commit_w,
@@ -283,7 +298,9 @@ format_red_data <- function(Dir, Data) {
                         Data$read_mean, Data$read_median,
                         Data$prepare_mean, Data$prepare_median,
                         Data$accept_mean, Data$accept_median,
-                        Data$commit_mean, Data$commit_median)
+                        Data$commit_mean, Data$commit_median,
+                        Data$commit_coord_barrier_mean, Data$commit_coord_barrier_median,
+                        Data$commit_coord_mean, Data$commit_coord_median)
 
     if(print.headers) {
         cat(sprintf("%s\n", paste(headers, collapse=",")))
@@ -292,5 +309,5 @@ format_red_data <- function(Dir, Data) {
 }
 
 input_dir <- opt$data_dir
-format_data(input_dir, get_total_data(input_dir))
-# format_red_data(input_dir, get_red_data(input_dir))
+# format_data(input_dir, get_total_data(input_dir))
+format_red_data(input_dir, get_red_data(input_dir))
