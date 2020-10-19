@@ -46,20 +46,23 @@ plot_theme <- theme_minimal(base_size=10) +
 legend_labels <- scale_colour_manual(
     name="Latencies",
     labels=c(`overall_median` = "Transaction Latency",
-             `commit_median` = "Commit Latency"),
+             `commit_median` = "Commit Latency (Client)",
+             `commit_coord_median` = "Commit Latency (Coordinator)"),
     values=c(`overall_median` = "red",
-             `commit_median` = "blue")
+             `commit_median` = "blue",
+             `commit_coord_median` = "orange")
 )
 
-df <- read.csv("../../redblue_evaluation/progression_results.csv")
-df <- df[df$exp == "red_conn", ]
+df <- read.csv("../../redblue_evaluation/nodelay_results.csv")
+df <- df[df$exp == "reads", ]
+df <- df[df$partitions == "16", ]
 df_combined <- df[df$cluster == "all", ]
 df_each <- df[df$cluster != "all", ]
 title_text <- "Redblue (100% red), R=1, 20ms RTT"
 
 melted <- melt(df_combined,
                id.vars=c('client_threads', 'throughput'),
-               measure.vars=c('overall_median', 'commit_median'))
+               measure.vars=c('overall_median', 'commit_median', 'commit_coord_median'))
 
 combined_plot <- ggplot(melted, aes(x=throughput, y=value, colour=variable, group=variable)) +
     geom_point(size=1.5) +
@@ -75,7 +78,7 @@ combined_plot <- ggplot(melted, aes(x=throughput, y=value, colour=variable, grou
 
 melted <- melt(df_each,
                id.vars=c('cluster', 'throughput'),
-               measure.vars=c('overall_median', 'commit_median'))
+               measure.vars=c('overall_median', 'commit_median', 'commit_coord_median'))
 
 melted$cluster <- factor(melted$cluster, levels = c('virginia', 'oregon', 'ireland', 'california'))
 each_plot <- ggplot(melted, aes(x=throughput, y=value, colour=variable, group=variable)) +
@@ -113,7 +116,7 @@ both <- grid.arrange(combined_plot + theme(legend.position="none"),
 
 final <- grid.arrange(both, combined_legend, ncol=1, heights=c(0.9, 0.1))
 
-ggsave(filename = "./red_progression_3.pdf",
+ggsave(filename = "./red_progression_3_nodelay.pdf",
        plot = final,
        device = "pdf",
        width = 20,
