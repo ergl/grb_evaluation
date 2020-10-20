@@ -55,13 +55,14 @@ legend_labels <- scale_colour_manual(
 
 df <- read.csv("../../redblue_evaluation/nodelay_results.csv")
 df <- df[df$exp == "reads", ]
-df <- df[df$partitions == "16", ]
+# df <- df[df$partitions %in% c(4, 16, 32), ]
+df <- df[df$partitions == 16, ]
 df_combined <- df[df$cluster == "all", ]
 df_each <- df[df$cluster != "all", ]
-title_text <- "Redblue (100% red), R=1, 20ms RTT"
 
+title_text <- "Redblue (100% red), R=1, 20ms RTT, 16 partitions"
 melted <- melt(df_combined,
-               id.vars=c('client_threads', 'throughput'),
+               id.vars=c('client_threads', 'throughput', 'partitions'),
                measure.vars=c('overall_median', 'commit_median', 'commit_coord_median'))
 
 combined_plot <- ggplot(melted, aes(x=throughput, y=value, colour=variable, group=variable)) +
@@ -70,14 +71,21 @@ combined_plot <- ggplot(melted, aes(x=throughput, y=value, colour=variable, grou
     scale_x_continuous(breaks=seq(0, 80000, by=5000),
                        labels=format_thousand_comma) +
     scale_y_continuous(breaks=seq(0,50,by=2), expand=c(0,0)) +
-    coord_cartesian(xlim=c(0,80000), ylim=c(0,30)) +
+    coord_cartesian(xlim=c(0,80000), ylim=c(0,28)) +
     geom_hline(yintercept=20, size=1, color="#807F80") +
+    # facet_rep_wrap(~partitions, scales="free_x", ncol=1, labeller=labeller(
+    #     partitions = c(
+    #         `4` = "4 Partitions (2 per machine)",
+    #         `16` = "16 Partitions (8 per machine)",
+    #         `32` = "32 Partitions (16 per machine)"
+    #     )
+    # )) +
     labs(title=title_text, x = "Throughput (ktps)", y = "Median Latency (ms)") +
     legend_labels +
     plot_theme
 
 melted <- melt(df_each,
-               id.vars=c('cluster', 'throughput'),
+               id.vars=c('cluster', 'throughput', 'partitions'),
                measure.vars=c('overall_median', 'commit_median', 'commit_coord_median'))
 
 melted$cluster <- factor(melted$cluster, levels = c('virginia', 'oregon', 'ireland', 'california'))
@@ -88,7 +96,19 @@ each_plot <- ggplot(melted, aes(x=throughput, y=value, colour=variable, group=va
     scale_x_continuous(breaks=seq(0, 30000, by=5000),
                        labels=format_thousand_comma) +
     scale_y_continuous(breaks=seq(0,50,by=2), expand=c(0,0), sec.axis = dup_axis(name="")) +
-    coord_cartesian(xlim=c(0,30000), ylim=c(0,32)) +
+    coord_cartesian(xlim=c(0,30000), ylim=c(0,28)) +
+    # facet_grid(rows = vars(cluster), cols=vars(partitions), scales="free_y", switch='y', labeller=labeller(
+    #     cluster = c(
+    #         `virginia` = "Leader",
+    #         `oregon` = "Replica A",
+    #         `ireland` = "Replica B"
+    #     ),
+    #     partitions = c(
+    #         `4` = "4 Partitions (2 per machine)",
+    #         `16` = "16 Partitions (8 per machine)",
+    #         `32` = "32 Partitions (16 per machine)"
+    #     )
+    # )) +
     facet_rep_wrap(~cluster, nrow=1, scales="free_x", labeller=labeller(
         cluster = c(
             `virginia` = "Leader",
