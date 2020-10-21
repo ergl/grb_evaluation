@@ -26,7 +26,7 @@ plot_theme <- theme_minimal(base_size=10) +
     theme(plot.title = element_text(size=9, margin=margin(0,0,10,0)),
           plot.margin = margin(15,20,15,0),
 
-          axis.title.x = element_text(size=9, margin=margin(10,0,-15,0)),
+          axis.title.x = element_text(size=9, margin=margin(10,0,10,0)),
           axis.title.y = element_text(size=9, margin=margin(0,0,0,10)),
           axis.text.x =  element_text(size=7, margin=margin(10,0,0,0)),
           axis.text.y =  element_text(size=7, margin=margin(0,8,0,10)),
@@ -53,19 +53,29 @@ legend_labels <- scale_colour_manual(
              `commit_coord_median` = "orange")
 )
 
+partition_labels <- scale_colour_manual(
+    name="Partitions",
+    labels=c(`12` = "12 Partitions (6 per machine)",
+             `16` = "16 Partitions (8 per machine)"),
+    values=c(`12` = "red",
+             `16` = "blue")
+)
+
+partitions <- 12
 df <- read.csv("../../redblue_evaluation/nodelay_results.csv")
 df <- df[df$exp == "reads", ]
-# df <- df[df$partitions %in% c(4, 16, 32), ]
-df <- df[df$partitions == 16, ]
+df <- df[df$partitions %in% c(12, 16), ]
+df <- df[df$coord_pool == 100, ]
 df_combined <- df[df$cluster == "all", ]
 df_each <- df[df$cluster != "all", ]
 
-title_text <- "Redblue (100% red), R=1, 20ms RTT, 16 partitions"
+# title_text <- sprintf("Redblue (100%% red), R=1, 20ms RTT, %s partitions", partitions)
+title_text <- "Redblue (100% red), R=1, 20ms RTT"
 melted <- melt(df_combined,
                id.vars=c('client_threads', 'throughput', 'partitions'),
                measure.vars=c('overall_median', 'commit_median', 'commit_coord_median'))
 
-combined_plot <- ggplot(melted, aes(x=throughput, y=value, colour=variable, group=variable)) +
+combined_plot <- ggplot(df_combined, aes(x=throughput, y=overall_median, colour=factor(partitions), group=factor(partitions))) +
     geom_point(size=1.5) +
     geom_path() +
     scale_x_continuous(breaks=seq(0, 80000, by=5000),
@@ -75,13 +85,12 @@ combined_plot <- ggplot(melted, aes(x=throughput, y=value, colour=variable, grou
     geom_hline(yintercept=20, size=1, color="#807F80") +
     # facet_rep_wrap(~partitions, scales="free_x", ncol=1, labeller=labeller(
     #     partitions = c(
-    #         `4` = "4 Partitions (2 per machine)",
-    #         `16` = "16 Partitions (8 per machine)",
-    #         `32` = "32 Partitions (16 per machine)"
+    #         `12` = "12 Partitions (6 per machine)",
+    #         `16` = "16 Partitions (8 per machine)"
     #     )
     # )) +
     labs(title=title_text, x = "Throughput (ktps)", y = "Median Latency (ms)") +
-    legend_labels +
+    partition_labels +
     plot_theme
 
 melted <- melt(df_each,
@@ -97,25 +106,24 @@ each_plot <- ggplot(melted, aes(x=throughput, y=value, colour=variable, group=va
                        labels=format_thousand_comma) +
     scale_y_continuous(breaks=seq(0,50,by=2), expand=c(0,0), sec.axis = dup_axis(name="")) +
     coord_cartesian(xlim=c(0,30000), ylim=c(0,28)) +
-    # facet_grid(rows = vars(cluster), cols=vars(partitions), scales="free_y", switch='y', labeller=labeller(
-    #     cluster = c(
-    #         `virginia` = "Leader",
-    #         `oregon` = "Replica A",
-    #         `ireland` = "Replica B"
-    #     ),
-    #     partitions = c(
-    #         `4` = "4 Partitions (2 per machine)",
-    #         `16` = "16 Partitions (8 per machine)",
-    #         `32` = "32 Partitions (16 per machine)"
-    #     )
-    # )) +
-    facet_rep_wrap(~cluster, nrow=1, scales="free_x", labeller=labeller(
+    facet_grid(cols=vars(cluster), rows=vars(partitions), scales="free_y", switch='y', labeller=labeller(
         cluster = c(
             `virginia` = "Leader",
             `oregon` = "Replica A",
             `ireland` = "Replica B"
+        ),
+        partitions = c(
+            `12` = "12 Partitions (6 per machine)",
+            `16` = "16 Partitions (8 per machine)"
         )
     )) +
+    # facet_rep_wrap(~cluster, nrow=1, scales="free_x", labeller=labeller(
+    #     cluster = c(
+    #         `virginia` = "Leader",
+    #         `oregon` = "Replica A",
+    #         `ireland` = "Replica B"
+    #     )
+    # )) +
     labs(title=title_text, x = "Throughput (ktps)", y = "Median Latency (ms)") +
     legend_labels +
     plot_theme
@@ -132,13 +140,13 @@ combined_legend <- get_legend(combined_plot)
 both <- grid.arrange(combined_plot + theme(legend.position="none"),
                      each_plot + theme(legend.position="none"),
                      nrow=1,
-                     widths=c(0.4,0.6))
+                     widths=c(0.5,0.5))
 
 final <- grid.arrange(both, combined_legend, ncol=1, heights=c(0.9, 0.1))
 
-ggsave(filename = "./red_progression_3_nodelay.pdf",
-       plot = final,
+ggsave(filename = "./red_progression_3_nodelay_comparison.pdf",
+       plot = combined_plot,
        device = "pdf",
-       width = 20,
+       width = 10,
        height = 10,
        dpi = 300)

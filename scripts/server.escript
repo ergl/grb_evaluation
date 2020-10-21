@@ -13,13 +13,11 @@
 -define(DEFAULT_RING_SIZE, 64).
 -define(DEFAULT_HB_INTERVAL, 5).
 -define(DEFAULT_OP_CHECK_RETRY_MS, 5).
--define(DEFAULT_INTER_DC_POOL_SIZE, 16).
 -define(DEFAULT_REPL_INTERVAL, 5).
 -define(DEFAULT_UNI_REPL_INTERVAL, 5000).
 -define(DEFAULT_BCAST_INTERVAL, 5).
 -define(DEFAULT_PRUNE_INTERVAL, 50).
 -define(DEFAULT_CLOCK_INTERVAL, 10000).
--define(DEFAULT_INTER_DC_RED_POOL_SIZE, 16).
 -define(DEFAULT_RED_INTERVAL, 5).
 -define(DEFAULT_RED_DELIVERY, 10).
 -define(DEFAULT_RED_PRUNE, 20).
@@ -181,11 +179,6 @@ start_grb(Config) ->
         Config,
         ?DEFAULT_OP_CHECK_RETRY_MS
     ),
-    INTER_DC_SENDER_POOL_SIZE = get_config_key(
-        inter_dc_pool_size,
-        Config,
-        ?DEFAULT_INTER_DC_POOL_SIZE
-    ),
     REPLICATION_INTERVAL_MS = get_config_key(
         basic_replication_interval,
         Config,
@@ -211,11 +204,6 @@ start_grb(Config) ->
         Config,
         ?DEFAULT_CLOCK_INTERVAL
     ),
-    RED_SENDER_POOL_SIZE = get_config_key(
-        inter_dc_red_pool_size,
-        Config,
-        ?DEFAULT_INTER_DC_RED_POOL_SIZE
-    ),
     RED_HB_INTERVAL_MS = get_config_key(red_heartbeat_interval, Config, ?DEFAULT_RED_INTERVAL),
     RED_DELIVER_INTERVAL_MS = get_config_key(red_delivery_interval, Config, ?DEFAULT_RED_DELIVERY),
     RED_PRUNE_INTERVAL = get_config_key(red_prune_interval, Config, ?DEFAULT_RED_PRUNE),
@@ -224,7 +212,7 @@ start_grb(Config) ->
     GRB_QUORUM_OVERRIDE = get_config_key(red_quorum_override, Config, -1),
 
     EnvVarString = io_lib:format(
-        "GRB_QUORUM_OVERRIDE=~b TCP_ID_LEN=~b OP_LOG_REPLICAS=~b VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b OP_CHECK_RETRY_MS=~b INTER_DC_SENDER_POOL_SIZE=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_SENDER_POOL_SIZE=~b RED_HB_INTERVAL_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_COORD_POOL_SIZE=~b IP=~s",
+        "GRB_QUORUM_OVERRIDE=~b TCP_ID_LEN=~b OP_LOG_REPLICAS=~b VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b OP_CHECK_RETRY_MS=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_HB_INTERVAL_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_COORD_POOL_SIZE=~b IP=~s",
         [
             GRB_QUORUM_OVERRIDE,
             TCP_ID_LEN,
@@ -233,13 +221,11 @@ start_grb(Config) ->
             RIAK_RING_SIZE,
             SELF_HB_INTERVAL_MS,
             OP_CHECK_RETRY_MS,
-            INTER_DC_SENDER_POOL_SIZE,
             REPLICATION_INTERVAL_MS,
             UNIFORM_REPLICATION_INTERVAL_MS,
             BCAST_KNOWN_VC_INTERVAL_MS,
             COMMITTED_BLUE_PRUNE_INTERVAL_MS,
             UNIFORM_CLOCK_INTERVAL_MS,
-            RED_SENDER_POOL_SIZE,
             RED_HB_INTERVAL_MS,
             RED_DELIVER_INTERVAL_MS,
             RED_PRUNE_INTERVAL,
