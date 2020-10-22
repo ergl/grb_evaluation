@@ -44,7 +44,7 @@ main(Args) ->
             usage(),
             halt(1);
         {ok, Opt=#{rest := ResultPath}} ->
-            {ok, NumClients} = client_threads(ResultPath),
+            {ok, _NumClients} = client_threads(ResultPath),
             {ok, Terms} = file:consult(config_file(ResultPath)),
             {clusters, ClusterMap} = lists:keyfind(clusters, 1, Terms),
             CheckServers = maps:get(server_reports, Opt, false),
@@ -67,19 +67,21 @@ main(Args) ->
             GlobalResults = parse_global_latencies(ResultPath),
             io:format("~s~n", [GlobalResults]),
 
-            io:format("================================"),
+            io:format("================================~n"),
             lists:foreach(
                 fun
                     ({ClusterStr, Latencies}) ->
-                        Formatted = string:join(string:replace(Latencies, "NA", NumClients, all), ""),
-                        io:format("~n~s~n~s~n", [
-                            string:to_upper(ClusterStr),
-                            Formatted
-                        ]);
+                        Formatted = string:join(
+                            string:replace(Latencies, "NA", string:to_upper(ClusterStr), all),
+                            ""
+                        ),
+                        io:format("~s~n", [Formatted]);
                     ({ClusterStr, ServerReports, Latencies}) ->
-                        Formatted = string:join(string:replace(Latencies, "NA", NumClients, all), ""),
-                        io:format("~n~s~n~p~n~s~n", [
-                            string:to_upper(ClusterStr),
+                        Formatted = string:join(
+                            string:replace(Latencies, "NA", string:to_upper(ClusterStr), all),
+                            ""
+                        ),
+                        io:format("~p~n~s~n", [
                             ServerReports,
                             Formatted
                         ])
@@ -177,6 +179,7 @@ parse_latencies(ResultPath, ClusterStr, BenchNodes) ->
     end,
 
     _ = MergeLatencies("readonly-blue_latencies.csv"),
+    _ = MergeLatencies("writeonly-blue_latencies.csv"),
     _ = MergeLatencies("readonly-red_latencies.csv"),
     _ = MergeLatencies("readonly-red-track_latencies.csv"),
     _ = MergeLatencies("readonly-red-track_start_latencies.csv"),

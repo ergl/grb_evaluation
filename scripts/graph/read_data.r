@@ -147,34 +147,19 @@ format_data <- function(Dir, Data) {
     }
 
     thread_info <- get_client_threads(Dir)
-
-    # if (verbose) {
-    #     cat(sprintf("\nThreads: %s (%s)\n",
-    #             format_decimal(thread_info$per_machine, withoutZeros=TRUE),
-    #             format_decimal(thread_info$total, withoutZeros=TRUE)))
-
-    #     cat(sprintf("Max Thr: %s\n", format_decimal(Data$max_commit_w)))
-    #     cat(sprintf("Median Thr: %s\n", format_decimal(Data$median_commit_w)))
-
-    #     cat("\nNo Barrier\n")
-    #     cat(sprintf("Ronly Mean / Median Ms: %f / %f\n", Data$mean_latency_ronly, Data$median_latency_ronly))
-    #     cat(sprintf("Wonly Mean / Median Ms: %f / %f\n", Data$mean_latency_wonly, Data$median_latency_wonly))
-    #     cat(sprintf("RW Mean /Median Ms: %f / %f\n", Data$mean_latency_rw, Data$median_latency_rw))
-    # }
-
     headers <- c(
         "threads",
         "total_throughput",
         "throughput",
         "throughput_med",
-        "ronly_mean",
-        "ronly_median",
-        "wonly_mean",
-        "wonly_median",
-        "red_ronly_mean",
-        "red_ronly_median",
-        "red_wonly_mean",
-        "red_wonly_median",
+        "reads_mean",
+        "reads_median",
+        "updates_mean",
+        "updates_median",
+        "red_reads_mean",
+        "red_reads_median",
+        "red_updates_mean",
+        "red_updates_median",
         "abort_ratio"
     )
 
@@ -309,5 +294,5 @@ format_red_data <- function(Dir, Data) {
 }
 
 input_dir <- opt$data_dir
-# format_data(input_dir, get_total_data(input_dir))
-format_red_data(input_dir, get_red_data(input_dir))
+format_data(input_dir, get_total_data(input_dir))
+# format_red_data(input_dir, get_red_data(input_dir))
