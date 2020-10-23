@@ -122,9 +122,15 @@ main(Args) ->
 %% Commands
 
 do_command(reboot, _, ClusterMap) ->
-    AllNodes = all_nodes(ClusterMap),
-    io:format("~p~n", [do_in_nodes_par("sudo reboot", AllNodes)]),
-    ok;
+    Data =  io:get_line("Are you sure you want to reboot? [N/y]: "),
+    if
+        Data =:= "y\n" orelse Data =:= "Y\n" ->
+            AllNodes = all_nodes(ClusterMap),
+            io:format("~p~n", [do_in_nodes_par("sudo reboot", AllNodes)]);
+        true ->
+            io:format("No reboot~n"),
+            ok
+    end;
 do_command(pull, {true, Path}, ClusterMap) ->
     pmap(
         fun(Node) ->
