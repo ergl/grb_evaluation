@@ -112,8 +112,6 @@ main(Args) ->
             Command = maps:get(command, Opts),
             CommandArg = maps:get(command_arg, Opts, false),
 
-            io:format("Running command: ~p (arg ~p)~n", [Command, CommandArg]),
-
             ok = do_command(Command, CommandArg, ClusterMap),
             true = ets:delete(?CONF),
             ok

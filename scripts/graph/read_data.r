@@ -156,10 +156,14 @@ format_data <- function(Dir, Data) {
         "reads_median",
         "updates_mean",
         "updates_median",
+        "mixed_mean",
+        "mixed_median",
         "red_reads_mean",
         "red_reads_median",
         "red_updates_mean",
         "red_updates_median",
+        "red_mixed_mean",
+        "red_mixed_median",
         "abort_ratio"
     )
 
@@ -173,10 +177,14 @@ format_data <- function(Dir, Data) {
                         Data$blue_median_latency_ronly,
                         Data$blue_mean_latency_wonly,
                         Data$blue_median_latency_wonly,
+                        Data$blue_mean_latency_rw,
+                        Data$blue_median_latency_rw,
                         Data$red_mean_latency_ronly,
                         Data$red_median_latency_ronly,
                         Data$red_mean_latency_wonly,
                         Data$red_median_latency_wonly,
+                        Data$red_mean_latency_rw,
+                        Data$red_median_latency_rw,
                         Data$abort_ratio)
 
     if(print.headers) {
