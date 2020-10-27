@@ -124,7 +124,8 @@ main(Args) ->
 prompt_gate(Msg, Default, Fun) ->
     case prompt(Msg, Default) of
         true ->
-            Fun();
+            Fun(),
+            ok;
         false ->
             io:format("Cancelling~n"),
             ok
