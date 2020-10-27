@@ -167,7 +167,7 @@ format_data <- function(Dir, Data) {
         "abort_ratio"
     )
 
-    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f \n"
+    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n"
     row_data <- sprintf(row_format,
                         thread_info$per_machine,
                         Data$max_total,
@@ -301,6 +301,96 @@ format_red_data <- function(Dir, Data) {
     cat(row_data)
 }
 
+get_mixed_blue_data <- function(Dir) {
+    summary <- read.csv(sprintf("%s/summary.csv", Dir))
+    abort_ratio <- sum(summary$failed) / sum(summary$total)
+
+    # Remove first row, as it is usually inflated
+    summary <- summary[-c(1), ]
+
+    # All operations
+    max_total <- max(summary$total)
+    max_total_row <- summary[c(which(summary$total == max_total)), ]
+    max_total <- max_total / max_total_row$window
+
+    # All committed operations
+    max_commit <- max(summary$successful)
+    max_commit_row <- summary[c(which(summary$successful == max_commit)), ]
+    max_commit_w <- max_commit / max_commit_row$window
+
+    # Get the median of committed operations
+    median_commit <- median(summary$successful)
+    median_window <- median(summary$window)
+    median_commit_w <- median_commit / median_window
+
+    r <- latency_for_file(sprintf("%s/read-write-blue-track_latencies.csv", Dir))
+    overall_mean <- r$mean
+    overall_median <- r$median
+
+    r <- latency_for_file(sprintf("%s/read-write-blue-track_start_latencies.csv", Dir))
+    start_mean <- r$mean
+    start_median <- r$median
+
+    r <- latency_for_file(sprintf("%s/read-write-blue-track_read_latencies.csv", Dir))
+    read_mean <- r$mean
+    read_median <- r$median
+
+    r <- latency_for_file(sprintf("%s/read-write-blue-track_update_latencies.csv", Dir))
+    update_mean <- r$mean
+    update_median <- r$median
+
+    r <- latency_for_file(sprintf("%s/read-write-blue-track_commit_latencies.csv", Dir))
+    commit_mean <- r$mean
+    commit_median <- r$median
+
+    return(data.frame(max_total, max_commit_w, median_commit_w,
+                      overall_mean, overall_median,
+                      start_mean, start_median,
+                      read_mean, read_median,
+                      update_mean, update_median,
+                      commit_mean, commit_median,
+                      abort_ratio))
+}
+
+format_mixed_blue <- function(Dir, Data) {
+    format_decimal <- function(string, ..., withoutZeros = FALSE) {
+        return(formatC(string, format="f", big.mark=",", drop0trailing=withoutZeros))
+    }
+
+    thread_info <- get_client_threads(Dir)
+
+    headers <- c(
+        "threads",
+        "throughput",
+        "overall_mean",
+        "overall_median",
+        "start_mean",
+        "start_median",
+        "read_mean",
+        "read_median",
+        "update_mean",
+        "update_median",
+        "commit_mean",
+        "commit_median"
+    )
+
+    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n"
+    row_data <- sprintf(row_format,
+                        thread_info$per_machine,
+                        Data$max_commit_w,
+                        Data$overall_mean, Data$overall_median,
+                        Data$start_mean, Data$start_median,
+                        Data$read_mean, Data$read_median,
+                        Data$update_mean, Data$update_median,
+                        Data$commit_mean, Data$commit_median)
+
+    if(print.headers) {
+        cat(sprintf("%s\n", paste(headers, collapse=",")))
+    }
+    cat(row_data)
+}
+
 input_dir <- opt$data_dir
+# format_mixed_blue(input_dir, get_mixed_blue_data(input_dir))
 format_data(input_dir, get_total_data(input_dir))
 # format_red_data(input_dir, get_red_data(input_dir))

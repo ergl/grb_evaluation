@@ -182,6 +182,16 @@ parse_latencies(ResultPath, ClusterStr, BenchNodes) ->
     _ = MergeLatencies("writeonly-blue_latencies.csv"),
     _ = MergeLatencies("read-write-blue_latencies.csv"),
     _ = MergeLatencies("readonly-red_latencies.csv"),
+    _ = MergeLatencies("writeonly-red_latencies.csv"),
+
+    % Extra latencies (blue)
+    _ = MergeLatencies("read-write-blue-track_latencies.csv"),
+    _ = MergeLatencies("read-write-blue-track_start_latencies.csv"),
+    _ = MergeLatencies("read-write-blue-track_read_latencies.csv"),
+    _ = MergeLatencies("read-write-blue-track_update_latencies.csv"),
+    _ = MergeLatencies("read-write-blue-track_commit_latencies.csv"),
+
+    % Extra latencies (red)
     _ = MergeLatencies("readonly-red-track_latencies.csv"),
     _ = MergeLatencies("readonly-red-track_start_latencies.csv"),
     _ = MergeLatencies("readonly-red-track_read_latencies.csv"),
@@ -190,7 +200,6 @@ parse_latencies(ResultPath, ClusterStr, BenchNodes) ->
     _ = MergeLatencies("readonly-red-track_accept_latencies.csv"),
     _ = MergeLatencies("readonly-red-track_coordinator_commit_latencies.csv"),
     _ = MergeLatencies("readonly-red-track_coordinator_commit_barrier_latencies.csv"),
-    _ = MergeLatencies("writeonly-red_latencies.csv"),
 
     ReadResult =
         io_lib:format("~s -p -i ~s 2>/dev/null", [

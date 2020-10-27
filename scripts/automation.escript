@@ -121,18 +121,40 @@ main(Args) ->
 
 %% Commands
 
-do_command(reboot, _, ClusterMap) ->
-    Data =  io:get_line("Are you sure you want to reboot? [N/y]: "),
-    if
-        Data =:= "y\n" orelse Data =:= "Y\n" ->
-            AllNodes = all_nodes(ClusterMap),
-            io:format("~p~n", [do_in_nodes_par("sudo reboot", AllNodes)]);
+prompt_gate(Msg, Default, Fun) ->
+    case prompt(Msg, Default) of
         true ->
-            io:format("No reboot~n"),
+            Fun();
+        false ->
+            io:format("Cancelling~n"),
             ok
-    end;
+    end.
+
+prompt(Msg, Default) ->
+    {Prompt, Validate} = case Default of
+        default_no ->
+            {
+                Msg ++ " [N/y]: ",
+                fun(I) when I =:= "y\n" orelse I =:= "Y\n" -> true; (_) -> false end
+            };
+
+        default_yes ->
+            {
+                Msg ++ " [Y/n]: ",
+                fun(I) when I =:= "n\n" orelse I =:= "N\n" -> true; (_) -> false end
+            }
+    end,
+    Validate(io:get_line(Prompt)).
+
+do_command(reboot, _, ClusterMap) ->
+    prompt_gate("Are you sure you want to reboot?", default_no, fun() ->
+        AllNodes = all_nodes(ClusterMap),
+        io:format("~p~n", [do_in_nodes_par("sudo reboot", AllNodes)])
+    end);
+
 do_command(pull, {true, Path}, ClusterMap) ->
-    pmap(
+    DoFun = fun() ->
+        pmap(
         fun(Node) ->
             NodeStr = atom_to_list(Node),
             TargetPath = io_lib:format("~s/~s", [Path, NodeStr]),
@@ -151,8 +173,20 @@ do_command(pull, {true, Path}, ClusterMap) ->
             ok
         end,
         client_nodes(ClusterMap)
-    ),
-    ok;
+        )
+    end,
+
+    case filelib:is_dir(Path) of
+        false ->
+            DoFun();
+        true ->
+            prompt_gate(
+                io_lib:format("Target directory ~s already exists, do you want to overwrite it?", [Path]),
+                default_no,
+                DoFun
+            )
+    end;
+
 do_command(brutal_client_kill, _, ClusterMap) ->
     NodeNames = client_nodes(ClusterMap),
     Res = do_in_nodes_par("pkill -9 beam", NodeNames),
