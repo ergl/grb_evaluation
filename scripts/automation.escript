@@ -179,7 +179,8 @@ do_command(pull, {true, Path}, ClusterMap) ->
 
     case filelib:is_dir(Path) of
         false ->
-            DoFun();
+            DoFun(),
+            ok;
         true ->
             prompt_gate(
                 io_lib:format("Target directory ~s already exists, do you want to overwrite it?", [Path]),
