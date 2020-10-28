@@ -70,6 +70,9 @@ mergeSite() {
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "read-write-blue-track_read_latencies.csv"
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "read-write-blue-track_update_latencies.csv"
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "read-write-blue-track_commit_latencies.csv"
+
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "readonly-blue-bypass_latencies.csv"
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "writeonly-blue-bypass_latencies.csv"
 }
 
 usage() {

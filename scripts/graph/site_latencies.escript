@@ -191,6 +191,9 @@ parse_latencies(ResultPath, ClusterStr, BenchNodes) ->
     _ = MergeLatencies("read-write-blue-track_update_latencies.csv"),
     _ = MergeLatencies("read-write-blue-track_commit_latencies.csv"),
 
+    _ = MergeLatencies("readonly-blue-bypass_latencies.csv"),
+    _ = MergeLatencies("writeonly-blue-bypass_latencies.csv"),
+
     % Extra latencies (red)
     _ = MergeLatencies("readonly-red-track_latencies.csv"),
     _ = MergeLatencies("readonly-red-track_start_latencies.csv"),

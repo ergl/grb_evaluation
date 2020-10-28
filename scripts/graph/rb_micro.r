@@ -52,13 +52,19 @@ updates_ratio <- ggplot(df_updates_ratio,
                          fill=factor(keys_read))) +
 
     geom_bar(stat='identity', position="dodge") +
-    scale_y_continuous(breaks=seq(0,600000, by=25000),
+    scale_y_continuous(breaks=seq(0,650000, by=25000),
                        labels=format_thousand_comma,
                        expand=c(0,0)) +
     scale_fill_manual(name="Keys read/updated",
-                      labels=c(`1` = "1", `3` = "3"),
-                      values=c(`1` = "#F2818F", `3` = "#1C5BD0")) +
-    coord_cartesian(ylim=c(0,600000)) +
+                      labels=c(`1` = "1",
+                               `3` = "3",
+                               `bypass_read` = "1 (bypass)",
+                               `bypass_read_prepare` = "1 (bypass + prepare)"),
+                      values=c(`1` = "#F2818F",
+                               `3` = "#1C5BD0",
+                               `bypass_read` = "purple",
+                               `bypass_read_prepare` = "orange")) +
+    coord_cartesian(ylim=c(0,650000)) +
     labs(title="Redblue, 3DCs (20ms RTT), 100% blue",
          x="% of Update transactions",
          y="Max. Throughput (Ktps)") +
