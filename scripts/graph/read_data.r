@@ -83,11 +83,17 @@ get_total_data <- function(Dir) {
     # All operations
     max_total <- max(summary$total)
     max_total_row <- summary[c(which(summary$total == max_total)), ]
+    if (nrow(max_total_row) > 1) {
+        max_total_row <- max_total_row[1, ]
+    }
     max_total <- max_total / max_total_row$window
 
     # All committed operations
     max_commit <- max(summary$successful)
     max_commit_row <- summary[c(which(summary$successful == max_commit)), ]
+    if (nrow(max_commit_row) > 1) {
+        max_commit_row <- max_commit_row[1, ]
+    }
     max_commit_w <- max_commit / max_commit_row$window
 
     # Get the median of committed operations
@@ -200,10 +206,16 @@ get_red_data <- function(Dir) {
 
     max_total <- max(summary$total)
     max_total_row <- summary[c(which(summary$total == max_total)), ]
+    if (nrow(max_total_row) > 1) {
+        max_total_row <- max_total_row[1, ]
+    }
     max_total <- max_total / max_total_row$window
 
     max_commit <- max(summary$successful)
     max_commit_row <- summary[c(which(summary$successful == max_commit)), ]
+    if (nrow(max_total_row) > 1) {
+        max_total_row <- max_total_row[1, ]
+    }
     max_commit_w <- max_commit / max_commit_row$window
 
     median_commit <- median(summary$successful)
@@ -311,11 +323,17 @@ get_mixed_blue_data <- function(Dir) {
     # All operations
     max_total <- max(summary$total)
     max_total_row <- summary[c(which(summary$total == max_total)), ]
+    if (nrow(max_total_row) > 1) {
+        max_total_row <- max_total_row[1, ]
+    }
     max_total <- max_total / max_total_row$window
 
     # All committed operations
     max_commit <- max(summary$successful)
     max_commit_row <- summary[c(which(summary$successful == max_commit)), ]
+    if (nrow(max_total_row) > 1) {
+        max_total_row <- max_total_row[1, ]
+    }
     max_commit_w <- max_commit / max_commit_row$window
 
     # Get the median of committed operations
