@@ -58,12 +58,10 @@ updates_ratio <- ggplot(df_updates_ratio,
     scale_fill_manual(name="Keys read/updated",
                       labels=c(`1` = "1",
                                `3` = "3",
-                               `bypass_read` = "1 (bypass)",
-                               `bypass_read_prepare` = "1 (bypass + prepare)"),
+                               `bypass` = "1 (bypass)"),
                       values=c(`1` = "#F2818F",
                                `3` = "#1C5BD0",
-                               `bypass_read` = "purple",
-                               `bypass_read_prepare` = "orange")) +
+                               `bypass` = "purple")) +
     coord_cartesian(ylim=c(0,650000)) +
     labs(title="Redblue, 3DCs (20ms RTT), 100% blue",
          x="% of Update transactions",

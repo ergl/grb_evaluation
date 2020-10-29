@@ -416,5 +416,5 @@ process_bypass_data <- function(Dir) {
     cat(row_data)
 }
 
-# process_default_data(opt$data_dir)
-process_bypass_data(opt$data_dir)
+process_default_data(opt$data_dir)
+# process_bypass_data(opt$data_dir)
