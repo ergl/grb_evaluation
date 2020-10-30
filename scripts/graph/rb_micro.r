@@ -46,22 +46,32 @@ plot_theme <- theme_minimal(base_size=10) +
 df_updates_ratio <- read.csv("../../microbenchmarks/update_ratio_results.csv")
 df_strong_ratio <- read.csv("../../microbenchmarks/strong_ratio_results.csv")
 
+df_updates_ratio <- df_updates_ratio[df_updates_ratio$keys_read != "3", ]
+df_updates_ratio <- df_updates_ratio[df_updates_ratio$keys_read != "norep", ]
+df_updates_ratio <- df_updates_ratio[df_updates_ratio$update_p %in% c(0,20,100), ]
 updates_ratio <- ggplot(df_updates_ratio,
                      aes(x=factor(update_p),
                          y=throughput,
                          fill=factor(keys_read))) +
 
     geom_bar(stat='identity', position="dodge") +
+    geom_hline(yintercept=465151.7, size=0.5, color="#F2818F") +
+    geom_hline(yintercept=522848.8, size=0.5, color="purple") +
+    geom_hline(yintercept=573966.1, size=0.5, color="black") +
     scale_y_continuous(breaks=seq(0,650000, by=25000),
                        labels=format_thousand_comma,
                        expand=c(0,0)) +
     scale_fill_manual(name="Keys read/updated",
                       labels=c(`1` = "1",
                                `3` = "3",
-                               `bypass` = "1 (bypass)"),
+                               `bypass` = "1 (bypass)",
+                               `norep` = "1 (no replication)",
+                               `norep_bypass` = "1 (bypass, no replication)"),
                       values=c(`1` = "#F2818F",
                                `3` = "#1C5BD0",
-                               `bypass` = "purple")) +
+                               `bypass` = "purple",
+                               `norep` = "orange",
+                               `norep_bypass` = "black")) +
     coord_cartesian(ylim=c(0,650000)) +
     labs(title="Redblue, 3DCs (20ms RTT), 100% blue",
          x="% of Update transactions",
