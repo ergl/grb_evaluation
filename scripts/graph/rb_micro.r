@@ -49,6 +49,11 @@ df_strong_ratio <- read.csv("../../microbenchmarks/strong_ratio_results.csv")
 df_updates_ratio <- df_updates_ratio[df_updates_ratio$keys_read != "3", ]
 df_updates_ratio <- df_updates_ratio[df_updates_ratio$keys_read != "norep", ]
 df_updates_ratio <- df_updates_ratio[df_updates_ratio$update_p %in% c(0,20,100), ]
+
+df_updates_ratio$keys_read <- factor(df_updates_ratio$keys_read,
+                                     levels=c('1', 'pack_replication_cvc',
+                                               'bypass', 'norep_bypass'))
+
 updates_ratio <- ggplot(df_updates_ratio,
                      aes(x=factor(update_p),
                          y=throughput,
@@ -58,22 +63,21 @@ updates_ratio <- ggplot(df_updates_ratio,
     geom_hline(yintercept=465151.7, size=0.5, color="#F2818F") +
     geom_hline(yintercept=522848.8, size=0.5, color="purple") +
     geom_hline(yintercept=573966.1, size=0.5, color="black") +
+    geom_hline(yintercept=476644.5, size=0.5, color="orange") +
     scale_y_continuous(breaks=seq(0,650000, by=25000),
                        labels=format_thousand_comma,
                        expand=c(0,0)) +
-    scale_fill_manual(name="Keys read/updated",
-                      labels=c(`1` = "1",
-                               `3` = "3",
-                               `bypass` = "1 (bypass)",
-                               `norep` = "1 (no replication)",
-                               `norep_bypass` = "1 (bypass, no replication)"),
+    scale_fill_manual(name="Implementation Kind",
+                      labels=c(`1` = "Baseline",
+                               `pack_replication_cvc` = "Improved replication",
+                               `bypass` = "Remove waits",
+                               `norep_bypass` = "Remove waits & replication"),
                       values=c(`1` = "#F2818F",
-                               `3` = "#1C5BD0",
+                               `pack_replication_cvc` = "orange",
                                `bypass` = "purple",
-                               `norep` = "orange",
                                `norep_bypass` = "black")) +
     coord_cartesian(ylim=c(0,650000)) +
-    labs(title="Redblue, 3DCs (20ms RTT), 100% blue",
+    labs(title="Redblue, 3DCs (20ms RTT), 100% blue, 1 Key",
          x="% of Update transactions",
          y="Max. Throughput (Ktps)") +
     plot_theme
@@ -99,7 +103,7 @@ strong_ratio <- ggplot(df_strong_ratio[df_strong_ratio$clusters == "all", ],
 ggsave(filename = "./rb_micro_update_ratio.pdf",
        device="pdf",
        plot=updates_ratio,
-       width=5,
+       width=7,
        height=5,
        dpi=300)
 
