@@ -1,0 +1,4 @@
+blue,red,conflict,read,updated,cluster,threads,total_throughput,throughput,throughput_med,reads_mean,reads_median,updates_mean,updates_median,mixed_mean,mixed_median,red_reads_mean,red_reads_median,red_updates_mean,red_updates_median,red_mixed_mean,red_mixed_median,abort_ratio
+0,100,0,1,0,all
+
+
