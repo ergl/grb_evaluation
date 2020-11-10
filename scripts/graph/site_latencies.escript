@@ -44,7 +44,7 @@ main(Args) ->
             usage(),
             halt(1);
         {ok, Opt=#{rest := ResultPath}} ->
-            {ok, _NumClients} = client_threads(ResultPath),
+            _NumClients = client_threads(ResultPath),
             {ok, Terms} = file:consult(config_file(ResultPath)),
             {clusters, ClusterMap} = lists:keyfind(clusters, 1, Terms),
             CheckServers = maps:get(server_reports, Opt, false),
@@ -95,10 +95,9 @@ client_threads(Path) ->
     try
         [_, Match | _] = re:split(Path, "t[_=]"),
         {match, [{Start, Len}]} = re:run(Match, "[0-9]+"),
-        {ok, binary_to_list(string:slice(Match, Start, Len))}
+        binary_to_list(string:slice(Match, Start, Len))
     catch
-        _:_ ->
-            {error, no_match}
+        _:_ -> "NA"
     end.
 
 config_file(Path) ->

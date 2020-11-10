@@ -21,6 +21,7 @@
 -define(DEFAULT_RED_INTERVAL, 5).
 -define(DEFAULT_RED_DELIVERY, 10).
 -define(DEFAULT_RED_PRUNE, 20).
+-define(DEFAULT_RED_LEADER_WAIT_MS, 1).
 -define(DEFAULT_RED_COORD_SIZE, 50).
 -define(REPO_URL, "https://github.com/ergl/grb.git").
 -define(COMMANDS, [
@@ -208,11 +209,16 @@ start_grb(Config) ->
     RED_DELIVER_INTERVAL_MS = get_config_key(red_delivery_interval, Config, ?DEFAULT_RED_DELIVERY),
     RED_PRUNE_INTERVAL = get_config_key(red_prune_interval, Config, ?DEFAULT_RED_PRUNE),
     RED_COORD_SIZE = get_config_key(red_coord_pool_size, Config, ?DEFAULT_RED_COORD_SIZE),
+    RED_LEADER_WAIT_MS = get_config_key(
+        red_leader_check_clock_interval,
+        Config,
+        ?DEFAULT_RED_LEADER_WAIT_MS
+    ),
 
     GRB_QUORUM_OVERRIDE = get_config_key(red_quorum_override, Config, -1),
 
     EnvVarString = io_lib:format(
-        "GRB_QUORUM_OVERRIDE=~b TCP_ID_LEN=~b OP_LOG_READERS=~b VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b PARTITION_RETRY_MS=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_HB_INTERVAL_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_COORD_POOL_SIZE=~b IP=~s",
+        "GRB_QUORUM_OVERRIDE=~b TCP_ID_LEN=~b OP_LOG_READERS=~b VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b PARTITION_RETRY_MS=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_HB_INTERVAL_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_LEADER_WAIT_MS=~b RED_COORD_POOL_SIZE=~b IP=~s",
         [
             GRB_QUORUM_OVERRIDE,
             TCP_ID_LEN,
@@ -229,6 +235,7 @@ start_grb(Config) ->
             RED_HB_INTERVAL_MS,
             RED_DELIVER_INTERVAL_MS,
             RED_PRUNE_INTERVAL,
+            RED_LEADER_WAIT_MS,
             RED_COORD_SIZE,
             IP
         ]
