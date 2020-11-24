@@ -10,7 +10,11 @@
 
 usage() ->
     Name = filename:basename(escript:script_name()),
-    ok = io:fwrite(standard_error, "Usage: ~s -f <config-file> /path/to/results~n", [Name]).
+    ok = io:fwrite(
+        standard_error,
+        "Usage: ~s /path/to/results [-f <config-file>] [-s --server-reports]~n",
+        [Name]
+    ).
 
 ip_for_node('apollo-1-1.imdea') -> "10.10.5.31";
 ip_for_node('apollo-1-2.imdea') -> "10.10.5.32";
