@@ -48,7 +48,7 @@ main(Args) ->
             usage(),
             halt(1);
         {ok, Opt=#{rest := ResultPath}} ->
-            _NumClients = client_threads(ResultPath),
+            NumClients = client_threads(ResultPath),
             {ok, Terms} = file:consult(config_file(ResultPath)),
             {clusters, ClusterMap} = lists:keyfind(clusters, 1, Terms),
             CheckServers = maps:get(server_reports, Opt, false),
@@ -69,24 +69,24 @@ main(Args) ->
             ),
 
             GlobalResults = parse_global_latencies(ResultPath),
-            io:format("~s~n", [GlobalResults]),
+            io:format("~s~n~n", [GlobalResults]),
 
-            io:format("================================~n"),
             lists:foreach(
                 fun
                     ({ClusterStr, Latencies}) ->
                         Formatted = string:join(
-                            string:replace(Latencies, "NA", string:to_upper(ClusterStr), all),
+                            string:replace(Latencies, "NA", NumClients, all),
                             ""
                         ),
-                        io:format("~s~n", [Formatted]);
+                        io:format("~s,~s~n", [string:to_upper(ClusterStr),Formatted]);
                     ({ClusterStr, ServerReports, Latencies}) ->
                         Formatted = string:join(
-                            string:replace(Latencies, "NA", string:to_upper(ClusterStr), all),
+                            string:replace(Latencies, "NA", NumClients, all),
                             ""
                         ),
-                        io:format("~p~n~s~n", [
+                        io:format("~p~n~s,~s~n", [
                             ServerReports,
+                            string:to_upper(ClusterStr),
                             Formatted
                         ])
                 end,
@@ -97,9 +97,10 @@ main(Args) ->
 
 client_threads(Path) ->
     try
-        [_, Match | _] = re:split(Path, "t[_=]"),
-        {match, [{Start, Len}]} = re:run(Match, "[0-9]+"),
-        binary_to_list(string:slice(Match, Start, Len))
+        {match, [ {Start0, Len0} ]} = re:run(Path, "t[_=][0-9]+"),
+        Match = string:slice(Path, Start0, Len0),
+        {match, [ {Start1, Len1} ]} = re:run(Match, "[0-9]+"),
+        string:slice(Match, Start1, Len1)
     catch
         _:_ -> "NA"
     end.
