@@ -323,7 +323,11 @@ ip_for_node("apollo-2-8") -> "10.10.5.68";
 ip_for_node("apollo-2-9") -> "10.10.5.69";
 ip_for_node("apollo-2-10") -> "10.10.5.70";
 ip_for_node("apollo-2-11") -> "10.10.5.71";
-ip_for_node("apollo-2-12") -> "10.10.5.72".
+ip_for_node("apollo-2-12") -> "10.10.5.72";
+ip_for_node([$i ,$p, $- | Rest]) ->
+    %% For aws, node names are ip-XXX-XXX-XXX-XXX
+    %% We trim ip- prefix and change the dashes with points
+    string:join(string:replace(Rest, "-", "."), "").
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% config
