@@ -13,14 +13,17 @@
     unicode:characters_to_list(io_lib:format("~s/execute-in-nodes.sh", [?SELF_DIR]))
 ).
 
--define(CONFIG_DIR, unicode:characters_to_list(io_lib:format("~s/configuration", [?SELF_DIR]))).
+-define(CONFIG_DIR,
+    unicode:characters_to_list(io_lib:format("~s/configuration", [?SELF_DIR]))
+).
 
 -define(GRB_BRANCH, "master").
 -define(LASP_BENCH_BRANCH, "bench_grb").
 
 -define(JOIN_TIMEOUT, timer:minutes(5)).
-
 -define(CONF, configuration).
+-define(PROC_FILE_KEY, '$processed_path').
+-define(DIGEST_RANGE, trunc(math:pow(2, 32))).
 
 -define(COMMANDS, [
     {check, false},
@@ -33,7 +36,6 @@
     {stop, false},
     {join, false},
     {connect_dcs, false},
-    {latencies, false},
     {prepare, false},
 
     {load, false},
@@ -72,106 +74,48 @@ usage() ->
         [Name, Commands]
     ).
 
-% todo(borja): Cache information?
-preprocess_cluster_map(ClusterMap, Table) ->
-    true = ets:insert(Table, {regions, [ atom_to_list(R) || R <- maps:keys(ClusterMap)] }),
-
-    lists:foreach(
-        fun({RegionAtom, #{servers := ServerIds, clients := ClientIds}}) ->
-            RName = atom_to_list(RegionAtom),
-
-            PrivateKeyPath = io_lib:format("./keys/kp-~s.pem", [RName]),
-            true = ets:insert(Table, {{key, RName}, PrivateKeyPath}),
-
-            PublicServers = [ public_ip(RName, Id) || Id <- ServerIds ],
-            PublicClients = [ public_ip(RName, Id) || Id <- ClientIds ],
-
-            true = ets:insert(Table, {{servers, public, RName}, PublicServers}),
-            true = ets:insert(Table, {{clients, public, RName}, PublicClients}),
-
-            true = ets:insert(Table, [ {{Ip, key}, PrivateKeyPath} || Ip <- PublicServers] ),
-            true = ets:insert(Table, [ {{Ip, key}, PrivateKeyPath} || Ip <- PublicClients] ),
-
-            PrivateServers = [ private_ip(RName, Id) || Id <- ServerIds ],
-            PrivateClients = [ private_ip(RName, Id) || Id <- ClientIds ],
-
-            true = ets:insert(Table, {{servers, private, RName}, PrivateServers}),
-            true = ets:insert(Table, {{clients, private, RName}, PrivateClients}),
-
-            ok
-        end,
-        maps:to_list(ClusterMap)
-    ),
-
-    ok.
-
-public_ip(Region, InstanceId) ->
-    Command = io_lib:format(
-        "aws ec2 describe-instances --instance-ids ~s --output text --region ~s --query 'Reservations[*].Instances[*].PublicIpAddress'",
-        [InstanceId, Region]
-    ),
-    nonl(os:cmd(Command)).
-
-private_ip(Region, InstanceId) ->
-    Command = io_lib:format(
-        "aws ec2 describe-instances --instance-ids ~s --output text --region ~s --query 'Reservations[*].Instances[*].PrivateIpAddress'",
-        [InstanceId, Region]
-    ),
-    nonl(os:cmd(Command)).
-
-nonl(S) -> string:trim(S, trailing, "$\n").
-
 main(Args) ->
     case parse_args(Args) of
         {error, Reason} ->
             io:fwrite(standard_error, "Wrong option: reason ~s~n", [Reason]),
             usage(),
             halt(1);
+
         {ok, Opts = #{config := ConfigFile}} ->
             _ = ets:new(?CONF, [ordered_set, named_table]),
-            {ok, ConfigTerms} = file:consult(ConfigFile),
-            {clusters, ClusterMap0} = lists:keyfind(clusters, 1, ConfigTerms),
-            ok = preprocess_cluster_map(ClusterMap0, ?CONF),
-
-            io:format("Table: ~p~n", [ets:tab2list(?CONF)]),
-
-            {red_leader_cluster, LeaderCluster} = lists:keyfind(red_leader_cluster, 1, ConfigTerms),
-            case maps:is_key(LeaderCluster, ClusterMap0) of
-                false ->
-                    io:fwrite(standard_error, "Bad cluster map: leader cluster not present ~n", []),
+            true = ets:insert(?CONF, {dry_run, maps:get(dry_run, Opts, false)}),
+            true = ets:insert(?CONF, {silent, maps:get(verbose, Opts, false)}),
+            case load_processed_data(?CONF, ConfigFile) of
+                {error, no_leader} ->
+                    true = ets:delete(?CONF),
+                    io:fwrite(
+                        standard_error,
+                        "Bad cluster map: leader cluster not present ~n",
+                        []
+                    ),
                     halt(1);
-                true ->
-                    ok
-            end,
 
-            Servers = ordsets:from_list(server_nodes()),
-            Clients = ordsets:from_list(client_nodes()),
-            case ordsets:is_disjoint(Servers, Clients) of
-                false ->
+                {error, cluster_overlap} ->
+                    true = ets:delete(?CONF),
                     io:fwrite(
                         standard_error,
                         "Bad cluster map: clients and servers overlap~n",
                         []
                     ),
                     halt(1);
-                true ->
+
+                ok ->
+                    Command = maps:get(command, Opts),
+                    CommandArg = maps:get(command_arg, Opts, false),
+                    ok = do_command(Command, CommandArg),
+                    true = ets:delete(?CONF),
                     ok
-            end,
-
-            true = ets:insert(?CONF, {dry_run, maps:get(dry_run, Opts, false)}),
-            true = ets:insert(?CONF, {silent, maps:get(verbose, Opts, false)}),
-
-            Command = maps:get(command, Opts),
-            CommandArg = maps:get(command_arg, Opts, false),
-
-            ok = do_command(Command, CommandArg),
-            true = ets:delete(?CONF),
-            ok
+            end
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 %% Commands
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % prompt_gate(Msg, Default, Fun) ->
 %     case prompt(Msg, Default) of
@@ -240,20 +184,25 @@ do_command(brutal_client_kill, _) ->
     Res = do_in_nodes_seq("pkill -9 beam.smp", NodeNames),
     io:format("~p~n", [Res]),
     ok;
+
 do_command(brutal_server_kill, _) ->
     NodeNames = server_nodes(),
     io:format("Server nodes: ~p~n", [NodeNames]),
     Res = do_in_nodes_seq("pkill -9 beam.smp", NodeNames),
     io:format("~p~n", [Res]),
     ok;
+
 do_command(check, _) ->
-    check_nodes().
-% do_command(sync, _) ->
-%     ok = sync_nodes(ClusterMap);
-% do_command(server, _) ->
-%     ok = prepare_server(ClusterMap);
-% do_command(clients, _) ->
-%     ok = prepare_lasp_bench(ClusterMap);
+    check_nodes();
+
+do_command(sync, _) ->
+    ok = sync_nodes();
+
+do_command(server, _) ->
+    ok = prepare_server();
+
+do_command(clients, _) ->
+    ok = prepare_lasp_bench();
 % do_command(prologue, Arg) ->
 %     ok = check_nodes(ClusterMap),
 %     ok = sync_nodes(ClusterMap),
@@ -262,72 +211,61 @@ do_command(check, _) ->
 %     ok = do_command(latencies, Arg, ClusterMap),
 %     alert("Prologue finished!"),
 %     ok;
-% do_command(start, _) ->
-%     Rep = do_in_nodes_par(server_command("start"), server_nodes(ClusterMap)),
-%     io:format("~p~n", [Rep]),
-%     ok;
-% do_command(stop, _) ->
-%     do_in_nodes_par(server_command("stop"), server_nodes(ClusterMap)),
-%     ok;
-% do_command(prepare, Arg) ->
-%     ok = do_command(join, Arg, ClusterMap),
-%     ok = do_command(connect_dcs, Arg, ClusterMap),
-%     % ok = do_command(load, Arg, ClusterMap),
-%     alert("Prepare finished!"),
-%     ok;
-% do_command(join, _) ->
-%     NodeNames = server_nodes(ClusterMap),
-%     Parent = self(),
-%     Reference = erlang:make_ref(),
-%     ChildFun = fun() ->
-%         Reply = do_in_nodes_seq(server_command("join"), [hd(NodeNames)]),
-%         Parent ! {Reference, Reply}
-%     end,
-%     Start = erlang:timestamp(),
-%     ChildPid = erlang:spawn(ChildFun),
-%     receive
-%         {Reference, Reply} ->
-%             End = erlang:timestamp(),
-%             io:format("~p~n", [Reply]),
-%             io:format("Ring done after ~p~n", [timer:now_diff(End, Start)]),
-%             ok
-%     after ?JOIN_TIMEOUT ->
-%         io:fwrite(standard_error, "Ring timed out after ~b milis~n", [?JOIN_TIMEOUT]),
-%         erlang:exit(ChildPid, kill),
-%         error
-%     end;
-% do_command(connect_dcs, _) ->
-%     [MainNode | _] = server_nodes(ClusterMap),
-%     Rep = do_in_nodes_seq(
-%         server_command("connect_dcs"),
-%         [MainNode]
-%     ),
-%     io:format("~p~n", [Rep]),
-%     ok;
+do_command(start, _) ->
+    Rep = do_in_nodes_par(server_command("start"), server_nodes()),
+    io:format("~p~n", [Rep]),
+    ok;
+
+do_command(stop, _) ->
+    do_in_nodes_par(server_command("stop"), server_nodes()),
+    ok;
+
+do_command(prepare, Arg) ->
+    ok = do_command(join, Arg),
+    ok = do_command(connect_dcs, Arg),
+    % ok = do_command(load, Arg, ClusterMap),
+    alert("Prepare finished!"),
+    ok;
+
+do_command(join, _) ->
+    MainNodes = main_region_server_nodes(),
+    Parent = self(),
+    Reference = erlang:make_ref(),
+    SpawnFun = fun() ->
+        Replies = lists:map(fun({Region, Main}) ->
+            do_in_nodes_seq(server_command("join", Region), [Main])
+        end, MainNodes),
+        Parent ! {Reference, Replies}
+    end,
+    Start = erlang:timestamp(),
+    ChildPid = erlang:spawn(SpawnFun),
+    receive
+        {Reference, Reply} ->
+            End = erlang:timestamp(),
+            io:format("~p~n", [Reply]),
+            io:format("Ring done after ~p~n", [timer:now_diff(End, Start)]),
+            ok
+    after ?JOIN_TIMEOUT ->
+        io:fwrite(standard_error, "Ring timed out after ~b milis~n", [?JOIN_TIMEOUT]),
+        erlang:exit(ChildPid, kill),
+        error
+    end;
+
+do_command(connect_dcs, _) ->
+    MainNode = hd(server_nodes()),
+    Rep = do_in_nodes_seq(
+        server_command("connect_dcs"),
+        [MainNode]
+    ),
+    io:format("~p~n", [Rep]),
+    ok;
+
 % do_command(load, _) ->
 %     NodeNames = client_nodes(ClusterMap),
 %     TargetNode = hd(server_nodes(ClusterMap)),
 %     io:format("~p~n", [
 %         do_in_nodes_seq(client_command("-y load", atom_to_list(TargetNode)), [hd(NodeNames)])
 %     ]),
-%     ok;
-% do_command(latencies, _) ->
-%     ok = maps:fold(
-%         fun(ClusterName, #{servers := ClusterServers}, _Acc) ->
-%             io:format(
-%                 "~p~n",
-%                 [
-%                     do_in_nodes_par(
-%                         server_command("tc", atom_to_list(ClusterName)),
-%                         ClusterServers
-%                     )
-%                 ]
-%             ),
-%             ok
-%         end,
-%         ok,
-%         ClusterMap
-%     ),
 %     ok;
 % do_command(bench, _) ->
 %     NodeNames = client_nodes(ClusterMap),
@@ -350,40 +288,32 @@ do_command(check, _) ->
 %     ),
 %     alert("Benchmark finished!"),
 %     ok;
-% do_command(recompile, _) ->
-%     io:format("~p~n", [do_in_nodes_par(server_command("recompile"), server_nodes(ClusterMap))]),
-%     ok;
-% do_command(restart, _) ->
-%     io:format("~p~n", [do_in_nodes_par(server_command("restart"), server_nodes(ClusterMap))]),
-%     ok;
-% do_command(rebuild, _) ->
-%     DBNodes = server_nodes(ClusterMap),
-%     ClientNodes = client_nodes(ClusterMap),
+do_command(recompile, _) ->
+    io:format("~p~n", [do_in_nodes_par(server_command("recompile"), server_nodes())]),
+    ok;
 
-%     do_in_nodes_par(server_command("rebuild"), DBNodes),
-%     do_in_nodes_par(client_command("rebuild"), ClientNodes),
-%     ok;
-% do_command(cleanup_latencies, _) ->
-%     ServerNodes = server_nodes(ClusterMap),
-%     io:format("~p~n", [do_in_nodes_par(server_command("tclean"), ServerNodes)]),
-%     ok;
-% do_command(cleanup, _) ->
-%     AllNodes = all_nodes(ClusterMap),
-%     ServerNodes = server_nodes(ClusterMap),
+do_command(restart, _) ->
+    io:format("~p~n", [do_in_nodes_par(server_command("restart"), server_nodes())]),
+    ok;
 
-%     io:format("~p~n", [do_in_nodes_par(server_command("tclean"), ServerNodes)]),
-%     io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", AllNodes)]),
-%     ok.
+do_command(rebuild, _) ->
+    do_in_nodes_par(server_command("rebuild"), server_nodes()),
+    do_in_nodes_par(client_command("rebuild"), client_nodes()),
+    ok;
+
+do_command(cleanup, _) ->
+    AllNodes = all_nodes(),
+    io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", AllNodes)]),
+    ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%% Command Impl
+%% Command Implementation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 check_nodes() ->
-    io:format("Checking that all nodes are up and on the correct governor mode~n"),
+    io:format("Checking that all nodes are up~n"),
 
     AllNodes = all_nodes(),
-
     UptimeRes = do_in_nodes_par("uptime", AllNodes),
     false = lists:any(fun(Res) -> string:str(Res, "timed out") =/= 0 end, UptimeRes),
 
@@ -393,69 +323,85 @@ check_nodes() ->
         fun(Node) ->
             transfer_script(Node, "server.escript"),
             transfer_script(Node, "bench.sh"),
-            transfer_config(Node, "cluster.config")
+            transfer_config(Node, "cluster.config"),
+            transfer_direct(
+                Node,
+                ets:lookup_element(?CONF, ?PROC_FILE_KEY, 2),
+                "pcluster.config"
+            )
         end,
         AllNodes
     ),
     ok.
 
-% sync_nodes(ClusterMap) ->
-%     io:format("Resyncing NTP on all nodes~n"),
-%     AllNodes = all_nodes(ClusterMap),
-%     _ = do_in_nodes_par("sudo service ntp stop", AllNodes),
-%     _ = do_in_nodes_par(io_lib:format("sudo ntpd -gq ~s", [?NTP_IP]), AllNodes),
-%     _ = do_in_nodes_par("sudo service ntp start", AllNodes),
-%     ok.
+sync_nodes() ->
+    io:format("Resyncing NTP on all nodes~n"),
+    AllNodes = all_nodes(),
+    _ = do_in_nodes_par("sudo service ntp stop", AllNodes),
+    _ = do_in_nodes_par(io_lib:format("sudo ntpd -gq ~s", [?NTP_IP]), AllNodes),
+    _ = do_in_nodes_par("sudo service ntp start", AllNodes),
+    ok.
 
-% prepare_server(ClusterMap) ->
-%     NodeNames = server_nodes(ClusterMap),
-%     io:format("~p~n", [do_in_nodes_par(server_command("download"), NodeNames)]),
-%     _ = do_in_nodes_par(server_command("compile"), NodeNames),
-%     io:format("~p~n", [do_in_nodes_par(server_command("start"), NodeNames)]),
-%     ok.
+prepare_server() ->
+    NodeNames = server_nodes(),
+    io:format("~p~n", [do_in_nodes_par(server_command("download"), NodeNames)]),
+    _ = do_in_nodes_par(server_command("compile"), NodeNames),
+    io:format("~p~n", [do_in_nodes_par(server_command("start"), NodeNames)]),
+    ok.
 
-% prepare_lasp_bench(ClusterMap) ->
-%     NodeNames = client_nodes(ClusterMap),
-%     io:format("~p~n", [do_in_nodes_par(client_command("dl"), NodeNames)]),
-%     _ = do_in_nodes_par(client_command("compile"), NodeNames),
-%     ok.
+prepare_lasp_bench() ->
+    NodeNames = client_nodes(),
+    io:format("~p~n", [do_in_nodes_par(client_command("dl"), NodeNames)]),
+    _ = do_in_nodes_par(client_command("compile"), NodeNames),
+    ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 %% Util
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% server_command(Command) ->
-%     io_lib:format("./server.escript -v -f /home/borja.deregil/cluster.config -c ~s", [Command]).
+server_command(Command) ->
+    io_lib:format(
+        "./server.escript -v -f /home/ubuntu/cluster.config -p /home/ubuntu/pcluster.config -c ~s",
+        [Command]
+    ).
 
-% server_command(Command, Arg) ->
-%     io_lib:format("./server.escript -v -f /home/borja.deregil/cluster.config -c ~s=~s", [
-%         Command,
-%         Arg
-%     ]).
+server_command(Command, Arg) ->
+    io_lib:format(
+        "./server.escript -v -f /home/ubuntu/cluster.config -p /home/ubuntu/pcluster.config -c ~s=~s",
+        [Command,Arg
+    ]).
 
-% client_command(Command) ->
-%     io_lib:format("./bench.sh -b ~s ~s", [?LASP_BENCH_BRANCH, Command]).
+client_command(Command) ->
+    io_lib:format("./bench.sh -b ~s ~s", [?LASP_BENCH_BRANCH, Command]).
 
-% client_command(Command, Arg) ->
-%     io_lib:format("./bench.sh -b ~s ~s ~s", [?LASP_BENCH_BRANCH, Command, Arg]).
+client_command(Command, Arg) ->
+    io_lib:format("./bench.sh -b ~s ~s ~s", [?LASP_BENCH_BRANCH, Command, Arg]).
 
-% client_command(Command, Arg1, Arg2, Arg3) ->
-%     io_lib:format(
-%         "./bench.sh -b ~s ~s ~s ~s ~s",
-%         [?LASP_BENCH_BRANCH, Command, Arg1, Arg2, Arg3]
-%     ).
+client_command(Command, Arg1, Arg2, Arg3) ->
+    io_lib:format(
+        "./bench.sh -b ~s ~s ~s ~s ~s",
+        [?LASP_BENCH_BRANCH, Command, Arg1, Arg2, Arg3]
+    ).
 
-transfer_script(Node, File) ->
-    transfer_from(Node, ?SELF_DIR, File).
+transfer_script(IP, File) ->
+    transfer_from(IP, ?SELF_DIR, File).
 
-transfer_config(Node, File) ->
-    transfer_from(Node, ?CONFIG_DIR, File).
+transfer_config(IP, File) ->
+    transfer_from(IP, ?CONFIG_DIR, File).
 
-transfer_from(Node, Path, File) ->
-    KeyPath = ets:lookup_element(?CONF, {Node, key}, 2),
+transfer_from(IP, Path, File) ->
+    KeyPath = ets:lookup_element(?CONF, {IP, key}, 2),
     Cmd = io_lib:format(
         "scp -i ~s ~s/~s ubuntu@~s:/home/ubuntu",
-        [KeyPath, Path, File, atom_to_list(Node)]
+        [KeyPath, Path, File, IP]
+    ),
+    safe_cmd(Cmd).
+
+transfer_direct(IP, FilePath, TargetName) ->
+    KeyPath = ets:lookup_element(?CONF, {IP, key}, 2),
+    Cmd = io_lib:format(
+        "scp -i ~s ~s ubuntu@~s:/home/ubuntu/~s",
+        [KeyPath, filename:absname(FilePath), IP, TargetName]
     ),
     safe_cmd(Cmd).
 
@@ -466,6 +412,9 @@ all_nodes() ->
 server_nodes() ->
     All = ets:select(?CONF, [{ {{servers, public, '_'}, '$1'}, [], ['$1'] }]),
     lists:usort(lists:foldl(fun(L, Acc) -> Acc ++ L end, [], All)).
+
+main_region_server_nodes() ->
+    ets:select(?CONF, [{ {{servers, public, '$1'}, [ '$2' | '_' ]}, [], [{{'$1', '$2'}}] }]).
 
 client_nodes() ->
     All = ets:select(?CONF, [{ {{clients, public, '_'}, '$1'}, [], ['$1'] }]),
@@ -497,7 +446,6 @@ do_in_nodes_seq(Command, Nodes) ->
     end, Nodes).
 
 do_in_nodes_par(Command, Nodes) ->
-    % todo(borja): Can't access ets table inside process, fix it
     pmap(
         fun(IP) ->
             Cmd = io_lib:format(
@@ -549,6 +497,104 @@ alert(Msg) ->
     safe_cmd(io_lib:format("osascript -e 'display notification with title \"~s\"'", [Msg])),
     safe_cmd("afplay /System/Library/Sounds/Glass.aiff"),
     ok.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% Cluster Info Loading / Translation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+load_processed_data(Table, ConfigPath) ->
+    ConfigDir = filename:dirname(ConfigPath),
+    {ok, Terms0} = file:consult(ConfigPath),
+
+    {clusters, ClusterMap} = lists:keyfind(clusters, 1, Terms0),
+    {red_leader_cluster, LeaderCluster} = lists:keyfind(red_leader_cluster, 1, Terms0),
+
+    Digest = erlang:phash2(ClusterMap, ?DIGEST_RANGE),
+    ProcessedPath = filename:join(ConfigDir, io_lib:format("pcluster-~b.config", [Digest])),
+    ProcTerms = case filelib:is_file(ProcessedPath) of
+        true ->
+            io:format("Reading cached data~n"),
+            {ok, Terms1} = file:consult(ProcessedPath),
+            Terms1;
+
+        false ->
+            io:format("Processing data~n"),
+            Terms1 = preprocess_cluster_map(ClusterMap),
+            Format = fun(T) -> io_lib:format("~tp.~n", [T]) end,
+            Serialized = lists:map(Format, Terms1),
+            ok = file:write_file(ProcessedPath, Serialized),
+            Terms1
+    end,
+
+    true = ets:insert(Table, ProcTerms),
+    true = ets:insert(Table, {?PROC_FILE_KEY, ProcessedPath}),
+    if
+        not (is_map_key(LeaderCluster, ClusterMap)) ->
+            {error, no_leader};
+        true ->
+            Servers = ordsets:from_list(server_nodes()),
+            Clients = ordsets:from_list(client_nodes()),
+            case ordsets:is_disjoint(Servers, Clients) of
+                false ->
+                    {error, cluster_overlap};
+                true ->
+                    ok
+            end
+    end.
+
+preprocess_cluster_map(ClusterMap) ->
+    Terms0 = [{regions, [ atom_to_list(R) || R <- maps:keys(ClusterMap)]}],
+    lists:foldl(
+        fun({RegionAtom, #{servers := ServerIds, clients := ClientIds}}, Acc) ->
+            RName = atom_to_list(RegionAtom),
+            PrivateKeyPath = io_lib:format("./keys/kp-~s.pem", [RName]),
+
+            PublicServers = [ public_ip(RName, Id) || Id <- ServerIds ],
+            PrivateServers = [ private_ip(RName, Id) || Id <- ServerIds ],
+            %% So we can map private to public addresses
+            PrivateMappings = lists:zipwith(
+                fun(Priv, Pub) ->
+                    {{servers, public_mapping, Priv}, Pub}
+                end,
+                PrivateServers,
+                PublicServers
+            ),
+            PublicClients = [ public_ip(RName, Id) || Id <- ClientIds ],
+            PrivateClients = [ private_ip(RName, Id) || Id <- ClientIds ],
+
+            ServerKeys = [ {{Ip, key}, PrivateKeyPath} || Ip <- PublicServers],
+            ClientKeys = [ {{Ip, key}, PrivateKeyPath} || Ip <- PublicClients],
+            [
+                {{key, RName}, PrivateKeyPath},
+                {{servers, public, RName}, PublicServers},
+                {{clients, public, RName}, PublicClients},
+                {{servers, private, RName}, PrivateServers},
+                {{clients, private, RName}, PrivateClients}
+            ] ++ ServerKeys ++ ClientKeys ++ PrivateMappings ++ Acc
+        end,
+        Terms0,
+        maps:to_list(ClusterMap)
+    ).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%% AWS Util
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+public_ip(Region, InstanceId) ->
+    Command = io_lib:format(
+        "aws ec2 describe-instances --instance-ids ~s --output text --region ~s --query 'Reservations[*].Instances[*].PublicIpAddress'",
+        [InstanceId, Region]
+    ),
+    nonl(os:cmd(Command)).
+
+private_ip(Region, InstanceId) ->
+    Command = io_lib:format(
+        "aws ec2 describe-instances --instance-ids ~s --output text --region ~s --query 'Reservations[*].Instances[*].PrivateIpAddress'",
+        [InstanceId, Region]
+    ),
+    nonl(os:cmd(Command)).
+
+nonl(S) -> string:trim(S, trailing, "$\n").
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% getopt
