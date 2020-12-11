@@ -38,7 +38,7 @@
     {connect_dcs, false},
     {prepare, false},
 
-    {load, false},
+    {rubis_load, false},
     {bench, false},
     {brutal_client_kill, false},
     {brutal_server_kill, false},
@@ -170,6 +170,11 @@ do_command({pull, Path}) ->
                 [NodeKey, NodeIP, TargetPath]
             ),
             safe_cmd(Cmd3),
+            Cmd4 = io_lib:format(
+                "scp -i ~s ubuntu@~s:/home/ubuntu/rubis_properties.config ~s",
+                [NodeKey, NodeIP, TargetPath]
+            ),
+            safe_cmd(Cmd4),
             ok
         end,
         client_nodes()
@@ -242,7 +247,6 @@ do_command(stop) ->
 do_command(prepare) ->
     ok = do_command(join),
     ok = do_command(connect_dcs),
-    % ok = do_command(load, Arg, ClusterMap),
     alert("Prepare finished!"),
     ok;
 
@@ -279,13 +283,32 @@ do_command(connect_dcs) ->
     io:format("~p~n", [Rep]),
     ok;
 
-% do_command(load, _) ->
-%     NodeNames = client_nodes(ClusterMap),
-%     TargetNode = hd(server_nodes(ClusterMap)),
-%     io:format("~p~n", [
-%         do_in_nodes_seq(client_command("-y load", atom_to_list(TargetNode)), [hd(NodeNames)])
-%     ]),
-%     ok;
+do_command(rubis_load) ->
+    pmap(
+        fun({Region, Node}) ->
+            transfer_config(Region, Node, "rubis_properties.config")
+        end,
+        client_nodes()
+    ),
+    pmap(
+        fun({Region, NodeIP}) ->
+            TargetServer = main_private_ip(Region),
+            NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
+            CommandFun = client_command(
+                "-y load_rubis",
+                TargetServer,
+                "/home/ubuntu/rubis_properties.config"
+            ),
+            Cmd = io_lib:format(
+                "~s -s ~s \"~s\" ~s",
+                [?IN_NODES_PATH, NodeKey, CommandFun(Region), NodeIP]
+            ),
+            safe_cmd(Cmd)
+        end,
+        main_region_client_nodes()
+    ),
+    alert("Rubis load finished!"),
+    ok;
 
 do_command(bench) ->
     NodeNames = client_nodes(),
@@ -403,8 +426,13 @@ server_command(Command, Arg) ->
 client_command(Command) ->
     fun(_) -> io_lib:format("./bench.sh -b ~s ~s", [?LASP_BENCH_BRANCH, Command]) end.
 
-% client_command(Command, Arg) ->
-%     fun(_) -> io_lib:format("./bench.sh -b ~s ~s ~s", [?LASP_BENCH_BRANCH, Command, Arg]) end.
+client_command(Command, Arg1, Arg2) ->
+    fun(_) ->
+        io_lib:format(
+            "./bench.sh -b ~s ~s ~s ~s",
+            [?LASP_BENCH_BRANCH, Command, Arg1, Arg2]
+        )
+    end.
 
 client_command(Command, Arg1, Arg2, Arg3) ->
     fun(_) ->
@@ -454,6 +482,9 @@ main_region_server_nodes() ->
 client_nodes() ->
     All = ets:select(?CONF, [{ {{clients, public, '$1'}, '$2'}, [], [{{'$1', '$2'}}] }]),
     lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [ {R, N} || N <- L] end, [], All)).
+
+main_region_client_nodes() ->
+    ets:select(?CONF, [{ {{clients, public, '$1'}, [ '$2' | '_' ]}, [], [{{'$1', '$2'}}] }]).
 
 main_private_ip(Region) ->
     [Node] = ets:select(?CONF, [{ {{servers, private, Region}, ['$1' | '_' ]}, [], ['$1']  }]),

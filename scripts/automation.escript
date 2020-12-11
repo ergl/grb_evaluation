@@ -290,6 +290,7 @@ do_command(rubis_load, _, ClusterMap) ->
         end,
         Targets
     ),
+    alert("Rubis load finished!"),
     ok;
 do_command(latencies, _, ClusterMap) ->
     ok = maps:fold(

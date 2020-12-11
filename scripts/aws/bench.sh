@@ -16,6 +16,30 @@ do_compile() {
     popd
 }
 
+do_load_rubis() {
+    local confirm_load="${1}"
+    local target_machine="${2}"
+    local config_file="${3}"
+
+    if [[ "${confirm_load}" -eq 1 ]]; then
+        pushd "${HOME}/sources/lasp-bench/scripts"
+        ./rubis_load.escript "${target_machine}" "7878" "${config_file}"
+        popd
+    else
+        read -r -n 1 -p "Load target ${target_machine}:7878 ? [y/n] " response
+        case "${response}" in
+            [yY] )
+                pushd "${HOME}/sources/lasp-bench/scripts"
+                ./rubis_load.escript "${target_machine}" "7878" "${config_file}"
+                popd
+                ;;
+            *)
+                echo -e "\\nLoad aborted"
+                ;;
+        esac
+    fi
+}
+
 do_rebuild() {
     local branch="${1}"
     pushd "${HOME}/sources/lasp-bench"
@@ -36,7 +60,7 @@ do_run() {
 }
 
 usage() {
-    echo "bench.sh [-h] [-b <branch>=bench_grb] dl | compile | run <config> <bootstrap-node> <bootstrap-port> | rebuild | report [config]"
+    echo "bench.sh [-hy] [-b <branch>=bench_grb] dl | compile | run <config> <bootstrap-node> <bootstrap-port> | load_rubis <node> <config> | rebuild | report [config]"
 }
 
 run () {
@@ -46,7 +70,8 @@ run () {
     fi
 
     local branch="bench_grb"
-    while getopts ":b:h" opt; do
+    local confirm_load=0
+    while getopts ":yb:h" opt; do
         case $opt in
             h)
                 usage
@@ -54,6 +79,9 @@ run () {
                 ;;
             b)
                 branch="${OPTARG}"
+                ;;
+            y)
+                confirm_load=1
                 ;;
             :)
                 echo "Option -${OPTARG} requires an argument"
@@ -91,6 +119,11 @@ run () {
             echo -e "Running with ${run_config_file}\n"
             do_run "${run_config_file}" "${bootstrap_node}" "${bootstrap_port}"
             exit $?
+            ;;
+        "load_rubis")
+            local load_target="${2}"
+            local config_file="${3}"
+            do_load_rubis "${confirm_load}" "${load_target}" "${config_file}"
             ;;
         "rebuild")
             do_rebuild "${branch}"
