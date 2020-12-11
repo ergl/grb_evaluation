@@ -578,7 +578,8 @@ preprocess_cluster_map(ClusterMap) ->
     lists:foldl(
         fun({RegionAtom, #{servers := ServerIds, clients := ClientIds}}, Acc) ->
             RName = atom_to_list(RegionAtom),
-            PrivateKeyPath = io_lib:format("./keys/kp-~s.pem", [RName]),
+            RelPrivateKeyPath = io_lib:format("./keys/kp-~s.pem", [RName]),
+            PrivateKeyPath = filename:absname_join(?SELF_DIR, RelPrivateKeyPath),
 
             PublicServers = [ public_ip(RName, Id) || Id <- ServerIds ],
             PrivateServers = [ private_ip(RName, Id) || Id <- ServerIds ],

@@ -20,3 +20,29 @@ You can use `./connect.sh <region> <instance>` to `ssh` into that machine.
 
 Now, copy the instance ids into `configuration/cluster.config` (`clusters` key), and fill other details. With this info,
 now `automation.escript` can do all the work, just like we did in the apollo cluster.
+
+---
+
+An image can check on http://169.254.169.254/latest/dynamic/instance-identity/document for a json document that includes the following keys:
+
+```json
+[
+  "accountId",
+  "architecture",
+  "availabilityZone",
+  "billingProducts",
+  "devpayProductCodes",
+  "marketplaceProductCodes",
+  "imageId",
+  "instanceId",
+  "instanceType",
+  "kernelId",
+  "pendingTime",
+  "privateIp",
+  "ramdiskId",
+  "region",
+  "version",
+]
+```
+
+More docs at https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/identify_ec2_instances.html and https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/instance-identity-documents.html
