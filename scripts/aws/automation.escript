@@ -147,41 +147,46 @@ prompt(Msg, Default) ->
     end,
     Validate(io:get_line(Prompt)).
 
-% do_command(pull, {true, Path}, ClusterMap) ->
-%     DoFun = fun() ->
-%         pmap(
-%         fun(Node) ->
-%             NodeStr = atom_to_list(Node),
-%             TargetPath = io_lib:format("~s/~s", [Path, NodeStr]),
-%             Cmd0 = io_lib:format("mkdir -p ~s", [TargetPath]),
-%             safe_cmd(Cmd0),
-%             Cmd1 = io_lib:format(
-%                 "scp -i ~s borja.deregil@~s:/home/borja.deregil//sources/lasp-bench/tests/current/* ~s",
-%                 [?SSH_PRIV_KEY, NodeStr, TargetPath]
-%             ),
-%             safe_cmd(Cmd1),
-%             Cmd2 = io_lib:format(
-%                 "scp -i ~s borja.deregil@~s:/home/borja.deregil/cluster.config ~s",
-%                 [?SSH_PRIV_KEY, NodeStr, TargetPath]
-%             ),
-%             safe_cmd(Cmd2),
-%             ok
-%         end,
-%         client_nodes(ClusterMap)
-%         )
-%     end,
+do_command({pull, Path}) ->
+    DoFun = fun() ->
+        pmap(
+        fun({Region, NodeIP}) ->
+            NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
+            TargetPath = io_lib:format("~s/~s-~s", [Path, Region, NodeIP]),
+            Cmd0 = io_lib:format("mkdir -p ~s", [TargetPath]),
+            safe_cmd(Cmd0),
+            Cmd1 = io_lib:format(
+                "scp -i ~s ubuntu@~s:/home/ubuntu/sources/lasp-bench/tests/current/* ~s",
+                [NodeKey, NodeIP, TargetPath]
+            ),
+            safe_cmd(Cmd1),
+            Cmd2 = io_lib:format(
+                "scp -i ~s ubuntu@~s:/home/ubuntu/cluster.config ~s",
+                [NodeKey, NodeIP, TargetPath]
+            ),
+            safe_cmd(Cmd2),
+            Cmd3 = io_lib:format(
+                "scp -i ~s ubuntu@~s:/home/ubuntu/pcluster.config ~s",
+                [NodeKey, NodeIP, TargetPath]
+            ),
+            safe_cmd(Cmd3),
+            ok
+        end,
+        client_nodes()
+        )
+    end,
 
-%     case filelib:is_dir(Path) of
-%         false ->
-%             DoFun(),
-%             ok;
-%         true ->
-%             prompt_gate(
-%                 io_lib:format("Target directory ~s already exists, do you want to overwrite it?", [Path]),
-%                 default_no,
-%                 DoFun
-%             )
-%     end;
+    case filelib:is_dir(Path) of
+        false ->
+            DoFun(),
+            ok;
+        true ->
+            prompt_gate(
+                io_lib:format("Target directory ~s already exists, do you want to overwrite it?", [Path]),
+                default_no,
+                DoFun
+            )
+    end;
 
 do_command(terminate) ->
     Instances = all_instance_ids(),
