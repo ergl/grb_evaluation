@@ -48,7 +48,8 @@
     {rebuild, false},
     {cleanup_latencies, false},
     {cleanup, false},
-    {pull, true}
+    {pull, true},
+    {terminate, false}
 ]).
 
 usage() ->
@@ -120,31 +121,31 @@ main(Args) ->
 %% Commands
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-% prompt_gate(Msg, Default, Fun) ->
-%     case prompt(Msg, Default) of
-%         true ->
-%             Fun(),
-%             ok;
-%         false ->
-%             io:format("Cancelling~n"),
-%             ok
-%     end.
+prompt_gate(Msg, Default, Fun) ->
+    case prompt(Msg, Default) of
+        true ->
+            Fun(),
+            ok;
+        false ->
+            io:format("Cancelling~n"),
+            ok
+    end.
 
-% prompt(Msg, Default) ->
-%     {Prompt, Validate} = case Default of
-%         default_no ->
-%             {
-%                 Msg ++ " [N/y]: ",
-%                 fun(I) when I =:= "y\n" orelse I =:= "Y\n" -> true; (_) -> false end
-%             };
+prompt(Msg, Default) ->
+    {Prompt, Validate} = case Default of
+        default_no ->
+            {
+                Msg ++ " [N/y]: ",
+                fun(I) when I =:= "y\n" orelse I =:= "Y\n" -> true; (_) -> false end
+            };
 
-%         default_yes ->
-%             {
-%                 Msg ++ " [Y/n]: ",
-%                 fun(I) when I =:= "n\n" orelse I =:= "N\n" -> true; (_) -> false end
-%             }
-%     end,
-%     Validate(io:get_line(Prompt)).
+        default_yes ->
+            {
+                Msg ++ " [Y/n]: ",
+                fun(I) when I =:= "n\n" orelse I =:= "N\n" -> true; (_) -> false end
+            }
+    end,
+    Validate(io:get_line(Prompt)).
 
 % do_command(pull, {true, Path}, ClusterMap) ->
 %     DoFun = fun() ->
@@ -181,6 +182,15 @@ main(Args) ->
 %                 DoFun
 %             )
 %     end;
+
+do_command(terminate) ->
+    Instances = all_instance_ids(),
+    io:format("Will terminate instances~n~p~n", [Instances]),
+    prompt_gate("Are you sure you want to proceed?", default_no, fun() ->
+        lists:foreach(fun({Region, Instance}) ->
+            terminate_instance(Region, Instance)
+        end, Instances)
+    end);
 
 do_command(brutal_client_kill) ->
     NodeNames = client_nodes(),
@@ -422,6 +432,10 @@ all_nodes() ->
     All = ets:select(?CONF, [{ {{'_', public, '$1'}, '$2'}, [], [{{'$1', '$2'}}] }]),
     lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [ {R, N} || N <- L] end, [], All)).
 
+all_instance_ids() ->
+    All = ets:select(?CONF, [{ {{instance_ids, '$1'}, '$2'}, [], [{{'$1', '$2'}}]  }]),
+    lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [ {R, N} || N <- L] end, [], All)).
+
 server_nodes() ->
     All = ets:select(?CONF, [{ {{servers, public, '$1'}, '$2'}, [], [{{'$1', '$2'}}] }]),
     lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [ {R, N} || N <- L] end, [], All)).
@@ -578,7 +592,8 @@ preprocess_cluster_map(ClusterMap) ->
                 {{servers, public, RName}, PublicServers},
                 {{clients, public, RName}, PublicClients},
                 {{servers, private, RName}, PrivateServers},
-                {{clients, private, RName}, PrivateClients}
+                {{clients, private, RName}, PrivateClients},
+                {{instance_ids, RName}, ServerIds ++ ClientIds}
             ] ++ ServerKeys ++ ClientKeys ++ PrivateMappings ++ Acc
         end,
         Terms0,
@@ -599,6 +614,13 @@ public_ip(Region, InstanceId) ->
 private_ip(Region, InstanceId) ->
     Command = io_lib:format(
         "aws ec2 describe-instances --instance-ids ~s --output text --region ~s --query 'Reservations[*].Instances[*].PrivateIpAddress'",
+        [InstanceId, Region]
+    ),
+    nonl(os:cmd(Command)).
+
+terminate_instance(Region, InstanceId) ->
+    Command = io_lib:format(
+        "aws ec2 terminate-instances --instance-ids ~s --output text --region ~s",
         [InstanceId, Region]
     ),
     nonl(os:cmd(Command)).
