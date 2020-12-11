@@ -296,7 +296,10 @@ do_command(bench) ->
                 BootstrapIP,
                 integer_to_list(BootstrapPort)
             ),
-            Cmd = io_lib:format("~s \"~s\" ~s", [?IN_NODES_PATH, CommandFun(Region), NodeIP]),
+            Cmd = io_lib:format(
+                "~s -s ~s \"~s\" ~s",
+                [?IN_NODES_PATH, ets:lookup_element(?CONF, {NodeIP, Region, key}, 2), CommandFun(Region), NodeIP]
+            ),
             safe_cmd(Cmd)
         end,
         NodeNames
