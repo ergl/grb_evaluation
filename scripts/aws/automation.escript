@@ -106,8 +106,11 @@ main(Args) ->
 
                 ok ->
                     Command = maps:get(command, Opts),
-                    CommandArg = maps:get(command_arg, Opts, false),
-                    ok = do_command(Command, CommandArg),
+                    Cmd = case maps:get(command_arg, Opts, false) of
+                        false -> Command;
+                        {true, Arg} -> {Command, Arg}
+                    end,
+                    ok = do_command(Cmd),
                     true = ets:delete(?CONF),
                     ok
             end
@@ -179,29 +182,29 @@ main(Args) ->
 %             )
 %     end;
 
-do_command(brutal_client_kill, _) ->
+do_command(brutal_client_kill) ->
     NodeNames = client_nodes(),
     Res = do_in_nodes_seq("pkill -9 beam.smp", NodeNames),
     io:format("~p~n", [Res]),
     ok;
 
-do_command(brutal_server_kill, _) ->
+do_command(brutal_server_kill) ->
     NodeNames = server_nodes(),
     io:format("Server nodes: ~p~n", [NodeNames]),
     Res = do_in_nodes_seq("pkill -9 beam.smp", NodeNames),
     io:format("~p~n", [Res]),
     ok;
 
-do_command(check, _) ->
+do_command(check) ->
     check_nodes();
 
-do_command(sync, _) ->
+do_command(sync) ->
     ok = sync_nodes();
 
-do_command(server, _) ->
+do_command(server) ->
     ok = prepare_server();
 
-do_command(clients, _) ->
+do_command(clients) ->
     ok = prepare_lasp_bench();
 % do_command(prologue, Arg) ->
 %     ok = check_nodes(ClusterMap),
@@ -211,23 +214,23 @@ do_command(clients, _) ->
 %     ok = do_command(latencies, Arg, ClusterMap),
 %     alert("Prologue finished!"),
 %     ok;
-do_command(start, _) ->
+do_command(start) ->
     Rep = do_in_nodes_par(server_command("start"), server_nodes()),
     io:format("~p~n", [Rep]),
     ok;
 
-do_command(stop, _) ->
+do_command(stop) ->
     do_in_nodes_par(server_command("stop"), server_nodes()),
     ok;
 
-do_command(prepare, Arg) ->
-    ok = do_command(join, Arg),
-    ok = do_command(connect_dcs, Arg),
+do_command(prepare) ->
+    ok = do_command(join),
+    ok = do_command(connect_dcs),
     % ok = do_command(load, Arg, ClusterMap),
     alert("Prepare finished!"),
     ok;
 
-do_command(join, _) ->
+do_command(join) ->
     MainNodes = main_region_server_nodes(),
     Parent = self(),
     Reference = erlang:make_ref(),
@@ -251,7 +254,7 @@ do_command(join, _) ->
         error
     end;
 
-do_command(connect_dcs, _) ->
+do_command(connect_dcs) ->
     MainNode = hd(server_nodes()),
     Rep = do_in_nodes_seq(
         server_command("connect_dcs"),
@@ -288,20 +291,20 @@ do_command(connect_dcs, _) ->
 %     ),
 %     alert("Benchmark finished!"),
 %     ok;
-do_command(recompile, _) ->
+do_command(recompile) ->
     io:format("~p~n", [do_in_nodes_par(server_command("recompile"), server_nodes())]),
     ok;
 
-do_command(restart, _) ->
+do_command(restart) ->
     io:format("~p~n", [do_in_nodes_par(server_command("restart"), server_nodes())]),
     ok;
 
-do_command(rebuild, _) ->
+do_command(rebuild) ->
     do_in_nodes_par(server_command("rebuild"), server_nodes()),
     do_in_nodes_par(client_command("rebuild"), client_nodes()),
     ok;
 
-do_command(cleanup, _) ->
+do_command(cleanup) ->
     AllNodes = all_nodes(),
     io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", AllNodes)]),
     ok.
