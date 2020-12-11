@@ -2,7 +2,7 @@
 
 set -eo pipefail
 
-DEFAULT_ITYPE="c5.2xlarge"
+DEFAULT_ITYPE="m4.2xlarge"
 
 usage() {
     echo -e "check_settings.sh [region] [instance]=${DEFAULT_ITYPE}"

@@ -310,7 +310,12 @@ do_command(rubis_load) ->
     ),
     End = erlang:timestamp(),
     Took = timer:now_diff(End, Start),
-    alert(io_lib:format("Rubis load finished adter ~fs~n", [Took div 1_000_000])),
+    alert(
+        io_lib:format(
+            "Rubis load finished after ~b seconds (~b micros)~n",
+            [erlang:trunc(Took div 1_000_000), Took]
+        )
+    ),
     ok;
 
 do_command(bench) ->

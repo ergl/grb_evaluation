@@ -130,33 +130,34 @@ parse_latencies(ResultPath, ClusterStr) ->
         end
     end,
 
+    % Normal Latencies
     _ = MergeLatencies("readonly-blue_latencies.csv"),
     _ = MergeLatencies("writeonly-blue_latencies.csv"),
     _ = MergeLatencies("read-write-blue_latencies.csv"),
     _ = MergeLatencies("readonly-red_latencies.csv"),
     _ = MergeLatencies("writeonly-red_latencies.csv"),
 
-    % Extra latencies (blue)
-    _ = MergeLatencies("read-write-blue-track_latencies.csv"),
-    _ = MergeLatencies("read-write-blue-track_start_latencies.csv"),
-    _ = MergeLatencies("read-write-blue-track_read_latencies.csv"),
-    _ = MergeLatencies("read-write-blue-track_update_latencies.csv"),
-    _ = MergeLatencies("read-write-blue-track_commit_latencies.csv"),
-
-    _ = MergeLatencies("readonly-blue-bypass_latencies.csv"),
-    _ = MergeLatencies("readonly-red-bypass_latencies.csv"),
-    _ = MergeLatencies("read-start-red_latencies.csv"),
-    _ = MergeLatencies("writeonly-blue-bypass_latencies.csv"),
-
-    % Extra latencies (red)
-    _ = MergeLatencies("readonly-red-track_latencies.csv"),
-    _ = MergeLatencies("readonly-red-track_start_latencies.csv"),
-    _ = MergeLatencies("readonly-red-track_read_latencies.csv"),
-    _ = MergeLatencies("readonly-red-track_commit_latencies.csv"),
-    _ = MergeLatencies("readonly-red-track_prepare_latencies.csv"),
-    _ = MergeLatencies("readonly-red-track_accept_latencies.csv"),
-    _ = MergeLatencies("readonly-red-track_coordinator_commit_latencies.csv"),
-    _ = MergeLatencies("readonly-red-track_coordinator_commit_barrier_latencies.csv"),
+    % Rubis latencies
+    _ = MergeLatencies("register-user-latencies.cvs"),
+    _ = MergeLatencies("browse-categories-latencies.cvs"),
+    _ = MergeLatencies("search-items-in-category-latencies.cvs"),
+    _ = MergeLatencies("browse-regions-latencies.cvs"),
+    _ = MergeLatencies("browse-categories-in-region-latencies.cvs"),
+    _ = MergeLatencies("search-items-in-region-latencies.cvs"),
+    _ = MergeLatencies("view-item-latencies.cvs"),
+    _ = MergeLatencies("view-user-info-latencies.cvs"),
+    _ = MergeLatencies("view-bid-history-latencies.cvs"),
+    _ = MergeLatencies("buy-now-latencies.cvs"),
+    _ = MergeLatencies("store-buy-now-latencies.cvs"),
+    _ = MergeLatencies("put-bid-latencies.cvs"),
+    _ = MergeLatencies("store-bid-latencies.cvs"),
+    _ = MergeLatencies("put-comment-latencies.cvs"),
+    _ = MergeLatencies("store-comment-latencies.cvs"),
+    _ = MergeLatencies("select-category-to-sell-item-latencies.cvs"),
+    _ = MergeLatencies("register-item-latencies.cvs"),
+    _ = MergeLatencies("about-me-latencies.cvs"),
+    _ = MergeLatencies("get-auctions-ready-for-close-latencies.cvs"),
+    _ = MergeLatencies("close-auction-latencies.cvs"),
 
     ReadResult =
         io_lib:format("~s -p -i ~s 2>/dev/null", [
