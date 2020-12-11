@@ -290,6 +290,7 @@ do_command(rubis_load) ->
         end,
         client_nodes()
     ),
+    Start = erlang:timestamp(),
     pmap(
         fun({Region, NodeIP}) ->
             TargetServer = main_private_ip(Region),
@@ -307,7 +308,9 @@ do_command(rubis_load) ->
         end,
         main_region_client_nodes()
     ),
-    alert("Rubis load finished!"),
+    End = erlang:timestamp(),
+    Took = timer:now_diff(End, Start),
+    alert(io_lib:format("Rubis load finished adter ~fs~n", [Took div 1_000_000])),
     ok;
 
 do_command(bench) ->
