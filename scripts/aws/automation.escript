@@ -152,7 +152,7 @@ do_command({pull, Path}) ->
         pmap(
         fun({Region, NodeIP}) ->
             NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
-            TargetPath = io_lib:format("~s/~s-~s", [Path, Region, NodeIP]),
+            TargetPath = io_lib:format("~s/aws-~s-~s", [Path, Region, NodeIP]),
             Cmd0 = io_lib:format("mkdir -p ~s", [TargetPath]),
             safe_cmd(Cmd0),
             Cmd1 = io_lib:format(

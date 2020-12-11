@@ -6,4 +6,4 @@ archive/
 _images/
 .vscode/
 */aws/keys/*
-
+*/aws/configuration/pcluster-*.config

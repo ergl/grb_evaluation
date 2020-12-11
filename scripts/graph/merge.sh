@@ -23,8 +23,14 @@ mergeSiteLatency() {
 }
 
 mergeSite() {
-    local folder="${1}"
-    local glob="apollo-*"
+    local aws="${1}"
+    local folder="${2}"
+    local glob
+    if [[ "${aws}" -eq 1 ]]; then
+        glob="aws-*"
+    else
+        glob="apollo-*"
+    fi
 
     # $glob not quoted to allow glob expansion
     # shellcheck disable=SC2086
@@ -78,14 +84,39 @@ mergeSite() {
 }
 
 usage() {
-    echo -e "merge.sh <input-folder>"
+    echo -e "merge.sh [-ah] <input-folder>"
 }
 
 run() {
-    if [[ $# -ne 1 ]]; then
+    if [[ $# -lt 1 ]]; then
         usage
         exit 1
     fi
+
+    local aws=0
+    while getopts ":ah" opt; do
+        case $opt in
+            h)
+                usage
+                exit 0
+                ;;
+            a)
+                aws=1
+                ;;
+            :)
+                echo "Option -${OPTARG} requires an argument"
+                usage
+                exit 1
+                ;;
+            *)
+                echo "Unrecognized option -${OPTARG}"
+                usage
+                exit 1
+                ;;
+        esac
+    done
+
+    shift $((OPTIND - 1))
 
     local input_folder="${1}"
     if [[ ! -d "${input_folder}" ]]; then
@@ -93,7 +124,7 @@ run() {
         exit 1
     fi
 
-    mergeSite "${input_folder}"
+    mergeSite "${aws}" "${input_folder}"
     exit $?
 }
 
