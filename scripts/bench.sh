@@ -22,19 +22,21 @@ do_compile() {
     popd
 }
 
-do_load() {
+do_load_rubis() {
     local confirm_load="${1}"
     local target_machine="${2}"
+    local config_file="${3}"
 
-    pushd "${HOME}/sources/lasp-bench/scripts"
     if [[ "${confirm_load}" -eq 1 ]]; then
-        ./grb_load.escript "${target_machine}" "7878"
+        pushd "${HOME}/sources/lasp-bench/scripts"
+        ./rubis_load.escript "${target_machine}" "7878" "${config_file}"
+        popd
     else
         read -r -n 1 -p "Load target ${target_machine}:7878 ? [y/n] " response
         case "${response}" in
             [yY] )
                 pushd "${HOME}/sources/lasp-bench/scripts"
-                ./grb_load.escript "${target_machine}" "7878"
+                ./rubis_load.escript "${target_machine}" "7878" "${config_file}"
                 popd
                 ;;
             *)
@@ -64,7 +66,7 @@ do_run() {
 }
 
 usage() {
-    echo "bench.sh [-hy] [-b <branch>=bench_grb] dl | compile | load [machine] | run [config] | rebuild | report [config]"
+    echo "bench.sh [-hy] [-b <branch>=bench_grb] dl | compile | load_rubis <node> <config> | run <config> <bootstrap-node> <bootstrap-port> | rebuild | report [config]"
 }
 
 run () {
@@ -116,11 +118,12 @@ run () {
             do_compile
             exit $?
             ;;
-        "load")
+        "load_rubis")
             local default_target
             default_target=$(get_default_load_target)
             local load_target="${2:-${default_target}}"
-            do_load "${confirm_load}" "${load_target}"
+            local config_file="${3}"
+            do_load_rubis "${confirm_load}" "${load_target}" "${config_file}"
             ;;
         "run")
             local run_config_file="${2}"

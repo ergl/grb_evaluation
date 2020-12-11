@@ -35,7 +35,7 @@
     {latencies, false},
     {prepare, false},
 
-    {load, false},
+    {rubis_load, false},
     {bench, false},
     {brutal_client_kill, false},
     {brutal_server_kill, false},
@@ -171,6 +171,11 @@ do_command(pull, {true, Path}, ClusterMap) ->
                 [?SSH_PRIV_KEY, NodeStr, TargetPath]
             ),
             safe_cmd(Cmd2),
+            Cmd3 = io_lib:format(
+                "scp -i ~s borja.deregil@~s:/home/borja.deregil/rubis_properties.config ~s",
+                [?SSH_PRIV_KEY, NodeStr, TargetPath]
+            ),
+            safe_cmd(Cmd3),
             ok
         end,
         client_nodes(ClusterMap)
@@ -225,7 +230,6 @@ do_command(stop, _, ClusterMap) ->
 do_command(prepare, Arg, ClusterMap) ->
     ok = do_command(join, Arg, ClusterMap),
     ok = do_command(connect_dcs, Arg, ClusterMap),
-    % ok = do_command(load, Arg, ClusterMap),
     alert("Prepare finished!"),
     ok;
 do_command(join, _, ClusterMap) ->
@@ -257,12 +261,35 @@ do_command(connect_dcs, _, ClusterMap) ->
     ),
     io:format("~p~n", [Rep]),
     ok;
-do_command(load, _, ClusterMap) ->
-    NodeNames = client_nodes(ClusterMap),
-    TargetNode = hd(server_nodes(ClusterMap)),
-    io:format("~p~n", [
-        do_in_nodes_seq(client_command("-y load", atom_to_list(TargetNode)), [hd(NodeNames)])
-    ]),
+do_command(rubis_load, _, ClusterMap) ->
+    pmap(
+        fun(Node) ->
+            transfer_config(Node, "rubis_properties.config")
+        end,
+        client_nodes(ClusterMap)
+    ),
+    Targets = maps:fold(
+        fun(_, #{servers := S, clients := C}, Acc) ->
+            [ { hd(lists:sort(S)), hd(lists:sort(C)) } | Acc ]
+        end,
+        [],
+        ClusterMap
+    ),
+    pmap(
+        fun({TargetNode, ClientNode}) ->
+            Command = client_command(
+                "-y load_rubis",
+                atom_to_list(TargetNode),
+                "/home/borja.deregil/rubis_properties.config"
+            ),
+            Cmd = io_lib:format(
+                "~s \"~s\" ~s",
+                [?IN_NODES_PATH, Command, atom_to_list(ClientNode)]
+            ),
+            safe_cmd(Cmd)
+        end,
+        Targets
+    ),
     ok;
 do_command(latencies, _, ClusterMap) ->
     ok = maps:fold(
@@ -400,8 +427,11 @@ server_command(Command, Arg) ->
 client_command(Command) ->
     io_lib:format("./bench.sh -b ~s ~s", [?LASP_BENCH_BRANCH, Command]).
 
-client_command(Command, Arg) ->
-    io_lib:format("./bench.sh -b ~s ~s ~s", [?LASP_BENCH_BRANCH, Command, Arg]).
+client_command(Command, Arg1, Arg2) ->
+    io_lib:format(
+        "./bench.sh -b ~s ~s ~s ~s",
+        [?LASP_BENCH_BRANCH, Command, Arg1, Arg2]
+    ).
 
 client_command(Command, Arg1, Arg2, Arg3) ->
     io_lib:format(
