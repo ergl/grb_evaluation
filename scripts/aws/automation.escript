@@ -206,14 +206,15 @@ do_command(server) ->
 
 do_command(clients) ->
     ok = prepare_lasp_bench();
-% do_command(prologue, Arg) ->
-%     ok = check_nodes(ClusterMap),
-%     ok = sync_nodes(ClusterMap),
-%     ok = prepare_server(ClusterMap),
-%     ok = prepare_lasp_bench(ClusterMap),
-%     ok = do_command(latencies, Arg, ClusterMap),
-%     alert("Prologue finished!"),
-%     ok;
+
+do_command(prologue) ->
+    ok = check_nodes(),
+    ok = sync_nodes(),
+    ok = prepare_server(),
+    ok = prepare_lasp_bench(),
+    alert("Prologue finished!"),
+    ok;
+
 do_command(start) ->
     Rep = do_in_nodes_par(server_command("start"), server_nodes()),
     io:format("~p~n", [Rep]),
@@ -236,7 +237,7 @@ do_command(join) ->
     Reference = erlang:make_ref(),
     SpawnFun = fun() ->
         Replies = lists:map(fun({Region, Main}) ->
-            do_in_nodes_seq(server_command("join", Region), [Main])
+            do_in_nodes_seq(server_command("join", Region), [{Region, Main}])
         end, MainNodes),
         Parent ! {Reference, Replies}
     end,
@@ -270,27 +271,29 @@ do_command(connect_dcs) ->
 %         do_in_nodes_seq(client_command("-y load", atom_to_list(TargetNode)), [hd(NodeNames)])
 %     ]),
 %     ok;
-% do_command(bench, _) ->
-%     NodeNames = client_nodes(ClusterMap),
-%     BootstrapInfo = build_bootstrap_info(ClusterMap),
-%     BootstrapPort = 7878,
-%     pmap(fun(Node) -> transfer_config(Node, "run.config") end, NodeNames),
 
-%     pmap(
-%         fun(Node) ->
-%             Command = client_command(
-%                 "run",
-%                 "/home/borja.deregil/run.config",
-%                 atom_to_list(maps:get(Node, BootstrapInfo)),
-%                 integer_to_list(BootstrapPort)
-%             ),
-%             Cmd = io_lib:format("~s \"~s\" ~s", [?IN_NODES_PATH, Command, atom_to_list(Node)]),
-%             safe_cmd(Cmd)
-%         end,
-%         NodeNames
-%     ),
-%     alert("Benchmark finished!"),
-%     ok;
+do_command(bench) ->
+    NodeNames = client_nodes(),
+    BootstrapPort = 7878,
+    pmap(fun({Region, Node}) -> transfer_config(Region, Node, "run.config") end, NodeNames),
+
+    pmap(
+        fun({Region, NodeIP}) ->
+            BootstrapIP = main_private_ip(Region),
+            CommandFun = client_command(
+                "run",
+                "/home/ubuntu/run.config",
+                BootstrapIP,
+                integer_to_list(BootstrapPort)
+            ),
+            Cmd = io_lib:format("~s \"~s\" ~s", [?IN_NODES_PATH, CommandFun(Region), NodeIP]),
+            safe_cmd(Cmd)
+        end,
+        NodeNames
+    ),
+    alert("Benchmark finished!"),
+    ok;
+
 do_command(recompile) ->
     io:format("~p~n", [do_in_nodes_par(server_command("recompile"), server_nodes())]),
     ok;
@@ -323,11 +326,12 @@ check_nodes() ->
     % Transfer server, bench and cluster config
     io:format("Transfering benchmark config files (server, bench, cluster)...~n"),
     pmap(
-        fun(Node) ->
-            transfer_script(Node, "server.escript"),
-            transfer_script(Node, "bench.sh"),
-            transfer_config(Node, "cluster.config"),
+        fun({Region, Node}) ->
+            transfer_script(Region, Node, "server.escript"),
+            transfer_script(Region, Node, "bench.sh"),
+            transfer_config(Region, Node, "cluster.config"),
             transfer_direct(
+                Region,
                 Node,
                 ets:lookup_element(?CONF, ?PROC_FILE_KEY, 2),
                 "pcluster.config"
@@ -363,45 +367,51 @@ prepare_lasp_bench() ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 server_command(Command) ->
-    io_lib:format(
-        "./server.escript -v -f /home/ubuntu/cluster.config -p /home/ubuntu/pcluster.config -c ~s",
-        [Command]
-    ).
+    fun(Region) ->
+        io_lib:format(
+            "./server.escript -v -r ~s -f /home/ubuntu/cluster.config -p /home/ubuntu/pcluster.config -c ~s",
+            [Region, Command]
+        )
+    end.
 
 server_command(Command, Arg) ->
-    io_lib:format(
-        "./server.escript -v -f /home/ubuntu/cluster.config -p /home/ubuntu/pcluster.config -c ~s=~s",
-        [Command,Arg
-    ]).
+    fun(Region) ->
+        io_lib:format(
+            "./server.escript -v -r ~s -f /home/ubuntu/cluster.config -p /home/ubuntu/pcluster.config -c ~s=~s",
+            [Region, Command,Arg]
+        )
+    end.
 
 client_command(Command) ->
-    io_lib:format("./bench.sh -b ~s ~s", [?LASP_BENCH_BRANCH, Command]).
+    fun(_) -> io_lib:format("./bench.sh -b ~s ~s", [?LASP_BENCH_BRANCH, Command]) end.
 
-client_command(Command, Arg) ->
-    io_lib:format("./bench.sh -b ~s ~s ~s", [?LASP_BENCH_BRANCH, Command, Arg]).
+% client_command(Command, Arg) ->
+%     fun(_) -> io_lib:format("./bench.sh -b ~s ~s ~s", [?LASP_BENCH_BRANCH, Command, Arg]) end.
 
 client_command(Command, Arg1, Arg2, Arg3) ->
-    io_lib:format(
-        "./bench.sh -b ~s ~s ~s ~s ~s",
-        [?LASP_BENCH_BRANCH, Command, Arg1, Arg2, Arg3]
-    ).
+    fun(_) ->
+        io_lib:format(
+            "./bench.sh -b ~s ~s ~s ~s ~s",
+            [?LASP_BENCH_BRANCH, Command, Arg1, Arg2, Arg3]
+        )
+    end.
 
-transfer_script(IP, File) ->
-    transfer_from(IP, ?SELF_DIR, File).
+transfer_script(Region, IP, File) ->
+    transfer_from(Region, IP, ?SELF_DIR, File).
 
-transfer_config(IP, File) ->
-    transfer_from(IP, ?CONFIG_DIR, File).
+transfer_config(Region, IP, File) ->
+    transfer_from(Region, IP, ?CONFIG_DIR, File).
 
-transfer_from(IP, Path, File) ->
-    KeyPath = ets:lookup_element(?CONF, {IP, key}, 2),
+transfer_from(Region, IP, Path, File) ->
+    KeyPath = ets:lookup_element(?CONF, {IP, Region, key}, 2),
     Cmd = io_lib:format(
         "scp -i ~s ~s/~s ubuntu@~s:/home/ubuntu",
         [KeyPath, Path, File, IP]
     ),
     safe_cmd(Cmd).
 
-transfer_direct(IP, FilePath, TargetName) ->
-    KeyPath = ets:lookup_element(?CONF, {IP, key}, 2),
+transfer_direct(Region, IP, FilePath, TargetName) ->
+    KeyPath = ets:lookup_element(?CONF, {IP, Region, key}, 2),
     Cmd = io_lib:format(
         "scp -i ~s ~s ubuntu@~s:/home/ubuntu/~s",
         [KeyPath, filename:absname(FilePath), IP, TargetName]
@@ -409,51 +419,47 @@ transfer_direct(IP, FilePath, TargetName) ->
     safe_cmd(Cmd).
 
 all_nodes() ->
-    All = ets:select(?CONF, [{ {{'_', public, '_'}, '$1'}, [], ['$1'] }]),
-    lists:usort(lists:foldl(fun(L, Acc) -> Acc ++ L end, [], All)).
+    All = ets:select(?CONF, [{ {{'_', public, '$1'}, '$2'}, [], [{{'$1', '$2'}}] }]),
+    lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [ {R, N} || N <- L] end, [], All)).
 
 server_nodes() ->
-    All = ets:select(?CONF, [{ {{servers, public, '_'}, '$1'}, [], ['$1'] }]),
-    lists:usort(lists:foldl(fun(L, Acc) -> Acc ++ L end, [], All)).
+    All = ets:select(?CONF, [{ {{servers, public, '$1'}, '$2'}, [], [{{'$1', '$2'}}] }]),
+    lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [ {R, N} || N <- L] end, [], All)).
 
 main_region_server_nodes() ->
     ets:select(?CONF, [{ {{servers, public, '$1'}, [ '$2' | '_' ]}, [], [{{'$1', '$2'}}] }]).
 
 client_nodes() ->
-    All = ets:select(?CONF, [{ {{clients, public, '_'}, '$1'}, [], ['$1'] }]),
-    lists:usort(lists:foldl(fun(L, Acc) -> Acc ++ L end, [], All)).
+    All = ets:select(?CONF, [{ {{clients, public, '$1'}, '$2'}, [], [{{'$1', '$2'}}] }]),
+    lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [ {R, N} || N <- L] end, [], All)).
 
-% build_bootstrap_info(Map) ->
-%     maps:fold(
-%         fun(_, #{servers := Servers, clients := Clients}, Acc) ->
-%             [BootstrapNode | _] = lists:usort(Servers),
-%             lists:foldl(
-%                 fun(Elt, ListAcc) ->
-%                     ListAcc#{Elt => BootstrapNode}
-%                 end,
-%                 Acc,
-%                 Clients
-%             )
-%         end,
-%         #{},
-%         Map
-%     ).
+main_private_ip(Region) ->
+    [Node] = ets:select(?CONF, [{ {{servers, private, Region}, ['$1' | '_' ]}, [], ['$1']  }]),
+    Node.
 
-do_in_nodes_seq(Command, Nodes) ->
-    lists:foreach(fun(IP) ->
+do_in_nodes_seq(CommandFun, Nodes) ->
+    lists:foreach(fun({Region, IP}) ->
+        Command = if
+            erlang:is_function(CommandFun) -> CommandFun(Region);
+            true -> CommandFun
+        end,
         Cmd = io_lib:format(
             "~s -s ~s \"~s\" ~s",
-            [?IN_NODES_PATH, ets:lookup_element(?CONF, {IP, key}, 2), Command, IP]
+            [?IN_NODES_PATH, ets:lookup_element(?CONF, {IP, Region, key}, 2), Command, IP]
         ),
         safe_cmd(Cmd)
     end, Nodes).
 
-do_in_nodes_par(Command, Nodes) ->
+do_in_nodes_par(CommandFun, Nodes) ->
     pmap(
-        fun(IP) ->
+        fun({Region, IP}) ->
+            Command = if
+                erlang:is_function(CommandFun) -> CommandFun(Region);
+                true -> CommandFun
+            end,
             Cmd = io_lib:format(
                 "~s -s ~s \"~s\" ~s",
-                [?IN_NODES_PATH, ets:lookup_element(?CONF, {IP, key}, 2), Command, IP]
+                [?IN_NODES_PATH, ets:lookup_element(?CONF, {IP, Region, key}, 2), Command, IP]
             ),
             safe_cmd(Cmd)
         end,
@@ -557,7 +563,7 @@ preprocess_cluster_map(ClusterMap) ->
             %% So we can map private to public addresses
             PrivateMappings = lists:zipwith(
                 fun(Priv, Pub) ->
-                    {{servers, public_mapping, Priv}, Pub}
+                    {{servers, public_mapping, RName, Priv}, Pub}
                 end,
                 PrivateServers,
                 PublicServers
@@ -565,8 +571,8 @@ preprocess_cluster_map(ClusterMap) ->
             PublicClients = [ public_ip(RName, Id) || Id <- ClientIds ],
             PrivateClients = [ private_ip(RName, Id) || Id <- ClientIds ],
 
-            ServerKeys = [ {{Ip, key}, PrivateKeyPath} || Ip <- PublicServers],
-            ClientKeys = [ {{Ip, key}, PrivateKeyPath} || Ip <- PublicClients],
+            ServerKeys = [ {{Ip, RName, key}, PrivateKeyPath} || Ip <- PublicServers],
+            ClientKeys = [ {{Ip, RName, key}, PrivateKeyPath} || Ip <- PublicClients],
             [
                 {{key, RName}, PrivateKeyPath},
                 {{servers, public, RName}, PublicServers},

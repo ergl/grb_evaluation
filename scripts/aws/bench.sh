@@ -36,7 +36,7 @@ do_run() {
 }
 
 usage() {
-    echo "bench.sh [-h] [-b <branch>=bench_grb] dl | compile | run [config] | rebuild | report [config]"
+    echo "bench.sh [-h] [-b <branch>=bench_grb] dl | compile | run <config> <bootstrap-node> <bootstrap-port> | rebuild | report [config]"
 }
 
 run () {
@@ -46,7 +46,6 @@ run () {
     fi
 
     local branch="bench_grb"
-    local confirm_load=0
     while getopts ":b:h" opt; do
         case $opt in
             h)
@@ -89,7 +88,7 @@ run () {
             local run_config_file="${2}"
             local bootstrap_node="${3}"
             local bootstrap_port="${4:-7878}"
-            echo -e "Runnig with ${run_config_file}\n"
+            echo -e "Running with ${run_config_file}\n"
             do_run "${run_config_file}" "${bootstrap_node}" "${bootstrap_port}"
             exit $?
             ;;

@@ -58,7 +58,7 @@ usage() ->
     ),
     ok = io:fwrite(
         standard_error,
-        "Usage: [-dv] ~s -f <config-file> -p <ip-config-file> -c ~s~n",
+        "Usage: [-dv] ~s -r <region-name> -f <config-file> -p <ip-config-file> -c ~s~n",
         [Name, Commands ++ " >"]
     ).
 
@@ -71,11 +71,13 @@ main(Args) ->
             #{
                 config := ConfigFile,
                 ip_config := IpConfigFile,
+                region := Region,
                 command := Command
             } = Parsed,
 
             erlang:put(dry_run, maps:get(dry_run, Parsed, false)),
             erlang:put(verbose, maps:get(verbose, Parsed, false)),
+            erlang:put(current_region, Region),
 
             {ok, Config} = file:consult(ConfigFile),
             {ok, IpConfig} = file:consult(IpConfigFile),
@@ -311,7 +313,8 @@ ip_for_node([$i ,$p, $- | Rest]) ->
 
 -spec get_public_ip_address(string()) -> string().
 get_public_ip_address(PrivateIP) ->
-    ets:lookup_element(?IP_CONF, {servers, public_mapping, PrivateIP}, 2).
+    Region = erlang:get(current_region),
+    ets:lookup_element(?IP_CONF, {servers, public_mapping, Region, PrivateIP}, 2).
 
 -spec get_region_grb_nodes(string()) -> [string()].
 get_region_grb_nodes(Region) ->
@@ -375,6 +378,8 @@ parse_args([[$- | Flag] | Args], Acc) ->
             parse_flag(Args, fun(Arg) -> Acc#{config => Arg} end);
         [$p] ->
             parse_flag(Args, fun(Arg) -> Acc#{ip_config => Arg} end);
+        [$r] ->
+            parse_flag(Args, fun(Arg) -> Acc#{region => Arg} end);
         [$c] ->
             parse_flag(Args, fun(Arg) -> parse_command(Arg, Acc) end);
         [$v] ->
@@ -404,7 +409,7 @@ parse_command(Arg, Acc) ->
     end.
 
 required(Opts) ->
-    Required = [config, ip_config, command],
+    Required = [config, ip_config, command, region],
     Valid = lists:all(fun(F) -> maps:is_key(F, Opts) end, Required),
     case Valid of
         false ->
