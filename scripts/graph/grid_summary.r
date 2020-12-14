@@ -41,9 +41,10 @@ if (is.null(opt$step)) { opt$step = 10000 }
 b = load_benchmark(opt$indir, opt$tstart, opt$tend)
 
 # If there is no actual data available, bail
-if (nrow(b$latencies) == 0)
+if (is.null(b$latencies) ||nrow(b$latencies) == 0)
 {
-  stop("No latency information available to analyze in ", opt$indir)
+  cat("No latency information available to analyze in ", opt$indir)
+  q(status=0)
 }
 
 png(file = opt$outfile, width = opt$width, height = opt$height)

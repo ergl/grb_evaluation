@@ -10,14 +10,16 @@ fi
 cd "$(dirname "$SELF")"
 
 graph () {
-    local global_step="${1}"
-    local single_step="${2}"
-    local folder="${3}"
+    local y="${1}"
+    local x="${2}"
+    local global_step="${3}"
+    local single_step="${4}"
+    local folder="${5}"
 
     local image_folder="${folder}/_images"
     mkdir -p "${image_folder}"
 
-    Rscript --vanilla ./grid_summary.r -s "${global_step}" -i "${folder}" -o "${image_folder}"/summary.png
+    Rscript --vanilla ./grid_summary.r -x "${x}" -y "${y}" -s "${global_step}" -i "${folder}" -o "${image_folder}"/summary.png
 
     # Even if it contains a /, append one, doesn't change anything
     folder+="/"
@@ -27,7 +29,7 @@ graph () {
         if [[ "${folder_name}" =~ ^_.* ]]; then
             continue
         fi
-        Rscript --vanilla ./summary.r -s "${single_step}" -i "${subfolder}" -o "${image_folder}/${folder_name}.png"
+        Rscript --vanilla ./summary.r -x "${x}" -y "${y}" -s "${single_step}" -i "${subfolder}" -o "${image_folder}/${folder_name}.png"
     done
 }
 
@@ -44,8 +46,10 @@ run () {
     local total_step=10000
     local node_step=5000
     local input_folder
+    local width=1500
+    local height=2000
 
-    while getopts ":t:s:h" opt; do
+    while getopts ":t:s:x:y:h" opt; do
         case $opt in
             h)
                 usage
@@ -56,6 +60,12 @@ run () {
                 ;;
             s)
                 node_step="${OPTARG}"
+                ;;
+            x)
+                width="${OPTARG}"
+                ;;
+            y)
+                height="${OPTARG}"
                 ;;
             :)
                 echo "Option -${OPTARG} requires an argument"
@@ -82,7 +92,7 @@ run () {
         exit 1
     fi
 
-    graph "${total_step}" "${node_step}" "${input_folder}"
+    graph "${height}" "${width}" "${total_step}" "${node_step}" "${input_folder}"
     exit $?
 }
 
