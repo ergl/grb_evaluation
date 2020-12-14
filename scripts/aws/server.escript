@@ -150,12 +150,14 @@ execute_command({join, Region}, Config) ->
     os_cmd(Cmd),
     ok;
 execute_command(connect_dcs, Config) ->
+    {red_leader_cluster, LeaderCluster} = lists:keyfind(red_leader_cluster, 1, Config),
+    LeaderIP = get_public_leader_grb_ip(atom_to_list(LeaderCluster)),
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
     InterDCPort = get_config_key(inter_dc_port, Config, ?DEFAULT_INTER_DC_PORT),
     NodeArgs = get_public_leader_grb_ips_str(),
     Cmd = io_lib:format(
-        "./sources/~s/bin/connect_dcs.erl -i -p ~b ~s",
-        [Branch, InterDCPort, NodeArgs]
+        "./sources/~s/bin/connect_dcs.erl -i -p ~b -l ~s ~s",
+        [Branch, InterDCPort, LeaderIP, NodeArgs]
     ),
     os_cmd(Cmd),
     ok.
@@ -347,6 +349,11 @@ get_public_leader_grb_ips_str() ->
         "",
         get_public_leader_grb_ips()
     ).
+
+-spec get_public_leader_grb_ip(string()) -> string().
+get_public_leader_grb_ip(Region) ->
+    [IP] = ets:select(?IP_CONF, [{ {{servers, public, Region}, ['$1' | '_' ]}, [], ['$1'] }]),
+    IP.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% config
