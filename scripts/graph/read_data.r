@@ -18,7 +18,8 @@ params = matrix(c(
     'help', 'h', 0, "logical",
     'verbose', 'v', 0, "logical",
     'header', 'p', 0, "logical",
-    'data_dir', 'i', 2, "character"
+    'data_dir', 'i', 2, "character",
+    'rubis', 'r', 0, "logical"
 ), ncol=4, byrow=TRUE)
 
 opt = getopt(params)
@@ -33,6 +34,12 @@ if(!is.character(opt$data_dir)) {
 }
 
 verbose <- if (!is.null(opt$verbose)) {
+    1
+} else {
+    0
+}
+
+rubis <- if (!is.null(opt$rubis)) {
     1
 } else {
     0
@@ -145,6 +152,131 @@ get_default_latencies <- function(Dir) {
                       red_median_latency_ronly,
                       red_median_latency_wonly,
                       red_median_latency_rw))
+}
+
+get_rubis_latencies <- function(Dir) {
+    r <- latency_for_file(sprintf("%s/register-user_latencies.csv", Dir))
+    mean_register_user <- r$mean
+    median_register_user <- r$median
+
+    r <- latency_for_file(sprintf("%s/browse-categories_latencies.csv", Dir))
+    mean_browse_categories <- r$mean
+    median_browse_categories <- r$median
+
+    r <- latency_for_file(sprintf("%s/search-items-in-category_latencies.csv", Dir))
+    mean_search_items_in_category <- r$mean
+    median_search_items_in_category <- r$median
+
+    r <- latency_for_file(sprintf("%s/browse-regions_latencies.csv", Dir))
+    mean_browse_regions <- r$mean
+    median_browse_regions <- r$median
+
+    r <- latency_for_file(sprintf("%s/browse-categories-in-region_latencies.csv", Dir))
+    mean_browse_categories_in_region <- r$mean
+    median_browse_categories_in_region <- r$median
+
+    r <- latency_for_file(sprintf("%s/search-items-in-region_latencies.csv", Dir))
+    mean_search_items_in_region <- r$mean
+    median_search_items_in_region <- r$median
+
+    r <- latency_for_file(sprintf("%s/view-item_latencies.csv", Dir))
+    mean_view_item <- r$mean
+    median_view_item <- r$median
+
+    r <- latency_for_file(sprintf("%s/view-user-info_latencies.csv", Dir))
+    mean_view_user_info <- r$mean
+    median_view_user_info <- r$median
+
+    r <- latency_for_file(sprintf("%s/view-bid-history_latencies.csv", Dir))
+    mean_view_bid_history <- r$mean
+    median_view_bid_history <- r$median
+
+    r <- latency_for_file(sprintf("%s/buy-now_latencies.csv", Dir))
+    mean_buy_now <- r$mean
+    median_buy_now <- r$median
+
+    r <- latency_for_file(sprintf("%s/store-buy-now_latencies.csv", Dir))
+    mean_store_buy_now <- r$mean
+    median_store_buy_now <- r$median
+
+    r <- latency_for_file(sprintf("%s/put-bid_latencies.csv", Dir))
+    mean_put_bid <- r$mean
+    median_put_bid <- r$median
+
+    r <- latency_for_file(sprintf("%s/store-bid_latencies.csv", Dir))
+    mean_store_bid <- r$mean
+    median_store_bid <- r$median
+
+    r <- latency_for_file(sprintf("%s/put-comment_latencies.csv", Dir))
+    mean_put_comment <- r$mean
+    median_put_comment <- r$median
+
+    r <- latency_for_file(sprintf("%s/store-comment_latencies.csv", Dir))
+    mean_store_comment <- r$mean
+    median_store_comment <- r$median
+
+    r <- latency_for_file(sprintf("%s/select-category-to-sell-item_latencies.csv", Dir))
+    mean_select_category_to_sell_item <- r$mean
+    median_select_category_to_sell_item <- r$median
+
+    r <- latency_for_file(sprintf("%s/register-item_latencies.csv", Dir))
+    mean_register_item <- r$mean
+    median_register_item <- r$median
+
+    r <- latency_for_file(sprintf("%s/about-me_latencies.csv", Dir))
+    mean_about_me <- r$mean
+    median_about_me <- r$median
+
+    r <- latency_for_file(sprintf("%s/get-auctions-ready-for-close_latencies.csv", Dir))
+    mean_get_auctions_ready_for_close <- r$mean
+    median_get_auctions_ready_for_close <- r$median
+
+    r <- latency_for_file(sprintf("%s/close-auction_latencies.csv", Dir))
+    mean_close_auction <- r$mean
+    median_close_auction <- r$median
+
+    return(data.frame(
+        mean_register_user,
+        mean_browse_categories,
+        mean_search_items_in_category,
+        mean_browse_regions,
+        mean_browse_categories_in_region,
+        mean_search_items_in_region,
+        mean_view_item,
+        mean_view_user_info,
+        mean_view_bid_history,
+        mean_buy_now,
+        mean_store_buy_now,
+        mean_put_bid,
+        mean_store_bid,
+        mean_put_comment,
+        mean_store_comment,
+        mean_select_category_to_sell_item,
+        mean_register_item,
+        mean_about_me,
+        mean_get_auctions_ready_for_close,
+        mean_close_auction,
+        median_register_user,
+        median_browse_categories,
+        median_search_items_in_category,
+        median_browse_regions,
+        median_browse_categories_in_region,
+        median_search_items_in_region,
+        median_view_item,
+        median_view_user_info,
+        median_view_bid_history,
+        median_buy_now,
+        median_store_buy_now,
+        median_put_bid,
+        median_store_bid,
+        median_put_comment,
+        median_store_comment,
+        median_select_category_to_sell_item,
+        median_register_item,
+        median_about_me,
+        median_get_auctions_ready_for_close,
+        median_close_auction
+    ))
 }
 
 get_red_track_latencies <- function(Dir) {
@@ -292,6 +424,113 @@ process_default_data <- function(Dir) {
     cat(row_data)
 }
 
+process_rubis_data <- function(Dir) {
+    thread_info <- get_client_threads(Dir)
+    throughput_df <- get_summary_data(Dir)
+    latency_df <- get_rubis_latencies(Dir)
+
+    headers <- c(
+        "threads",
+        "total_throughput",
+        "throughput",
+        "throughput_med",
+        "register_user_mean",
+        "browse_categories_mean",
+        "search_items_in_category_mean",
+        "browse_regions_mean",
+        "browse_categories_in_region_mean",
+        "search_items_in_region_mean",
+        "view_item_mean",
+        "view_user_info_mean",
+        "view_bid_history_mean",
+        "buy_now_mean",
+        "store_buy_now_mean",
+        "put_bid_mean",
+        "store_bid_mean",
+        "put_comment_mean",
+        "store_comment_mean",
+        "select_category_to_sell_item_mean",
+        "register_item_mean",
+        "about_me_mean",
+        "get_auctions_ready_for_close_mean",
+        "close_auction_mean",
+        "register_user_median",
+        "browse_categories_median",
+        "search_items_in_category_median",
+        "browse_regions_median",
+        "browse_categories_in_region_median",
+        "search_items_in_region_median",
+        "view_item_median",
+        "view_user_info_median",
+        "view_bid_history_median",
+        "buy_now_median",
+        "store_buy_now_median",
+        "put_bid_median",
+        "store_bid_median",
+        "put_comment_median",
+        "store_comment_median",
+        "select_category_to_sell_item_median",
+        "register_item_median",
+        "about_me_median",
+        "get_auctions_ready_for_close_median",
+        "close_auction_median",
+        "abort_ratio"
+    )
+
+    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n"
+    row_data <- sprintf(row_format,
+                        thread_info$per_machine,
+                        throughput_df$max_total,
+                        throughput_df$max_commit,
+                        throughput_df$median_commit,
+                        latency_df$mean_register_user,
+                        latency_df$mean_browse_categories,
+                        latency_df$mean_search_items_in_category,
+                        latency_df$mean_browse_regions,
+                        latency_df$mean_browse_categories_in_region,
+                        latency_df$mean_search_items_in_region,
+                        latency_df$mean_view_item,
+                        latency_df$mean_view_user_info,
+                        latency_df$mean_view_bid_history,
+                        latency_df$mean_buy_now,
+                        latency_df$mean_store_buy_now,
+                        latency_df$mean_put_bid,
+                        latency_df$mean_store_bid,
+                        latency_df$mean_put_comment,
+                        latency_df$mean_store_comment,
+                        latency_df$mean_select_category_to_sell_item,
+                        latency_df$mean_register_item,
+                        latency_df$mean_about_me,
+                        latency_df$mean_get_auctions_ready_for_close,
+                        latency_df$mean_close_auction,
+                        latency_df$median_register_user,
+                        latency_df$median_browse_categories,
+                        latency_df$median_search_items_in_category,
+                        latency_df$median_browse_regions,
+                        latency_df$median_browse_categories_in_region,
+                        latency_df$median_search_items_in_region,
+                        latency_df$median_view_item,
+                        latency_df$median_view_user_info,
+                        latency_df$median_view_bid_history,
+                        latency_df$median_buy_now,
+                        latency_df$median_store_buy_now,
+                        latency_df$median_put_bid,
+                        latency_df$median_store_bid,
+                        latency_df$median_put_comment,
+                        latency_df$median_store_comment,
+                        latency_df$median_select_category_to_sell_item,
+                        latency_df$median_register_item,
+                        latency_df$median_about_me,
+                        latency_df$median_get_auctions_ready_for_close,
+                        latency_df$median_close_auction,
+                        throughput_df$abort_ratio)
+
+    if(print.headers) {
+        cat(sprintf("%s\n", paste(headers, collapse=",")))
+    }
+    cat(row_data)
+}
+
 process_red_track_data <- function(Dir) {
     thread_info <- get_client_threads(Dir)
     throughput_df <- get_summary_data(Dir)
@@ -416,5 +655,9 @@ process_bypass_data <- function(Dir) {
     cat(row_data)
 }
 
-process_default_data(opt$data_dir)
-# process_bypass_data(opt$data_dir)
+if (rubis) {
+    process_rubis_data(opt$data_dir)
+} else {
+    process_default_data(opt$data_dir)
+    # process_bypass_data(opt$data_dir)
+}

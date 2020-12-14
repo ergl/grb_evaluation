@@ -6,6 +6,7 @@
 -export([main/1]).
 
 -define(SELF_DIR, "/Users/ryan/dev/imdea/code/grb_evaluation/scripts/graph").
+-define(CONF, configuration).
 
 usage() ->
     Name = filename:basename(escript:script_name()),
@@ -21,10 +22,14 @@ main(Args) ->
             io:fwrite(standard_error, "Wrong option: reason ~p~n", [Reason]),
             usage(),
             halt(1);
-        {ok, #{rest := ResultPath}} ->
+        {ok, Opt=#{rest := ResultPath}} ->
             NumClients = client_threads(ResultPath),
             {ok, Terms} = file:consult(config_file(ResultPath)),
             {clusters, ClusterMap} = lists:keyfind(clusters, 1, Terms),
+
+            IsRubis = maps:get(rubis, Opt, false),
+            _ = ets:new(?CONF, [set, named_table]),
+            true = ets:insert(?CONF, {rubis, IsRubis}),
 
             Reports = pmap(
                 fun(Cluster) ->
@@ -48,7 +53,8 @@ main(Args) ->
                 end,
                 Reports
             ),
-            io:format("================================~n")
+            io:format("================================~n"),
+            true = ets:delete(?CONF)
     end.
 
 client_threads(Path) ->
@@ -73,8 +79,9 @@ parse_global_latencies(ResultPath) ->
         [filename:join([?SELF_DIR, "merge.sh"]), ResultPath]
     ),
     _ = os:cmd(MergeAll),
-    ReadResult = io_lib:format("~s -i ~s 2>/dev/null", [
+    ReadResult = io_lib:format("~s ~s -i ~s 2>/dev/null", [
         filename:join([?SELF_DIR, "read_data.r"]),
+        is_rubis_flag(),
         ResultPath
     ]),
 
@@ -160,8 +167,9 @@ parse_latencies(ResultPath, ClusterStr) ->
     _ = MergeLatencies("close-auction_latencies.csv"),
 
     ReadResult =
-        io_lib:format("~s -p -i ~s 2>/dev/null", [
+        io_lib:format("~s ~s -p -i ~s 2>/dev/null", [
             filename:join([?SELF_DIR, "read_data.r"]),
+            is_rubis_flag(),
             TmpPath
         ]),
 
@@ -170,6 +178,14 @@ parse_latencies(ResultPath, ClusterStr) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% util
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+is_rubis_flag() ->
+    try
+        true = ets:lookup_element(?CONF, rubis, 2),
+        "-r"
+    catch _:_ ->
+        ""
+    end.
 
 pmap(F, L) ->
     Parent = self(),
@@ -212,6 +228,8 @@ parse_args_inner([[$- | Flag] | Args], Acc) ->
             parse_flag(Flag, Args, fun(Arg) -> Acc#{config => Arg} end);
         "-file" ->
             parse_flag(Flag, Args, fun(Arg) -> Acc#{config => Arg} end);
+        [$r] ->
+            parse_args_inner(Args, Acc#{rubis => true});
         [$h] ->
             usage(),
             halt(0);

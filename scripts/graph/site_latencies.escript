@@ -7,12 +7,13 @@
 -export([main/1]).
 
 -define(SELF_DIR, "/Users/ryan/dev/imdea/code/grb_evaluation/scripts/graph").
+-define(CONF, configuration).
 
 usage() ->
     Name = filename:basename(escript:script_name()),
     ok = io:fwrite(
         standard_error,
-        "Usage: ~s /path/to/results [-f <config-file>] [-s --server-reports]~n",
+        "Usage: ~s /path/to/results [-r] [-f <config-file>] [-s --server-reports]~n",
         [Name]
     ).
 
@@ -53,6 +54,10 @@ main(Args) ->
             {clusters, ClusterMap} = lists:keyfind(clusters, 1, Terms),
             CheckServers = maps:get(server_reports, Opt, false),
 
+            IsRubis = maps:get(rubis, Opt, false),
+            _ = ets:new(?CONF, [set, named_table]),
+            true = ets:insert(?CONF, {rubis, IsRubis}),
+
             Reports = pmap(
                 fun({Cluster, #{servers := ServerNodes, clients := ClientNodes}}) ->
                     ClusterStr = atom_to_list(Cluster),
@@ -92,7 +97,8 @@ main(Args) ->
                 end,
                 Reports
             ),
-            io:format("================================~n")
+            io:format("================================~n"),
+            true = ets:delete(?CONF)
     end.
 
 client_threads(Path) ->
@@ -117,12 +123,21 @@ parse_global_latencies(ResultPath) ->
         ResultPath
     ]),
     _ = os:cmd(MergeAll),
-    ReadResult = io_lib:format("~s -i ~s 2>/dev/null", [
+    ReadResult = io_lib:format("~s ~s -i ~s 2>/dev/null", [
         filename:join([?SELF_DIR, "read_data.r"]),
+        is_rubis_flag(),
         ResultPath
     ]),
 
     nonl(os:cmd(ReadResult)).
+
+is_rubis_flag() ->
+    try
+        true = ets:lookup_element(?CONF, rubis, 2),
+        "-r"
+    catch _:_ ->
+        ""
+    end.
 
 server_reports(ResultPath, ClusterStr, ServerNodes) ->
     ReportFile = filename:join([ResultPath, io_lib:format("~s_server_reports.bin", [ClusterStr])]),
@@ -210,9 +225,32 @@ parse_latencies(ResultPath, ClusterStr, BenchNodes) ->
     _ = MergeLatencies("readonly-red-track_coordinator_commit_latencies.csv"),
     _ = MergeLatencies("readonly-red-track_coordinator_commit_barrier_latencies.csv"),
 
+    % Rubis latencies
+    _ = MergeLatencies("register-user_latencies.csv"),
+    _ = MergeLatencies("browse-categories_latencies.csv"),
+    _ = MergeLatencies("search-items-in-category_latencies.csv"),
+    _ = MergeLatencies("browse-regions_latencies.csv"),
+    _ = MergeLatencies("browse-categories-in-region_latencies.csv"),
+    _ = MergeLatencies("search-items-in-region_latencies.csv"),
+    _ = MergeLatencies("view-item_latencies.csv"),
+    _ = MergeLatencies("view-user-info_latencies.csv"),
+    _ = MergeLatencies("view-bid-history_latencies.csv"),
+    _ = MergeLatencies("buy-now_latencies.csv"),
+    _ = MergeLatencies("store-buy-now_latencies.csv"),
+    _ = MergeLatencies("put-bid_latencies.csv"),
+    _ = MergeLatencies("store-bid_latencies.csv"),
+    _ = MergeLatencies("put-comment_latencies.csv"),
+    _ = MergeLatencies("store-comment_latencies.csv"),
+    _ = MergeLatencies("select-category-to-sell-item_latencies.csv"),
+    _ = MergeLatencies("register-item_latencies.csv"),
+    _ = MergeLatencies("about-me_latencies.csv"),
+    _ = MergeLatencies("get-auctions-ready-for-close_latencies.csv"),
+    _ = MergeLatencies("close-auction_latencies.csv"),
+
     ReadResult =
-        io_lib:format("~s -p -i ~s 2>/dev/null", [
+        io_lib:format("~s ~s -p -i ~s 2>/dev/null", [
             filename:join([?SELF_DIR, "read_data.r"]),
+            is_rubis_flag(),
             TmpPath
         ]),
 
@@ -267,6 +305,8 @@ parse_args_inner([[$- | Flag] | Args], Acc) ->
             parse_args_inner(Args, Acc#{server_reports => true});
         "-server_reports" ->
             parse_args_inner(Args, Acc#{server_reports => true});
+        [$r] ->
+            parse_args_inner(Args, Acc#{rubis => true});
         [$h] ->
             usage(),
             halt(0);
