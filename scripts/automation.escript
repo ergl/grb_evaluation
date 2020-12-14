@@ -275,6 +275,7 @@ do_command(rubis_load, _, ClusterMap) ->
         [],
         ClusterMap
     ),
+    Start = erlang:timestamp(),
     pmap(
         fun({TargetNode, ClientNode}) ->
             Command = client_command(
@@ -290,7 +291,14 @@ do_command(rubis_load, _, ClusterMap) ->
         end,
         Targets
     ),
-    alert("Rubis load finished!"),
+    End = erlang:timestamp(),
+    Took = timer:now_diff(End, Start),
+    alert(
+        io_lib:format(
+            "Rubis load finished after ~b seconds (~b micros)~n",
+            [erlang:trunc(Took div 1_000_000), Took]
+        )
+    ),
     ok;
 do_command(latencies, _, ClusterMap) ->
     ok = maps:fold(

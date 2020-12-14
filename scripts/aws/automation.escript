@@ -25,6 +25,9 @@
 -define(PROC_FILE_KEY, '$processed_path').
 -define(DIGEST_RANGE, trunc(math:pow(2, 32))).
 
+-define(RUN_CONFIG, "run.config").
+-define(RUBIS_PROPS, "rubis_properties.config").
+
 -define(COMMANDS, [
     {check, false},
     {sync, false},
@@ -171,8 +174,8 @@ do_command({pull, Path}) ->
             ),
             safe_cmd(Cmd3),
             Cmd4 = io_lib:format(
-                "scp -i ~s ubuntu@~s:/home/ubuntu/rubis_properties.config ~s",
-                [NodeKey, NodeIP, TargetPath]
+                "scp -i ~s ubuntu@~s:/home/ubuntu/~s ~s",
+                [NodeKey, NodeIP, ?RUBIS_PROPS, TargetPath]
             ),
             safe_cmd(Cmd4),
             ok
@@ -286,7 +289,7 @@ do_command(connect_dcs) ->
 do_command(rubis_load) ->
     pmap(
         fun({Region, Node}) ->
-            transfer_config(Region, Node, "rubis_properties.config")
+            transfer_config(Region, Node, ?RUBIS_PROPS)
         end,
         client_nodes()
     ),
@@ -298,7 +301,7 @@ do_command(rubis_load) ->
             CommandFun = client_command(
                 "-y load_rubis",
                 TargetServer,
-                "/home/ubuntu/rubis_properties.config"
+                unicode:characters_to_list(io_lib:format("/home/ubuntu/~s", [?RUBIS_PROPS]))
             ),
             Cmd = io_lib:format(
                 "~s -s ~s \"~s\" ~s",
@@ -321,14 +324,14 @@ do_command(rubis_load) ->
 do_command(bench) ->
     NodeNames = client_nodes(),
     BootstrapPort = 7878,
-    pmap(fun({Region, Node}) -> transfer_config(Region, Node, "run.config") end, NodeNames),
+    pmap(fun({Region, Node}) -> transfer_config(Region, Node, ?RUN_CONFIG) end, NodeNames),
 
     pmap(
         fun({Region, NodeIP}) ->
             BootstrapIP = main_private_ip(Region),
             CommandFun = client_command(
                 "run",
-                "/home/ubuntu/run.config",
+                unicode:characters_to_list(io_lib:format("/home/ubuntu/~s", [?RUN_CONFIG])),
                 BootstrapIP,
                 integer_to_list(BootstrapPort)
             ),
