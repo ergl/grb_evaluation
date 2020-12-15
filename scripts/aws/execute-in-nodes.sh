@@ -4,13 +4,13 @@ set -eo pipefail
 
 doForNodes() {
     if [[ $# -eq 0 ]]; then
-        echo "execute-in-nodes.sh -s secret_path <command> <node-ips>"
+        echo "execute-in-nodes.sh -i identity_file <command> <node-ips>"
     fi
 
     local key
-    while getopts ":s:" opt; do
+    while getopts ":i:" opt; do
         case $opt in
-            s) key="${OPTARG}" ;;
+            i) key="${OPTARG}" ;;
             *)
                 echo "Unrecognized option -${OPTARG}"
                 exit 1

@@ -213,7 +213,6 @@ do_command(brutal_client_kill) ->
 
 do_command(brutal_server_kill) ->
     NodeNames = server_nodes(),
-    io:format("Server nodes: ~p~n", [NodeNames]),
     Res = do_in_nodes_seq("pkill -9 beam.smp", NodeNames),
     io:format("~p~n", [Res]),
     ok;
@@ -304,7 +303,7 @@ do_command(rubis_load) ->
                 unicode:characters_to_list(io_lib:format("/home/ubuntu/~s", [?RUBIS_PROPS]))
             ),
             Cmd = io_lib:format(
-                "~s -s ~s \"~s\" ~s",
+                "~s -i ~s \"~s\" ~s",
                 [?IN_NODES_PATH, NodeKey, CommandFun(Region), NodeIP]
             ),
             safe_cmd(Cmd)
@@ -336,7 +335,7 @@ do_command(bench) ->
                 integer_to_list(BootstrapPort)
             ),
             Cmd = io_lib:format(
-                "~s -s ~s \"~s\" ~s",
+                "~s -i ~s \"~s\" ~s",
                 [?IN_NODES_PATH, ets:lookup_element(?CONF, {NodeIP, Region, key}, 2), CommandFun(Region), NodeIP]
             ),
             safe_cmd(Cmd)
@@ -508,7 +507,7 @@ do_in_nodes_seq(CommandFun, Nodes) ->
             true -> CommandFun
         end,
         Cmd = io_lib:format(
-            "~s -s ~s \"~s\" ~s",
+            "~s -i ~s \"~s\" ~s",
             [?IN_NODES_PATH, ets:lookup_element(?CONF, {IP, Region, key}, 2), Command, IP]
         ),
         safe_cmd(Cmd)
@@ -522,7 +521,7 @@ do_in_nodes_par(CommandFun, Nodes) ->
                 true -> CommandFun
             end,
             Cmd = io_lib:format(
-                "~s -s ~s \"~s\" ~s",
+                "~s -i ~s \"~s\" ~s",
                 [?IN_NODES_PATH, ets:lookup_element(?CONF, {IP, Region, key}, 2), Command, IP]
             ),
             safe_cmd(Cmd)

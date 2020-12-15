@@ -14,6 +14,18 @@ usage() {
     echo -e "  -p <spot_price>"
 }
 
+get_vcpus() {
+    local instance_type="${1}"
+    local amount="${2}"
+
+    vcpus=$(aws ec2 describe-instance-types \
+        --instance-types "${instance_type}" \
+        --query "InstanceTypes[*].VCpuInfo.DefaultVCpus" \
+        --output text)
+
+    echo $((amount * vcpus))
+}
+
 run() {
     if [[ $# -eq 0 ]]; then
         usage
@@ -70,13 +82,12 @@ run() {
     } >> "${spec_file}"
 
     if [[ "${do_run}" -eq 0 ]]; then
-        echo "Confirm the following spec:"
-        echo "Machines ${itype} (${inum} machines) on region ${region_name}"
-        echo "Specification (file ${spec_file}):"
-        jq < "${spec_file}"
-        read -p "Are you sure you want to continue? " -n 1 -r
+        echo "Will spawn ${inum} ${itype} instances on ${region_name}"
+        cpus=$(get_vcpus "${itype}" "${inum}")
+        echo "This will consume ${cpus} vCPUs"
+        read -p "Are you sure you want to continue [N/y]? " -n 1 -r
         if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo
+            echo "Proceeding"
         else
             echo -e "\nAborted"
             exit 1
@@ -100,6 +111,8 @@ run() {
     else
         echo "Requested ${inum} ${itype} instances at ${region_name}"
         echo "${r}"
+        echo "You may check on these instances by executing:"
+        echo "./check_instances -r ${region_name} ${r}"
     fi
 }
 
