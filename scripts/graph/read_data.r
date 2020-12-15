@@ -56,17 +56,25 @@ format_decimal <- function(string, ..., withoutZeros = FALSE) {
 }
 
 latency_for_file <- function(File) {
+    n <- 0
     mean <- 0
     median <- 0
     if (file.exists(File)) {
         latencies <- read.csv(File)
         # We don't want to add extra zeroes if there were no operations in a specific window
         latencies <- latencies[latencies$n != 0, ]
+        n <- nrow(latencies)
+
+        # If there are no windows with operations, return zero (caller with deal with this)
+        if (n == 0) {
+            return(data.frame(n, mean, median))
+        }
+
         mean <- mean(latencies$mean) / 1000
         median <- mean(latencies$median) / 1000
     }
 
-    return(data.frame(mean, median))
+    return(data.frame(n, mean, median))
 }
 
 get_client_threads <- function(Dir) {
