@@ -60,6 +60,8 @@ latency_for_file <- function(File) {
     median <- 0
     if (file.exists(File)) {
         latencies <- read.csv(File)
+        # We don't want to add extra zeroes if there were no operations in a specific window
+        latencies <- latencies[latencies$n != 0, ]
         mean <- mean(latencies$mean) / 1000
         median <- mean(latencies$median) / 1000
     }
@@ -235,47 +237,47 @@ get_rubis_latencies <- function(Dir) {
     mean_close_auction <- r$mean
     median_close_auction <- r$median
 
-    all_mean <- mean(mean_register_user,
-                     mean_browse_categories,
-                     mean_search_items_in_category,
-                     mean_browse_regions,
-                     mean_browse_categories_in_region,
-                     mean_search_items_in_region,
-                     mean_view_item,
-                     mean_view_user_info,
-                     mean_view_bid_history,
-                     mean_buy_now,
-                     mean_store_buy_now,
-                     mean_put_bid,
-                     mean_store_bid,
-                     mean_put_comment,
-                     mean_store_comment,
-                     mean_select_category_to_sell_item,
-                     mean_register_item,
-                     mean_about_me,
-                     mean_get_auctions_ready_for_close,
-                     mean_close_auction)
+    all_mean <- mean(c(mean_register_user,
+                       mean_browse_categories,
+                       mean_search_items_in_category,
+                       mean_browse_regions,
+                       mean_browse_categories_in_region,
+                       mean_search_items_in_region,
+                       mean_view_item,
+                       mean_view_user_info,
+                       mean_view_bid_history,
+                       mean_buy_now,
+                       mean_store_buy_now,
+                       mean_put_bid,
+                       mean_store_bid,
+                       mean_put_comment,
+                       mean_store_comment,
+                       mean_select_category_to_sell_item,
+                       mean_register_item,
+                       mean_about_me,
+                       mean_get_auctions_ready_for_close,
+                       mean_close_auction))
 
-    all_median <- mean(median_register_user,
-                       median_browse_categories,
-                       median_search_items_in_category,
-                       median_browse_regions,
-                       median_browse_categories_in_region,
-                       median_search_items_in_region,
-                       median_view_item,
-                       median_view_user_info,
-                       median_view_bid_history,
-                       median_buy_now,
-                       median_store_buy_now,
-                       median_put_bid,
-                       median_store_bid,
-                       median_put_comment,
-                       median_store_comment,
-                       median_select_category_to_sell_item,
-                       median_register_item,
-                       median_about_me,
-                       median_get_auctions_ready_for_close,
-                       median_close_auction)
+    all_median <- mean(c(median_register_user,
+                         median_browse_categories,
+                         median_search_items_in_category,
+                         median_browse_regions,
+                         median_browse_categories_in_region,
+                         median_search_items_in_region,
+                         median_view_item,
+                         median_view_user_info,
+                         median_view_bid_history,
+                         median_buy_now,
+                         median_store_buy_now,
+                         median_put_bid,
+                         median_store_bid,
+                         median_put_comment,
+                         median_store_comment,
+                         median_select_category_to_sell_item,
+                         median_register_item,
+                         median_about_me,
+                         median_get_auctions_ready_for_close,
+                         median_close_auction))
 
     return(data.frame(
         all_mean,
