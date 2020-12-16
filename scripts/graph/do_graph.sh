@@ -23,8 +23,9 @@ graph () {
 
     # Even if it contains a /, append one, doesn't change anything
     folder+="/"
+    local folder_name
     for subfolder in "${folder}"*/; do
-        local folder_name=$(basename "${subfolder}")
+        folder_name=$(basename "${subfolder}")
         # Skip _images folder
         if [[ "${folder_name}" =~ ^_.* ]]; then
             continue

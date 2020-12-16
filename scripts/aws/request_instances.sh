@@ -109,10 +109,12 @@ run() {
         echo "Couldn't request instances: ${r}"
         exit 1
     else
-        echo "Requested ${inum} ${itype} instances at ${region_name}"
+        echo "Requested ${inum} ${itype} instances at ${region_name}: "
         echo "${r}"
+        local flattened
+        flattened=$(echo "${r}" | tr '\n' ' ')
         echo "You may check on these instances by executing:"
-        echo "./check_instances -r ${region_name} ${r}"
+        echo "./check_instances.sh -r ${region_name} ${flattened}"
     fi
 }
 

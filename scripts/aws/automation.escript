@@ -29,6 +29,7 @@
 -define(RUBIS_PROPS, "rubis_properties.config").
 
 -define(COMMANDS, [
+    {init, false},
     {check, false},
     {sync, false},
     {server, false},
@@ -49,6 +50,8 @@
     {restart, false},
     {recompile, false},
     {rebuild, false},
+    {rebuild_grb, false},
+    {rebuild_clients, false},
     {cleanup_latencies, false},
     {cleanup, false},
     {pull, true},
@@ -217,6 +220,10 @@ do_command(brutal_server_kill) ->
     io:format("~p~n", [Res]),
     ok;
 
+% Does nothing, useful to preload the ip data
+do_command(init) ->
+    ok;
+
 do_command(check) ->
     check_nodes();
 
@@ -354,7 +361,15 @@ do_command(restart) ->
     ok;
 
 do_command(rebuild) ->
+    do_command(rebuild_grb),
+    do_command(rebuild_clients),
+    ok;
+
+do_command(rebuild_grb) ->
     do_in_nodes_par(server_command("rebuild"), server_nodes()),
+    ok;
+
+do_command(rebuild_clients) ->
     do_in_nodes_par(client_command("rebuild"), client_nodes()),
     ok;
 
