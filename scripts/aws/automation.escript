@@ -53,7 +53,6 @@
     {rebuild, false},
     {rebuild_grb, false},
     {rebuild_clients, false},
-    {cleanup_latencies, false},
     {cleanup, false},
     {pull, true},
     {terminate, false}
