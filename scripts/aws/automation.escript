@@ -23,6 +23,7 @@
 -define(JOIN_TIMEOUT, timer:minutes(5)).
 -define(CONF, configuration).
 -define(PROC_FILE_KEY, '$processed_path').
+-define(CLIENT_PROFILE_KEY, '$lasp_bench_rebar_profile').
 -define(DIGEST_RANGE, trunc(math:pow(2, 32))).
 
 -define(RUN_CONFIG, "run.config").
@@ -449,21 +450,24 @@ server_command(Command, Arg) ->
     end.
 
 client_command(Command) ->
-    fun(_) -> io_lib:format("./bench.sh -b ~s ~s", [?LASP_BENCH_BRANCH, Command]) end.
+    Profile = ets:lookup_element(?CONF, ?CLIENT_PROFILE_KEY, 2),
+    fun(_) -> io_lib:format("./bench.sh -b ~s -p ~p ~s", [?LASP_BENCH_BRANCH, Profile, Command]) end.
 
 client_command(Command, Arg1, Arg2) ->
+    Profile = ets:lookup_element(?CONF, ?CLIENT_PROFILE_KEY, 2),
     fun(_) ->
         io_lib:format(
-            "./bench.sh -b ~s ~s ~s ~s",
-            [?LASP_BENCH_BRANCH, Command, Arg1, Arg2]
+            "./bench.sh -b ~s -p ~p ~s ~s ~s",
+            [?LASP_BENCH_BRANCH, Profile, Command, Arg1, Arg2]
         )
     end.
 
 client_command(Command, Arg1, Arg2, Arg3) ->
+    Profile = ets:lookup_element(?CONF, ?CLIENT_PROFILE_KEY, 2),
     fun(_) ->
         io_lib:format(
-            "./bench.sh -b ~s ~s ~s ~s ~s",
-            [?LASP_BENCH_BRANCH, Command, Arg1, Arg2, Arg3]
+            "./bench.sh -b ~s -p ~p ~s ~s ~s ~s",
+            [?LASP_BENCH_BRANCH, Profile, Command, Arg1, Arg2, Arg3]
         )
     end.
 
@@ -595,6 +599,7 @@ load_processed_data(Table, ConfigPath) ->
 
     {clusters, ClusterMap} = lists:keyfind(clusters, 1, Terms0),
     {red_leader_cluster, LeaderCluster} = lists:keyfind(red_leader_cluster, 1, Terms0),
+    {lasp_bench_rebar_profile, ClientProfile} = lists:keyfind(lasp_bench_rebar_profile, 1, Terms0),
 
     Digest = erlang:phash2(ClusterMap, ?DIGEST_RANGE),
     ProcessedPath = filename:join(ConfigDir, io_lib:format("pcluster-~b.config", [Digest])),
@@ -615,6 +620,7 @@ load_processed_data(Table, ConfigPath) ->
 
     true = ets:insert(Table, ProcTerms),
     true = ets:insert(Table, {?PROC_FILE_KEY, ProcessedPath}),
+    true = ets:insert(Table, {?CLIENT_PROFILE_KEY, ClientProfile}),
     if
         not (is_map_key(LeaderCluster, ClusterMap)) ->
             {error, no_leader};

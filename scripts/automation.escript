@@ -106,8 +106,10 @@ main(Args) ->
                     ok
             end,
 
+            {lasp_bench_rebar_profile, ClientProfile} = lists:keyfind(lasp_bench_rebar_profile, 1, ConfigTerms),
             true = ets:insert(?CONF, {dry_run, maps:get(dry_run, Opts, false)}),
             true = ets:insert(?CONF, {silent, maps:get(verbose, Opts, false)}),
+            true = ets:insert(?CONF, {lasp_bench_rebar_profile, ClientProfile}),
 
             Command = maps:get(command, Opts),
             CommandArg = maps:get(command_arg, Opts, false),
@@ -434,18 +436,21 @@ server_command(Command, Arg) ->
     ]).
 
 client_command(Command) ->
-    io_lib:format("./bench.sh -b ~s ~s", [?LASP_BENCH_BRANCH, Command]).
+    Profile = ets:lookup_element(?CONF, lasp_bench_rebar_profile, 2),
+    io_lib:format("./bench.sh -b ~s -p ~p ~s", [?LASP_BENCH_BRANCH, Profile, Command]).
 
 client_command(Command, Arg1, Arg2) ->
+    Profile = ets:lookup_element(?CONF, lasp_bench_rebar_profile, 2),
     io_lib:format(
-        "./bench.sh -b ~s ~s ~s ~s",
-        [?LASP_BENCH_BRANCH, Command, Arg1, Arg2]
+        "./bench.sh -b ~s -p ~p ~s ~s ~s",
+        [?LASP_BENCH_BRANCH, Profile, Command, Arg1, Arg2]
     ).
 
 client_command(Command, Arg1, Arg2, Arg3) ->
+    Profile = ets:lookup_element(?CONF, lasp_bench_rebar_profile, 2),
     io_lib:format(
-        "./bench.sh -b ~s ~s ~s ~s ~s",
-        [?LASP_BENCH_BRANCH, Command, Arg1, Arg2, Arg3]
+        "./bench.sh -b ~s -p ~p ~s ~s ~s ~s",
+        [?LASP_BENCH_BRANCH, Profile, Command, Arg1, Arg2, Arg3]
     ).
 
 transfer_script(Node, File) ->

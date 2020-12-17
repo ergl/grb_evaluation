@@ -11,8 +11,10 @@ do_download() {
 }
 
 do_compile() {
+    local profile="${1}"
     pushd "${HOME}/sources/lasp-bench"
-    make
+    ./rebar3 as "${profile}" compile
+    ./rebar3 as "${profile}" escriptize
     popd
 }
 
@@ -49,18 +51,19 @@ do_rebuild() {
 }
 
 do_run() {
-    local config="${1}"
-    local node="${2}"
-    local port="${3}"
+    local profile="${1}"
+    local config="${2}"
+    local node="${3}"
+    local port="${4}"
     pushd "${HOME}/sources/lasp-bench"
     (
-        export BOOTSTRAP_NODE="${node}"; export BOOTSTRAP_PORT="${port}"; ./_build/default/bin/lasp_bench "${config}"
+        export BOOTSTRAP_NODE="${node}"; export BOOTSTRAP_PORT="${port}"; ./_build/"${profile}"/bin/lasp_bench "${config}"
     )
     popd
 }
 
 usage() {
-    echo "bench.sh [-hy] [-b <branch>=bench_grb] dl | compile | run <config> <bootstrap-node> <bootstrap-port> | load_rubis <node> <config> | rebuild | report [config]"
+    echo "bench.sh [-hy] [-b <branch>=bench_grb] [-p <profile>=default] dl | compile | run <config> <bootstrap-node> <bootstrap-port> | load_rubis <node> <config> | rebuild | report [config]"
 }
 
 run () {
@@ -70,8 +73,9 @@ run () {
     fi
 
     local branch="bench_grb"
+    local profile="default"
     local confirm_load=0
-    while getopts ":yb:h" opt; do
+    while getopts ":yb:p:h" opt; do
         case $opt in
             h)
                 usage
@@ -79,6 +83,9 @@ run () {
                 ;;
             b)
                 branch="${OPTARG}"
+                ;;
+            p)
+                profile="${OPTARG}"
                 ;;
             y)
                 confirm_load=1
@@ -109,7 +116,7 @@ run () {
             do_download "${branch}" "${HOME}/sources/lasp-bench"
             ;;
         "compile")
-            do_compile
+            do_compile "${profile}"
             exit $?
             ;;
         "run")
@@ -117,7 +124,7 @@ run () {
             local bootstrap_node="${3}"
             local bootstrap_port="${4:-7878}"
             echo -e "Running with ${run_config_file}\n"
-            do_run "${run_config_file}" "${bootstrap_node}" "${bootstrap_port}"
+            do_run "${profile}" "${run_config_file}" "${bootstrap_node}" "${bootstrap_port}"
             exit $?
             ;;
         "load_rubis")
@@ -127,7 +134,7 @@ run () {
             ;;
         "rebuild")
             do_rebuild "${branch}"
-            do_compile
+            do_compile "${profile}"
             exit $?
             ;;
         *)
