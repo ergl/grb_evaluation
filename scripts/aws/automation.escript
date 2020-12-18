@@ -43,6 +43,7 @@
     {connect_dcs, false},
     {prepare, false},
 
+    {grb_load, false},
     {rubis_load, false},
     {bench, false},
     {brutal_client_kill, false},
@@ -290,6 +291,41 @@ do_command(connect_dcs) ->
         [MainNode]
     ),
     io:format("~p~n", [Rep]),
+    ok;
+
+do_command(grb_load) ->
+    pmap(
+        fun({Region, Node}) ->
+            transfer_config(Region, Node, ?RUBIS_PROPS)
+        end,
+        client_nodes()
+    ),
+    Start = erlang:timestamp(),
+    pmap(
+        fun({Region, NodeIP}) ->
+            TargetServer = main_private_ip(Region),
+            NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
+            CommandFun = client_command(
+                "-y load_grb",
+                TargetServer,
+                unicode:characters_to_list(io_lib:format("/home/ubuntu/~s", [?RUBIS_PROPS]))
+            ),
+            Cmd = io_lib:format(
+                "~s -i ~s \"~s\" ~s",
+                [?IN_NODES_PATH, NodeKey, CommandFun(Region), NodeIP]
+            ),
+            safe_cmd(Cmd)
+        end,
+        main_region_client_nodes()
+    ),
+    End = erlang:timestamp(),
+    Took = timer:now_diff(End, Start),
+    alert(
+        io_lib:format(
+            "GRB load finished after ~b seconds (~b micros)~n",
+            [erlang:trunc(Took div 1_000_000), Took]
+        )
+    ),
     ok;
 
 do_command(rubis_load) ->

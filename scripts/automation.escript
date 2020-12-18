@@ -35,6 +35,7 @@
     {latencies, false},
     {prepare, false},
 
+    {grb_load, false},
     {rubis_load, false},
     {bench, false},
     {brutal_client_kill, false},
@@ -262,6 +263,45 @@ do_command(connect_dcs, _, ClusterMap) ->
         [MainNode]
     ),
     io:format("~p~n", [Rep]),
+    ok;
+do_command(grb_load, _, ClusterMap) ->
+    pmap(
+        fun(Node) ->
+            transfer_config(Node, "rubis_properties.config")
+        end,
+        client_nodes(ClusterMap)
+    ),
+    Targets = maps:fold(
+        fun(_, #{servers := S, clients := C}, Acc) ->
+            [ { hd(lists:sort(S)), hd(lists:sort(C)) } | Acc ]
+        end,
+        [],
+        ClusterMap
+    ),
+    Start = erlang:timestamp(),
+    pmap(
+        fun({TargetNode, ClientNode}) ->
+            Command = client_command(
+                "-y load_grb",
+                atom_to_list(TargetNode),
+                "/home/borja.deregil/rubis_properties.config"
+            ),
+            Cmd = io_lib:format(
+                "~s \"~s\" ~s",
+                [?IN_NODES_PATH, Command, atom_to_list(ClientNode)]
+            ),
+            safe_cmd(Cmd)
+        end,
+        Targets
+    ),
+    End = erlang:timestamp(),
+    Took = timer:now_diff(End, Start),
+    alert(
+        io_lib:format(
+            "GRB load finished after ~b seconds (~b micros)~n",
+            [erlang:trunc(Took div 1_000_000), Took]
+        )
+    ),
     ok;
 do_command(rubis_load, _, ClusterMap) ->
     pmap(
