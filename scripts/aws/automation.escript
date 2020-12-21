@@ -55,6 +55,8 @@
     {rebuild_grb, false},
     {rebuild_clients, false},
     {cleanup, false},
+    {cleanup_servers, false},
+    {cleanup_clients, false},
     {pull, true},
     {terminate, false}
 ]).
@@ -265,17 +267,19 @@ do_command(join) ->
     Parent = self(),
     Reference = erlang:make_ref(),
     SpawnFun = fun() ->
-        Replies = lists:map(fun({Region, Main}) ->
-            do_in_nodes_seq(server_command("join", Region), [{Region, Main}])
-        end, MainNodes),
-        Parent ! {Reference, Replies}
+        pmap(
+            fun({Region, NodeIP}) ->
+                do_in_nodes_seq(server_command("join", Region), [{Region, NodeIP}])
+            end,
+            MainNodes
+        ),
+        Parent ! {ok, Reference}
     end,
     Start = erlang:timestamp(),
     ChildPid = erlang:spawn(SpawnFun),
     receive
-        {Reference, Reply} ->
+        {ok, Reference} ->
             End = erlang:timestamp(),
-            io:format("~p~n", [Reply]),
             io:format("Ring done after ~p~n", [timer:now_diff(End, Start)]),
             ok
     after ?JOIN_TIMEOUT ->
@@ -410,7 +414,17 @@ do_command(rebuild_clients) ->
     ok;
 
 do_command(cleanup) ->
-    AllNodes = all_nodes(),
+    do_command(cleanup_servers),
+    do_command(cleanup_clients),
+    ok;
+
+do_command(cleanup_servers) ->
+    AllNodes = server_nodes(),
+    io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", AllNodes)]),
+    ok;
+
+do_command(cleanup_clients) ->
+    AllNodes = client_nodes(),
     io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", AllNodes)]),
     ok.
 
