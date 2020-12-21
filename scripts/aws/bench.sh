@@ -25,7 +25,7 @@ do_load_grb() {
 
     if [[ "${confirm_load}" -eq 1 ]]; then
         pushd "${HOME}/sources/lasp-bench/scripts"
-        ./rubis_load.escript "${target_machine}" "7878" "${config_file}"
+        ./grb_load.escript "${target_machine}" "7878" "${config_file}"
         popd
     else
         read -r -n 1 -p "Load target ${target_machine}:7878 ? [y/n] " response

@@ -211,13 +211,13 @@ do_command(terminate) ->
 
 do_command(brutal_client_kill) ->
     NodeNames = client_nodes(),
-    Res = do_in_nodes_seq("pkill -9 beam.smp", NodeNames),
+    Res = do_in_nodes_par("pkill -9 beam.smp", NodeNames),
     io:format("~p~n", [Res]),
     ok;
 
 do_command(brutal_server_kill) ->
     NodeNames = server_nodes(),
-    Res = do_in_nodes_seq("pkill -9 beam.smp", NodeNames),
+    Res = do_in_nodes_par("pkill -9 beam.smp", NodeNames),
     io:format("~p~n", [Res]),
     ok;
 

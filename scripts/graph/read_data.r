@@ -478,18 +478,28 @@ process_default_data <- function(Dir) {
     cat(row_data)
 }
 
-process_rubis_data <- function(Dir) {
+process_rubis_data_summary <- function(Dir) {
     thread_info <- get_client_threads(Dir)
     throughput_df <- get_summary_data(Dir)
     latency_df <- get_rubis_latencies(Dir)
 
-    # headers <- c("threads", "total_throughput", "all_mean", "all_median")
-    # row_format <- "%s,%f,%f,%f\n"
-    # row_data <- sprintf(row_format,
-    #                     thread_info$per_machine,
-    #                     throughput_df$max_total,
-    #                     latency_df$all_mean,
-    #                     latency_df$all_median)
+    headers <- c("threads", "total_throughput", "all_mean", "all_median")
+    row_format <- "%s,%f,%f,%f\n"
+    row_data <- sprintf(row_format,
+                        thread_info$per_machine,
+                        throughput_df$max_total,
+                        latency_df$all_mean,
+                        latency_df$all_median)
+    if(print.headers) {
+        cat(sprintf("%s\n", paste(headers, collapse=",")))
+    }
+    cat(row_data)
+}
+
+process_rubis_data <- function(Dir) {
+    thread_info <- get_client_threads(Dir)
+    throughput_df <- get_summary_data(Dir)
+    latency_df <- get_rubis_latencies(Dir)
 
     headers <- c("threads",
                  "total_throughput",
@@ -720,6 +730,7 @@ process_bypass_data <- function(Dir) {
 
 if (rubis) {
     process_rubis_data(opt$data_dir)
+    # process_rubis_data_summary(opt$data_dir)
 } else {
     process_default_data(opt$data_dir)
     # process_bypass_data(opt$data_dir)
