@@ -46,7 +46,8 @@
     {rebuild, false},
     {cleanup_latencies, false},
     {cleanup, false},
-    {pull, true}
+    {pull, true},
+    {visibility, false}
 ]).
 
 usage() ->
@@ -404,6 +405,11 @@ do_command(cleanup, _, ClusterMap) ->
 
     io:format("~p~n", [do_in_nodes_par(server_command("tclean"), ServerNodes)]),
     io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", AllNodes)]),
+    ok;
+
+do_command(visibility, _, ClusterMap) ->
+    ServerNodes = server_nodes(ClusterMap),
+    io:format("~p~n", [do_in_nodes_par(server_command("visibility"), ServerNodes)]),
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

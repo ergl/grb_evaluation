@@ -23,6 +23,7 @@
 -define(DEFAULT_RED_PRUNE, 20).
 -define(DEFAULT_RED_LEADER_WAIT_MS, 1).
 -define(DEFAULT_RED_COORD_SIZE, 50).
+-define(DEFAULT_VISIBILITY_RATE, 100).
 -define(REPO_URL, "https://github.com/ergl/grb.git").
 -define(COMMANDS, [
     {download, false},
@@ -35,7 +36,8 @@
     {tc, true},
     {tclean, false},
     {join, false},
-    {connect_dcs, false}
+    {connect_dcs, false},
+    {visibility, false}
 ]).
 
 usage() ->
@@ -155,6 +157,14 @@ execute_command(connect_dcs, Config) ->
         Branch
     ]),
     os_cmd(Cmd),
+    ok;
+execute_command(visibility, Config) ->
+    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
+    Cmd = io_lib:format(
+        "./sources/~s/bin/visibility.escript -f /home/borja.deregil/cluster.config",
+        [Branch]
+    ),
+    os_cmd(Cmd),
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -214,11 +224,12 @@ start_grb(Config) ->
         Config,
         ?DEFAULT_RED_LEADER_WAIT_MS
     ),
+    VISIBILITY_RATE = get_config_key(visibility_sample_rate, Config, ?DEFAULT_VISIBILITY_RATE),
 
     GRB_QUORUM_OVERRIDE = get_config_key(red_quorum_override, Config, -1),
 
     EnvVarString = io_lib:format(
-        "GRB_QUORUM_OVERRIDE=~b TCP_ID_LEN=~b OP_LOG_READERS=~b VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b PARTITION_RETRY_MS=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_HB_INTERVAL_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_LEADER_WAIT_MS=~b RED_COORD_POOL_SIZE=~b IP=~s",
+        "GRB_QUORUM_OVERRIDE=~b TCP_ID_LEN=~b OP_LOG_READERS=~b VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b PARTITION_RETRY_MS=~b REPLICATION_INTERVAL_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_HB_INTERVAL_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_LEADER_WAIT_MS=~b RED_COORD_POOL_SIZE=~b VISIBILITY_RATE=~b IP=~s",
         [
             GRB_QUORUM_OVERRIDE,
             TCP_ID_LEN,
@@ -237,6 +248,7 @@ start_grb(Config) ->
             RED_PRUNE_INTERVAL,
             RED_LEADER_WAIT_MS,
             RED_COORD_SIZE,
+            VISIBILITY_RATE,
             IP
         ]
     ),
