@@ -161,7 +161,7 @@ execute_command(connect_dcs, Config) ->
 execute_command(visibility, Config) ->
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
     Cmd = io_lib:format(
-        "./sources/~s/bin/visibility.escript -f /home/borja.deregil/cluster.config",
+        "./sources/~s/bin/visibility.escript -f /home/borja.deregil/cluster.config -o /home/borja.deregil/visibility.bin",
         [Branch]
     ),
     os_cmd(Cmd),

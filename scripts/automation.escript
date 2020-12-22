@@ -47,7 +47,7 @@
     {cleanup_latencies, false},
     {cleanup, false},
     {pull, true},
-    {visibility, false}
+    {visibility, true}
 ]).
 
 usage() ->
@@ -407,9 +407,37 @@ do_command(cleanup, _, ClusterMap) ->
     io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", AllNodes)]),
     ok;
 
-do_command(visibility, _, ClusterMap) ->
+do_command(visibility, {true, Path}, ClusterMap) ->
     ServerNodes = server_nodes(ClusterMap),
     io:format("~p~n", [do_in_nodes_par(server_command("visibility"), ServerNodes)]),
+    DoFun = fun() ->
+        pmap(
+            fun(Node) ->
+                NodeStr = atom_to_list(Node),
+                Cmd0 = io_lib:format("mkdir -p ~s", [Path]),
+                safe_cmd(Cmd0),
+                TargetFile = io_lib:format("~s/~s.bin", [Path, NodeStr]),
+                Cmd = io_lib:format(
+                    "scp -i ~s borja.deregil@~s:/home/borja.deregil/visibility.bin ~s",
+                    [?SSH_PRIV_KEY, NodeStr, TargetFile]
+                ),
+                safe_cmd(Cmd),
+                ok
+            end,
+            ServerNodes
+        )
+    end,
+    case filelib:is_dir(Path) of
+        false ->
+            DoFun(),
+            ok;
+        true ->
+            prompt_gate(
+                io_lib:format("Target directory ~s already exists, do you want to overwrite it?", [Path]),
+                default_no,
+                DoFun
+            )
+    end,
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
