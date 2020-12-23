@@ -57,6 +57,7 @@
     {cleanup, false},
     {cleanup_servers, false},
     {cleanup_clients, false},
+    {visibility, false},
     {pull, true},
     {terminate, false}
 ]).
@@ -156,8 +157,18 @@ prompt(Msg, Default) ->
     end,
     Validate(io:get_line(Prompt)).
 
+do_command(visibility) ->
+    MainNodes = main_region_server_nodes(),
+    pmap(
+        fun({Region, NodeIP}) ->
+            do_in_nodes_seq(server_command("visibility", Region), [{Region, NodeIP}])
+        end,
+        MainNodes
+    ),
+    ok;
+
 do_command({pull, Path}) ->
-    DoFun = fun() ->
+    PullClients = fun() ->
         pmap(
         fun({Region, NodeIP}) ->
             NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
@@ -188,6 +199,28 @@ do_command({pull, Path}) ->
         end,
         client_nodes()
         )
+    end,
+
+    PullVisibility = fun() ->
+        pmap(
+            fun({Region, NodeIP}) ->
+                NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
+                TargetFile = io_lib:format("~s/aws-~s-visibility.bin", [Path, Region]),
+                Cmd = io_lib:format(
+                    "scp -i ~s ubuntu@~s:/home/ubuntu/visibility.bin ~s",
+                    [NodeKey, NodeIP, TargetFile]
+                ),
+                safe_cmd(Cmd),
+                ok
+            end,
+            main_region_server_nodes()
+        )
+    end,
+
+    DoFun = fun() ->
+        _ = PullClients(),
+        _ = PullVisibility(),
+        ok
     end,
 
     case filelib:is_dir(Path) of
