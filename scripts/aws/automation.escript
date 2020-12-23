@@ -218,9 +218,12 @@ do_command(brutal_client_kill) ->
     ok;
 
 do_command(brutal_server_kill) ->
-    NodeNames = server_nodes(),
-    Res = do_in_nodes_par("pkill -9 beam.smp", NodeNames),
-    io:format("~p~n", [Res]),
+    io:format("Will abruptly stop nodes~n"),
+    prompt_gate("Are you sure you want to proceed?", default_no, fun() ->
+        NodeNames = server_nodes(),
+        Res = do_in_nodes_par("pkill -9 beam.smp", NodeNames),
+        io:format("~p~n", [Res])
+    end),
     ok;
 
 % Does nothing, useful to preload the ip data
