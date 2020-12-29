@@ -729,8 +729,8 @@ process_bypass_data <- function(Dir) {
 }
 
 if (rubis) {
-    # process_rubis_data(opt$data_dir)
-    process_rubis_data_summary(opt$data_dir)
+    process_rubis_data(opt$data_dir)
+    # process_rubis_data_summary(opt$data_dir)
 } else {
     process_default_data(opt$data_dir)
     # process_bypass_data(opt$data_dir)
