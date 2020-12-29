@@ -55,6 +55,18 @@ format_decimal <- function(string, ..., withoutZeros = FALSE) {
     return(formatC(string, format="f", big.mark=",", drop0trailing=withoutZeros))
 }
 
+sum_for_file <- function(File) {
+    n <- 0
+    err <- 0
+    if (file.exists(File)) {
+        latencies <- read.csv(File)
+        n <- sum(latencies$n)
+        err <- sum(latencies$errors)
+    }
+
+    return(data.frame(n, err))
+}
+
 latency_for_file <- function(File) {
     n <- 0
     mean <- 0
@@ -162,6 +174,17 @@ get_default_latencies <- function(Dir) {
                       red_median_latency_ronly,
                       red_median_latency_wonly,
                       red_median_latency_rw))
+}
+
+get_red_conflict_ratio <- function(Dir) {
+    read <- sum_for_file(sprintf("%s/readonly-red_latencies.csv", Dir))
+    update <- sum_for_file(sprintf("%s/writeonly-red_latencies.csv", Dir))
+    mixed <- sum_for_file(sprintf("%s/read-write-red_latencies.csv", Dir))
+
+    total <- read$n + update$n + mixed$n
+    total_err <- read$err + update$err + mixed$err
+    abort_ratio <- total_err / total
+    return(data.frame(abort_ratio))
 }
 
 get_rubis_latencies <- function(Dir) {
@@ -431,6 +454,7 @@ process_default_data <- function(Dir) {
     thread_info <- get_client_threads(Dir)
     throughput_df <- get_summary_data(Dir)
     latency_df <- get_default_latencies(Dir)
+    red_df <- get_red_conflict_ratio(Dir)
 
     headers <- c(
         "threads",
@@ -449,10 +473,11 @@ process_default_data <- function(Dir) {
         "red_updates_median",
         "red_mixed_mean",
         "red_mixed_median",
-        "abort_ratio"
+        "total_abort_ratio",
+        "red_abort_ratio"
     )
 
-    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n"
+    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n"
     row_data <- sprintf(row_format,
                         thread_info$per_machine,
                         throughput_df$max_total,
@@ -470,7 +495,8 @@ process_default_data <- function(Dir) {
                         latency_df$red_median_latency_wonly,
                         latency_df$red_mean_latency_rw,
                         latency_df$red_median_latency_rw,
-                        throughput_df$abort_ratio)
+                        throughput_df$abort_ratio,
+                        red_df$abort_ratio)
 
     if(print.headers) {
         cat(sprintf("%s\n", paste(headers, collapse=",")))
