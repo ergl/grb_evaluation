@@ -177,13 +177,17 @@ get_default_latencies <- function(Dir) {
 }
 
 get_red_conflict_ratio <- function(Dir) {
+    abort_ratio <- 0
+
     read <- sum_for_file(sprintf("%s/readonly-red_latencies.csv", Dir))
     update <- sum_for_file(sprintf("%s/writeonly-red_latencies.csv", Dir))
     mixed <- sum_for_file(sprintf("%s/read-write-red_latencies.csv", Dir))
 
     total <- read$n + update$n + mixed$n
     total_err <- read$err + update$err + mixed$err
-    abort_ratio <- total_err / total
+    if(total != 0) {
+        abort_ratio <- total_err / total
+    }
     return(data.frame(abort_ratio))
 }
 
