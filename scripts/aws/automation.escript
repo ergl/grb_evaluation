@@ -205,7 +205,7 @@ do_command({pull, Path}) ->
         pmap(
             fun({Region, NodeIP}) ->
                 NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
-                TargetFile = io_lib:format("~s/aws-~s-visibility.bin", [Path, Region]),
+                TargetFile = io_lib:format("~s/visibility-aws-~s.bin", [Path, Region]),
                 Cmd = io_lib:format(
                     "scp -i ~s ubuntu@~s:/home/ubuntu/visibility.bin ~s",
                     [NodeKey, NodeIP, TargetFile]

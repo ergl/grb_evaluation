@@ -12,7 +12,7 @@ usage() ->
     Name = filename:basename(escript:script_name()),
     ok = io:fwrite(
         standard_error,
-        "Usage: ~s /path/to/results [-f <config-file>]~n",
+        "Usage: ~s [-vr] /path/to/results [-f <config-file>]~n",
         [Name]
     ).
 
@@ -39,6 +39,45 @@ main(Args) ->
                 end,
                 maps:keys(ClusterMap)
             ),
+
+            DoVisibility = maps:get(visibility, Opt, false),
+            if
+                DoVisibility ->
+                    VisibilityReports = pmap(
+                        fun(Cluster) ->
+                            ClusterStr = atom_to_list(Cluster),
+                            Rep = parse_visibility(ResultPath, ClusterStr),
+                            {ClusterStr, Rep}
+                        end,
+                        maps:keys(ClusterMap)
+                    ),
+                    lists:foreach(
+                        fun({ClusterStr, Values}) ->
+                            Content = lists:foldl(
+                                fun({Remote, Min, Max, Avg, Med}, Acc) ->
+                                    io_lib:format(
+                                        "~p,~b,~b,~b,~b~n~s",
+                                        [
+                                            element(1, Remote),
+                                            Min div 1000,
+                                            Max div 1000,
+                                            Avg div 1000,
+                                            Med div 1000,
+                                            Acc]
+                                    )
+                                end,
+                                "",
+                                Values
+                            ),
+                            Header = "remote,min,max,avg,med",
+                            io:format("~s~n~s~n~s~n", [string:to_upper(ClusterStr), Header, Content])
+                        end,
+                        VisibilityReports
+                    ),
+                    io:format("~n");
+                true ->
+                    ok
+            end,
 
             GlobalResults = parse_global_latencies(ResultPath),
             io:format("~s~n~n", [GlobalResults]),
@@ -86,6 +125,26 @@ parse_global_latencies(ResultPath) ->
     ]),
 
     nonl(os:cmd(ReadResult)).
+
+parse_visibility(ResultPath, Region) ->
+    Path = unicode:characters_to_list(io_lib:format("visibility-aws-~s.bin", [Region])),
+    case file:read_file(filename:join(ResultPath, Path)) of
+        {error, _} ->
+            [];
+        {ok, Bin} ->
+            maps:fold(
+                fun(Remote, Values, Acc) ->
+                    [Min | _] = Sort = lists:sort(Values),
+                    Length = length(Sort),
+                    Max = lists:max(Sort),
+                    Med = lists:nth((length(Sort) div 2), Sort),
+                    Avg = lists:sum(Sort) div Length,
+                    [ {Remote, Min, Max, Avg, Med} | Acc ]
+                end,
+                [],
+                binary_to_term(Bin)
+            )
+    end.
 
 parse_latencies(ResultPath, ClusterStr) ->
     WithPrefix = io_lib:format("aws-~s", [ClusterStr]),
@@ -228,6 +287,8 @@ parse_args_inner([[$- | Flag] | Args], Acc) ->
             parse_flag(Flag, Args, fun(Arg) -> Acc#{config => Arg} end);
         "-file" ->
             parse_flag(Flag, Args, fun(Arg) -> Acc#{config => Arg} end);
+        [$v] ->
+            parse_args_inner(Args, Acc#{visibility => true});
         [$r] ->
             parse_args_inner(Args, Acc#{rubis => true});
         [$h] ->
