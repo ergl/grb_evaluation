@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-set -eo pipefail
+# set -eo pipefail
 
 DEFAULT_ITYPE="m4.2xlarge"
 
@@ -36,6 +36,7 @@ run() {
     image=$(./info.sh "${region_name}" image)
     if [[ $? -eq 1 ]]; then
         echo "No image at ${region_name}"
+        exit 1
     else
         echo "${region_name}/image: ${image}"
     fi
@@ -45,6 +46,7 @@ run() {
     sg=$(./info.sh "${region_name}" sg)
     if [[ $? -eq 1 ]]; then
         echo "No group at ${region_name}"
+        exit 1
     else
         echo "${region_name}/sg: ${sg}"
     fi
@@ -54,6 +56,7 @@ run() {
     key=$(./info.sh "${region_name}" key)
     if [[ $? -eq 1 ]]; then
         echo "No keypair at ${region_name}"
+        exit 1
     else
         echo "${region_name}/key: ${key}"
     fi
