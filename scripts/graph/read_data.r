@@ -111,7 +111,9 @@ get_summary_data <- function(Dir) {
     abort_ratio <- sum(summary$failed) / sum(summary$total)
 
     # Remove first row, as it is usually inflated
-    summary <- summary[-c(1), ]
+    # summary <- summary[-c(1), ]
+    # Window is 5s, remove first minute (12 entries)
+    summary <- summary[ -seq(from=1, length.out=(60 / 5), by=1), ]
 
     # All operations
     max_total <- max(summary$total)
@@ -130,8 +132,9 @@ get_summary_data <- function(Dir) {
     max_commit <- max_commit / max_commit_row$window
 
     # Get the median of committed operations
-    median_commit <- median(summary$successful)
-    median_window <- median(summary$window)
+    non_zero <- summary[summary$successful != 0, ]
+    median_commit <- median(non_zero$successful)
+    median_window <- median(non_zero$window)
     median_commit <- median_commit / median_window
 
     return(data.frame(max_total, max_commit, median_commit, abort_ratio))
