@@ -54,17 +54,25 @@ main(Args) ->
                     lists:foreach(
                         fun({ClusterStr, Values}) ->
                             Content = lists:foldl(
-                                fun({Remote, Min, Max, Avg, Med}, Acc) ->
+                                fun({Remote, RemValues}, Acc) ->
                                     io_lib:format(
-                                        "~p,~b,~b,~b,~b~n~s",
+                                        "~p,~s~n~s",
                                         [
                                             element(1, Remote),
-                                            Min div 1000,
-                                            Max div 1000,
-                                            Avg div 1000,
-                                            Med div 1000,
+                                            RemValues,
                                             Acc]
                                     )
+                                % fun({Remote, Min, Max, Avg, Med}, Acc) ->
+                                %     io_lib:format(
+                                %         "~p,~b,~b,~b,~b~n~s",
+                                %         [
+                                %             element(1, Remote),
+                                %             Min div 1000,
+                                %             Max div 1000,
+                                %             Avg div 1000,
+                                %             Med div 1000,
+                                %             Acc]
+                                %     )
                                 end,
                                 "",
                                 Values
