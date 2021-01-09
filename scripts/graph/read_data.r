@@ -194,6 +194,22 @@ get_red_conflict_ratio <- function(Dir) {
     return(data.frame(abort_ratio))
 }
 
+get_rubis_strong_conflict_ratio <- function(Dir) {
+    abort_ratio <- 0
+
+    user <- sum_for_file(sprintf("%s/register-user_latencies.csv", Dir))
+    buynow <- sum_for_file(sprintf("%s/store-buy-now_latencies.csv", Dir))
+    bid <- sum_for_file(sprintf("%s/store-bid_latencies.csv", Dir))
+    auction <- sum_for_file(sprintf("%s/close-auction_latencies.csv", Dir))
+
+    total <- user$n + buynow$n + bid$n + auction$n
+    total_err <- user$err + buynow$err + bid$err + auction$err
+    if(total != 0) {
+        abort_ratio <- total_err / total
+    }
+    return(data.frame(abort_ratio))
+}
+
 get_rubis_latencies <- function(Dir) {
     r <- latency_for_file(sprintf("%s/register-user_latencies.csv", Dir))
     mean_register_user <- r$mean
@@ -515,14 +531,24 @@ process_rubis_data_summary <- function(Dir) {
     thread_info <- get_client_threads(Dir)
     throughput_df <- get_summary_data(Dir)
     latency_df <- get_rubis_latencies(Dir)
+    strong_df <- get_rubis_strong_conflict_ratio(Dir)
 
-    headers <- c("threads", "total_throughput", "all_mean", "all_median")
-    row_format <- "%s,%f,%f,%f\n"
+    headers <- c(
+        "threads",
+        "total_throughput",
+        "all_mean",
+        "all_median",
+        "overall_abort_ratio",
+        "strong_abort_ratio"
+    )
+    row_format <- "%s,%f,%f,%f,%f,%f\n"
     row_data <- sprintf(row_format,
                         thread_info$per_machine,
                         throughput_df$max_total,
                         latency_df$all_mean,
-                        latency_df$all_median)
+                        latency_df$all_median,
+                        throughput_df$abort_ratio,
+                        strong_df$abort_ratio)
     if(print.headers) {
         cat(sprintf("%s\n", paste(headers, collapse=",")))
     }
@@ -533,6 +559,7 @@ process_rubis_data <- function(Dir) {
     thread_info <- get_client_threads(Dir)
     throughput_df <- get_summary_data(Dir)
     latency_df <- get_rubis_latencies(Dir)
+    strong_df <- get_rubis_strong_conflict_ratio(Dir)
 
     headers <- c("threads",
                  "total_throughput",
@@ -580,8 +607,9 @@ process_rubis_data <- function(Dir) {
                  "about_me_median",
                  "get_auctions_ready_for_close_median",
                  "close_auction_median",
-                 "abort_ratio")
-    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n"
+                 "overall_abort_ratio",
+                 "strong_abort_ratio")
+    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n"
     row_data <- sprintf(row_format,
                         thread_info$per_machine,
                         throughput_df$max_total,
@@ -629,7 +657,8 @@ process_rubis_data <- function(Dir) {
                         latency_df$median_about_me,
                         latency_df$median_get_auctions_ready_for_close,
                         latency_df$median_close_auction,
-                        throughput_df$abort_ratio)
+                        throughput_df$abort_ratio,
+                        strong_df$abort_ratio)
 
     if(print.headers) {
         cat(sprintf("%s\n", paste(headers, collapse=",")))
