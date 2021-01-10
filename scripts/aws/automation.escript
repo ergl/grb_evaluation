@@ -51,6 +51,7 @@
 
     {restart, false},
     {recompile, false},
+    {recompile_clients, false},
     {rebuild, false},
     {rebuild_grb, false},
     {rebuild_clients, false},
@@ -430,6 +431,10 @@ do_command(bench) ->
 
 do_command(recompile) ->
     io:format("~p~n", [do_in_nodes_par(server_command("recompile"), server_nodes())]),
+    ok;
+
+do_command(recompile_clients) ->
+    do_in_nodes_par(client_command("compile"), client_nodes()),
     ok;
 
 do_command(restart) ->
