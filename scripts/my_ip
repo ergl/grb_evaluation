@@ -1,0 +1,39 @@
+#!/usr/bin/env escript
+
+-mode(compile).
+
+-export([main/1]).
+
+main(_) ->
+    {ok, Hostname} = inet:gethostname(),
+    io:format("~p", [ip_for_node(Hostname)]).
+
+-spec ip_for_node(string()) -> string().
+ip_for_node("apollo-1-1") -> "10.10.5.31";
+ip_for_node("apollo-1-2") -> "10.10.5.32";
+ip_for_node("apollo-1-3") -> "10.10.5.33";
+ip_for_node("apollo-1-4") -> "10.10.5.34";
+ip_for_node("apollo-1-5") -> "10.10.5.35";
+ip_for_node("apollo-1-6") -> "10.10.5.36";
+ip_for_node("apollo-1-7") -> "10.10.5.37";
+ip_for_node("apollo-1-8") -> "10.10.5.38";
+ip_for_node("apollo-1-9") -> "10.10.5.39";
+ip_for_node("apollo-1-10") -> "10.10.5.40";
+ip_for_node("apollo-1-11") -> "10.10.5.41";
+ip_for_node("apollo-1-12") -> "10.10.5.42";
+ip_for_node("apollo-2-1") -> "10.10.5.61";
+ip_for_node("apollo-2-2") -> "10.10.5.62";
+ip_for_node("apollo-2-3") -> "10.10.5.63";
+ip_for_node("apollo-2-4") -> "10.10.5.64";
+ip_for_node("apollo-2-5") -> "10.10.5.65";
+ip_for_node("apollo-2-6") -> "10.10.5.66";
+ip_for_node("apollo-2-7") -> "10.10.5.67";
+ip_for_node("apollo-2-8") -> "10.10.5.68";
+ip_for_node("apollo-2-9") -> "10.10.5.69";
+ip_for_node("apollo-2-10") -> "10.10.5.70";
+ip_for_node("apollo-2-11") -> "10.10.5.71";
+ip_for_node("apollo-2-12") -> "10.10.5.72";
+%% For aws, node names are ip-XXX-XXX-XXX-XXX
+%% We trim ip- prefix and change the dashes with points
+ip_for_node([$i ,$p, $- | Rest]) -> string:join(string:replace(Rest, "-", ".", all), "");
+ip_for_node(_) -> "127.0.0.1".

@@ -486,6 +486,7 @@ check_nodes() ->
         fun({Region, Node}) ->
             transfer_script(Region, Node, "server.escript"),
             transfer_script(Region, Node, "bench.sh"),
+            transfer_script(Region, Node, "my_ip"),
             transfer_config(Region, Node, "cluster.config"),
             transfer_direct(
                 Region,

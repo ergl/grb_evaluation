@@ -469,6 +469,7 @@ check_nodes(ClusterMap) ->
         fun(Node) ->
             transfer_script(Node, "server.escript"),
             transfer_script(Node, "bench.sh"),
+            transfer_script(Node, "my_ip"),
             transfer_config(Node, "cluster.config")
         end,
         AllNodes

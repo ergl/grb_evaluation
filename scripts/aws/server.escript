@@ -148,8 +148,8 @@ execute_command({join, Region}, Config) ->
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
     NodeArgs = get_region_grb_nodes_str(Region),
     Cmd = io_lib:format(
-        "./sources/~s/bin/join_cluster_script.erl ~s",
-        [Branch, NodeArgs]
+        "./sources/~s/bin/join_cluster_script.erl -c ~s ~s",
+        [Branch, Region, NodeArgs]
     ),
     os_cmd(Cmd),
     ok;
