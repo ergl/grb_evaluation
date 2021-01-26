@@ -10,7 +10,7 @@
 -define(DEFAULT_TCP_ID_LEN, 16).
 -define(DEFAULT_OP_LOG_READERS, 20).
 -define(DEFAULT_LOG_SIZE, 25).
--define(DEFAULT_RING_SIZE, 64).
+-define(DEFAULT_RING_SIZE, 32).
 -define(DEFAULT_HB_INTERVAL, 5).
 -define(DEFAULT_PARTITION_WAIT_MS, 5).
 -define(DEFAULT_REPL_INTERVAL, 5).
@@ -25,7 +25,7 @@
 -define(DEFAULT_RED_COORD_SIZE, 50).
 -define(DEFAULT_INTER_DC_PORT, 8989).
 -define(DEFAULT_VISIBILITY_RATE, 1000).
--define(DEFAULT_BLUE_STALL_MS, 100).
+-define(DEFAULT_BLUE_STALL_MS, 0).
 -define(REPO_URL, "https://github.com/ergl/grb.git").
 -define(COMMANDS, [
     {download, false},
