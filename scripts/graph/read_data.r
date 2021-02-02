@@ -181,17 +181,33 @@ get_default_latencies <- function(Dir) {
 
 get_red_conflict_ratio <- function(Dir) {
     abort_ratio <- 0
+    read_abort_ratio <- 0
+    update_abort_ratio <- 0
+    mixed_abort_ratio <- 0
 
     read <- sum_for_file(sprintf("%s/readonly-red_latencies.csv", Dir))
     update <- sum_for_file(sprintf("%s/writeonly-red_latencies.csv", Dir))
     mixed <- sum_for_file(sprintf("%s/read-write-red_latencies.csv", Dir))
+
+    if(read$n != 0) {
+        read_abort_ratio <- read$err / read$n
+    }
+
+    if(update$n != 0) {
+        update_abort_ratio <- update$err / update$n
+    }
+
+    if(mixed$n != 0) {
+        mixed_abort_ratio <- mixed$err / mixed$n
+    }
 
     total <- read$n + update$n + mixed$n
     total_err <- read$err + update$err + mixed$err
     if(total != 0) {
         abort_ratio <- total_err / total
     }
-    return(data.frame(abort_ratio))
+
+    return(data.frame(abort_ratio, read_abort_ratio, update_abort_ratio, mixed_abort_ratio))
 }
 
 get_rubis_strong_conflict_ratio <- function(Dir) {
@@ -497,10 +513,13 @@ process_default_data <- function(Dir) {
         "red_mixed_mean",
         "red_mixed_median",
         "total_abort_ratio",
-        "red_abort_ratio"
+        "red_abort_ratio",
+        "red_read_abort_ratio",
+        "red_update_abort_ratio",
+        "red_mixed_abort_ratio"
     )
 
-    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n"
+    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n"
     row_data <- sprintf(row_format,
                         thread_info$per_machine,
                         throughput_df$max_total,
@@ -519,7 +538,10 @@ process_default_data <- function(Dir) {
                         latency_df$red_mean_latency_rw,
                         latency_df$red_median_latency_rw,
                         throughput_df$abort_ratio,
-                        red_df$abort_ratio)
+                        red_df$abort_ratio,
+                        red_df$read_abort_ratio,
+                        red_df$update_abort_ratio,
+                        red_df$mixed_abort_ratio)
 
     if(print.headers) {
         cat(sprintf("%s\n", paste(headers, collapse=",")))
