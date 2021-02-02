@@ -76,12 +76,14 @@ compute_follower_latency(At, Leader, Latencies, N) ->
     ToLeader = to_leader_latency(At, Leader, Latencies),
     compute_follower_latency(At, Leader, G, N - 1, ToLeader, shortest_latency(Leader, At, G, 0)).
 
-compute_follower_latency(At, Leader, G, N, ToLeader, MinSoFar) ->
+compute_follower_latency(At, Leader, G, N, ToLeader, {MinCount, MinSoFar}) ->
     case N of
         1 ->
             MinSoFar + ToLeader;
+        M when M =< MinCount ->
+            MinSoFar + ToLeader;
         _ ->
-            compute_follower_latency(At, Leader, G, N - 1, ToLeader,
+            compute_follower_latency(At, Leader, G, (N - MinCount), ToLeader,
                                      shortest_latency(Leader, At, G, MinSoFar))
     end.
 
@@ -118,7 +120,11 @@ config_to_digraph(Latencies) ->
         Latencies
     ).
 
--spec shortest_latency(atom(), atom(), latencies_graph(), non_neg_integer()) -> non_neg_integer().
+-spec shortest_latency(From :: atom(),
+                       To :: atom(),
+                       Digraph :: latencies_graph(),
+                       Min :: non_neg_integer()) -> {non_neg_integer(), non_neg_integer()}.
+
 shortest_latency(From, To, Digraph, Min) ->
     shortest_latency(From, To, Digraph, #{From => []}, 0, Min).
 
@@ -131,23 +137,23 @@ shortest_latency(From, To, Digraph, Min) ->
 
 shortest_latency(From, To, Digraph, Visited, Cost, Min) ->
     lists:foldl(
-        fun(E, Acc) ->
-             Total = case digraph:edge(Digraph, E) of
+        fun(E, {Count, Acc}) ->
+             {ChildCount, Total} = case digraph:edge(Digraph, E) of
                 {_, From, To, Lat} ->
-                    Cost + Lat;
+                    {1, Cost + Lat};
                 {_, From, Neigh, Lat} when not is_map_key(Neigh, Visited) ->
                     shortest_latency(Neigh, To, Digraph, Visited#{Neigh => []}, Cost + Lat, Min);
                 _ ->
-                    Acc
+                    {0, Acc}
             end,
             if
-                Total < Acc andalso Total > Min ->
-                    Total;
+                Total =< Acc andalso Total > Min ->
+                    {Count + ChildCount, Total};
                 true ->
-                    Acc
+                    {Count, Acc}
             end
         end,
-        undefined,
+        {0, undefined},
         digraph:out_edges(Digraph, From)
     ).
 
