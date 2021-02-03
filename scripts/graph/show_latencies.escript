@@ -36,28 +36,43 @@ main(Args) ->
                     halt(1);
                 true ->
                     QuorumSize = FaultTolerance + 1,
-                    MinLatency = compute_latency(Region, Leader, Latencies, QuorumSize),
-                    io:format("Optimal strong commit latency: ~p ms~n", [MinLatency])
+                    MinCommitLat = compute_commit_latency(Region, Leader, Latencies, QuorumSize),
+                    MinDeliveryLat = to_leader_latency(Region, Leader, Latencies),
+                    MinUniformityLat = compute_minimal_quorum_rtt(Region, Latencies, QuorumSize),
+                    io:format("Minimal strong commit latency: ~p ms~n", [MinCommitLat]),
+                    io:format("Minimal delivery latency: ~p ms~n", [MinDeliveryLat * 2]),
+                    io:format("Minimal barrier latency: ~p ms~n", [MinUniformityLat])
             end
     end.
 
--spec compute_latency(atom(), atom(), latencies(), non_neg_integer()) -> non_neg_integer().
-compute_latency(Leader, Leader, _, 1) ->
+-spec compute_commit_latency(atom(), atom(), latencies(), non_neg_integer()) -> non_neg_integer().
+compute_commit_latency(Leader, Leader, _, 1) ->
     0;
 
-compute_latency(Leader, Leader, Latencies, N) ->
-    compute_leader_latency(Leader, Latencies, N);
+compute_commit_latency(Leader, Leader, Latencies, N) ->
+    compute_minimal_quorum_rtt(Leader, Latencies, N);
 
-compute_latency(Region, LeaderRegion, Latencies, N) when Region =/= LeaderRegion ->
+compute_commit_latency(Region, LeaderRegion, Latencies, N) when Region =/= LeaderRegion ->
     compute_follower_latency(Region, LeaderRegion, Latencies, N).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% utils
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-compute_leader_latency(Leader, Latencies, N) ->
-    compute_leader_latency(Leader, Latencies, N - 1, min_half_rtt(Leader, Latencies, 0)).
-compute_leader_latency(Leader, Latencies, N, {MinCount, MinSoFar}) ->
+
+-spec compute_minimal_quorum_rtt(At :: atom(),
+                                 Latencies :: latencies(),
+                                 QuorumSize :: non_neg_integer()) -> non_neg_integer().
+
+compute_minimal_quorum_rtt(At, Latencies, N) ->
+    compute_minimal_quorum_rtt(At, Latencies, N - 1, min_half_rtt(At, Latencies, 0)).
+
+-spec compute_minimal_quorum_rtt(At :: atom(),
+                                 Latencies :: latencies(),
+                                 N :: non_neg_integer(),
+                                 MinLinks :: {non_neg_integer(), non_neg_integer()}) -> non_neg_integer().
+
+compute_minimal_quorum_rtt(At, Latencies, N, {MinCount, MinSoFar}) ->
     case N of
         1 ->
             MinSoFar * 2;
@@ -67,14 +82,22 @@ compute_leader_latency(Leader, Latencies, N, {MinCount, MinSoFar}) ->
         _ ->
             %% We can skip MinCount rounds, they all have the same latency.
             %% We know that there's at least one round left.
-            compute_leader_latency(Leader, Latencies, (N - MinCount),
-                                   min_half_rtt(Leader, Latencies, MinSoFar))
+            compute_minimal_quorum_rtt(At, Latencies, (N - MinCount),
+                                       min_half_rtt(At, Latencies, MinSoFar))
     end.
 
+-spec compute_follower_latency(atom(), atom(), latencies(), non_neg_integer()) -> non_neg_integer().
 compute_follower_latency(At, Leader, Latencies, N) ->
     G = config_to_digraph(Latencies),
     ToLeader = to_leader_latency(At, Leader, Latencies),
     compute_follower_latency(At, Leader, G, N - 1, ToLeader, shortest_latency(Leader, At, G, 0)).
+
+-spec compute_follower_latency(At :: atom(),
+                               Leader :: atom(),
+                               LatGraph :: latencies_graph(),
+                               QuorumSize :: non_neg_integer(),
+                               ToLeaderLatency :: non_neg_integer(),
+                               MinLinks :: {non_neg_integer(), non_neg_integer()}) -> non_neg_integer().
 
 compute_follower_latency(At, Leader, G, N, ToLeader, {MinCount, MinSoFar}) ->
     case N of
@@ -98,6 +121,9 @@ min_half_rtt(At, Latencies, Min) ->
             Acc
     end, {0, undefined}, maps:get(At, Latencies)).
 
+-spec to_leader_latency(atom(), atom(), latencies()) -> non_neg_integer().
+to_leader_latency(Leader, Leader, _) ->
+    0;
 to_leader_latency(Region, Leader, Latencies) ->
     #{Region := Targets} = Latencies,
     {Leader, LatencyToLeader} = lists:keyfind(Leader, 1, Targets),
@@ -161,6 +187,7 @@ shortest_latency(From, To, Digraph, Visited, Cost, Min) ->
 %% config
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-spec get_config_key(term(), [tuple()]) -> {ok, term()} | no_return().
 get_config_key(Key, Config) ->
     case lists:keyfind(Key, 1, Config) of
         false ->
@@ -175,6 +202,7 @@ get_config_key(Key, Config) ->
 %% getopt
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
+-spec parse_args([term()]) -> {ok, #{}} | error.
 parse_args([]) ->
     error;
 parse_args(Args) ->
@@ -183,6 +211,7 @@ parse_args(Args) ->
         Err -> Err
     end.
 
+-spec parse_args([term()], #{}) -> {ok, #{}} | error.
 parse_args([], Acc) ->
     {ok, Acc};
 parse_args([[$- | Flag] | Args], Acc) ->
@@ -199,12 +228,14 @@ parse_args([[$- | Flag] | Args], Acc) ->
 parse_args(_, _) ->
     error.
 
+-spec parse_flag([term()], fun((term()) -> #{})) -> {ok, #{}} | error.
 parse_flag(Args, Fun) ->
     case Args of
         [FlagArg | Rest] -> parse_args(Rest, Fun(FlagArg));
         _ -> error
     end.
 
+-spec required(#{}) -> {ok, #{}} | error.
 required(Opts) ->
     Required = [config, region, f_factor],
     Valid = lists:all(fun(F) -> maps:is_key(F, Opts) end, Required),
