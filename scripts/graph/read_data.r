@@ -60,8 +60,8 @@ sum_for_file <- function(File) {
     err <- 0
     if (file.exists(File)) {
         latencies <- read.csv(File)
-        n <- sum(latencies$n)
         err <- sum(latencies$errors)
+        n <- sum(latencies$n) + err
     }
 
     return(data.frame(n, err))
