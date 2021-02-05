@@ -36,6 +36,10 @@ mergeSite() {
     # shellcheck disable=SC2086
     ./mergeSummary.awk "${folder}"/${glob}/summary.csv > "${folder}"/summary.csv
 
+    # $glob not quoted to allow glob expansion
+    # shellcheck disable=SC2086
+    ./mergeErrors.awk "${folder}"/${glob}/errors.csv > "${folder}"/errors.csv
+
     local token_dir
     # This directory will be used to test if a latency file exists
     # Any directory would do, since in theory they should be all the same

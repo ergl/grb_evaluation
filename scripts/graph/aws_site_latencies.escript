@@ -190,6 +190,15 @@ parse_latencies(ResultPath, ClusterStr) ->
 
     _ = os:cmd(MergeSummary),
 
+    MergeErrors =
+        io_lib:format("~s ~s > ~s", [
+            filename:join([?SELF_DIR, "mergeErrors.awk"]),
+            element(2, Paths("errors.csv")),
+            filename:join([TmpPath, "errors.csv"])
+        ]),
+
+    _ = os:cmd(MergeErrors),
+
     MergeLatencies = fun(File) ->
         {TokenPath, TargetPaths} = Paths(File),
         Filename = filename:join([?SELF_DIR, "mergeLatencies.awk"]),
