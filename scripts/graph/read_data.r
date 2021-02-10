@@ -123,11 +123,13 @@ process_red_errors <- function(Dir) {
         }
 
         if(nrow(df_r) > 0) {
-            df$avg_count_r <- (df_r$count / total_r) * 100
+            df[ which(df$operation == "readonly_red")
+              , "avg_count_r"] <- (df_r$count / total_r) * 100
         }
 
         if (nrow(df_w)) {
-            df$avg_count_w <- (df_w$count / total_w) * 100
+            df[ which(df$operation == "writeonly_red")
+              , "avg_count_w"] <- (df_w$count / total_w) * 100
         }
 
         options(width=90)
