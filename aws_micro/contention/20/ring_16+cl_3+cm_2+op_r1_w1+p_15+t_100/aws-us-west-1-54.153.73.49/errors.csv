@@ -1,0 +1,3 @@
+"error","operation","count"
+"{abort,conflict}","readonly_red","1"
+"{abort,conflict}","writeonly_red","2"

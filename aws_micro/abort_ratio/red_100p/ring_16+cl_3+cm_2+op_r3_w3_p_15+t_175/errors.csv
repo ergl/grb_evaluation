@@ -1,8 +1,0 @@
-"error","operation",count
-"{abort,stale_committed}","readonly_red",105
-"{abort,conflict}","readonly_red",133
-"{abort,stale_decided}","readonly_red",178
-"{abort,stale_decided}","writeonly_red",9988
-"{abort,conflict}","writeonly_red",14179
-"{abort,stale_committed}","writeonly_red",3171
-
