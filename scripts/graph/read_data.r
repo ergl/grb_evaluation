@@ -106,37 +106,6 @@ get_client_threads <- function(Dir) {
     return(data.frame(per_machine, total))
 }
 
-process_red_errors <- function(Dir) {
-    File <- sprintf("%s/errors.csv", Dir)
-    if (file.exists(File)) {
-        df <- read.csv(File)
-        total <- sum(df$count)
-
-        df_r <- df[df$operation == "readonly_red", ]
-        total_r <- sum(df_r$count)
-
-        df_w <- df[df$operation == "writeonly_red", ]
-        total_w <- sum(df_w$count)
-
-        if (nrow(df) > 0) {
-            df$avg_count <- (df$count / total) * 100
-        }
-
-        if(nrow(df_r) > 0) {
-            df[ which(df$operation == "readonly_red")
-              , "avg_count_r"] <- (df_r$count / total_r) * 100
-        }
-
-        if (nrow(df_w)) {
-            df[ which(df$operation == "writeonly_red")
-              , "avg_count_w"] <- (df_w$count / total_w) * 100
-        }
-
-        options(width=90)
-        print(df)
-    }
-}
-
 get_summary_data <- function(Dir) {
     summary <- read.csv(sprintf("%s/summary.csv", Dir))
     abort_ratio <- sum(summary$failed) / sum(summary$total)
@@ -850,7 +819,3 @@ if (rubis) {
     process_default_data(opt$data_dir)
     # process_bypass_data(opt$data_dir)
 }
-
-# if (verbose) {
-    process_red_errors(opt$data_dir)
-# }

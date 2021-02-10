@@ -12,7 +12,7 @@ usage() ->
     Name = filename:basename(escript:script_name()),
     ok = io:fwrite(
         standard_error,
-        "Usage: ~s [-vr] /path/to/results [-f <config-file>]~n",
+        "Usage: ~s [-vra] /path/to/results [-f <config-file>]~n",
         [Name]
     ).
 
@@ -34,8 +34,8 @@ main(Args) ->
             Reports = pmap(
                 fun(Cluster) ->
                     ClusterStr = atom_to_list(Cluster),
-                    Latencies = parse_latencies(ResultPath, ClusterStr),
-                    {ClusterStr, Latencies}
+                    {Latencies, Errors} = parse_latencies(ResultPath, ClusterStr),
+                    {ClusterStr, Latencies, Errors}
                 end,
                 maps:keys(ClusterMap)
             ),
@@ -87,11 +87,11 @@ main(Args) ->
                     ok
             end,
 
-            GlobalResults = parse_global_latencies(ResultPath),
+            {GlobalResults, GlobalErrors} = parse_global_latencies(ResultPath),
             io:format("~s~n~n", [GlobalResults]),
 
             lists:foreach(
-                fun({ClusterStr, Latencies}) ->
+                fun({ClusterStr, Latencies, _}) ->
                     Formatted = string:join(
                         string:replace(Latencies, "NA", NumClients, all),
                         ""
@@ -100,7 +100,25 @@ main(Args) ->
                 end,
                 Reports
             ),
-            io:format("================================~n"),
+
+            PrintAbortRatio = maps:get(abort_ratio, Opt, false),
+            if
+                PrintAbortRatio ->
+                    io:format("================================~n"),
+                    io:format("~s~n~s~n",
+                              ["OVERALL", GlobalErrors]),
+                    lists:foreach(
+                        fun({ClusterStr, _, Errors}) ->
+                            io:format("~n~s~n~s~n",
+                                      [string:to_upper(ClusterStr), Errors])
+                        end,
+                        Reports
+                    ),
+                    io:format("================================~n");
+                true ->
+                    ok
+            end,
+
             true = ets:delete(?CONF)
     end.
 
@@ -132,7 +150,13 @@ parse_global_latencies(ResultPath) ->
         ResultPath
     ]),
 
-    nonl(os:cmd(ReadResult)).
+    ErrorResult =
+        io_lib:format("~s -i ~s 2>/dev/null", [
+            filename:join([?SELF_DIR, "report_errors.r"]),
+            ResultPath
+        ]),
+
+    {nonl(os:cmd(ReadResult)), nonl(os:cmd(ErrorResult))}.
 
 parse_visibility(ResultPath, Region) ->
     Path = unicode:characters_to_list(io_lib:format("visibility-aws-~s.bin", [Region])),
@@ -249,7 +273,13 @@ parse_latencies(ResultPath, ClusterStr) ->
             TmpPath
         ]),
 
-    nonl(os:cmd(ReadResult)).
+    ErrorResult =
+        io_lib:format("~s -i ~s 2>/dev/null", [
+            filename:join([?SELF_DIR, "report_errors.r"]),
+            TmpPath
+        ]),
+
+    {nonl(os:cmd(ReadResult)), nonl(os:cmd(ErrorResult))}.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% util
@@ -304,6 +334,8 @@ parse_args_inner([[$- | Flag] | Args], Acc) ->
             parse_flag(Flag, Args, fun(Arg) -> Acc#{config => Arg} end);
         "-file" ->
             parse_flag(Flag, Args, fun(Arg) -> Acc#{config => Arg} end);
+        [$a] ->
+            parse_args_inner(Args, Acc#{abort_ratio => true});
         [$v] ->
             parse_args_inner(Args, Acc#{visibility => true});
         [$r] ->
