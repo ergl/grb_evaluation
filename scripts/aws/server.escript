@@ -38,6 +38,7 @@
     {rebuild, false},
     {join, true},
     {connect_dcs, false},
+    {measurements, true},
     {visibility, true}
 ]).
 
@@ -162,6 +163,15 @@ execute_command(connect_dcs, Config) ->
     Cmd = io_lib:format(
         "./sources/~s/bin/connect_dcs.erl -i -p ~b -l ~s ~s",
         [Branch, InterDCPort, LeaderIP, NodeArgs]
+    ),
+    os_cmd(Cmd),
+    ok;
+execute_command({measurements, Region}, Config) ->
+    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
+    NodeArgs = get_region_grb_nodes_str(Region),
+    Cmd = io_lib:format(
+        "./sources/~s/bin/get_measurements.escript -o /home/ubuntu/measurements.bin ~s",
+        [Branch, NodeArgs]
     ),
     os_cmd(Cmd),
     ok;

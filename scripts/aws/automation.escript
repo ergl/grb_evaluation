@@ -59,6 +59,7 @@
     {cleanup_servers, false},
     {cleanup_clients, false},
     {visibility, false},
+    {measurements, false},
     {pull, true},
     {terminate, false}
 ]).
@@ -163,6 +164,16 @@ do_command(visibility) ->
     pmap(
         fun({Region, NodeIP}) ->
             do_in_nodes_seq(server_command("visibility", Region), [{Region, NodeIP}])
+        end,
+        MainNodes
+    ),
+    ok;
+
+do_command(measurements) ->
+    MainNodes = main_region_server_nodes(),
+    pmap(
+        fun({Region, NodeIP}) ->
+            do_in_nodes_seq(server_command("measurements", Region), [{Region, NodeIP}])
         end,
         MainNodes
     ),

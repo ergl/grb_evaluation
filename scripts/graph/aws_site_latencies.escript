@@ -12,7 +12,7 @@ usage() ->
     Name = filename:basename(escript:script_name()),
     ok = io:fwrite(
         standard_error,
-        "Usage: ~s [-ra] [--visibility] /path/to/results [-f <config-file>]~n",
+        "Usage: ~s [-ra] [--visibility] [--measurements] /path/to/results [-f <config-file>]~n",
         [Name]
     ).
 
@@ -89,19 +89,22 @@ maybe_print_measurements(ClusterMap, ResultPath, _Opt=#{measurements := true}) -
         maps:keys(ClusterMap)
     ),
     FoldFun =
-        fun({Node, Values}, Acc) ->
+        fun({StatName, Avg, Max}, Acc) ->
             io_lib:format(
-                "~p,~p~n~s",
-                [Node, Values, Acc]
+                "~p,~p,~p~n~s",
+                [StatName, Avg, Max, Acc]
             )
         end,
+    io:format("================================~n"),
     lists:foreach(
         fun({ClusterStr, Values}) ->
             Content = lists:foldl(FoldFun, "", Values),
-            io:format("~s~n~s~n", [string:to_upper(ClusterStr),Content])
+            Header = "stat,avg,max",
+            io:format("~s,~s~n~s~n", [string:to_upper(ClusterStr), Header, Content])
         end,
         VisibilityReports
-    );
+    ),
+    io:format("================================~n");
 maybe_print_measurements(_, _, _) ->
     ok.
 
@@ -137,6 +140,8 @@ maybe_print_visibility(ClusterMap, ResultPath, _Opt=#{visibility := true}) ->
             )
         end,
 
+    io:format("================================~n"),
+
     lists:foreach(
         fun({ClusterStr, Values}) ->
             Content = lists:foldl(FoldFun, "", Values),
@@ -144,7 +149,9 @@ maybe_print_visibility(ClusterMap, ResultPath, _Opt=#{visibility := true}) ->
             io:format("~s~n~s~n~s~n", [string:to_upper(ClusterStr), Header, Content])
         end,
         VisibilityReports
-    );
+    ),
+
+    io:format("================================~n");
 
 maybe_print_visibility(_, _, _) ->
     ok.
@@ -216,7 +223,43 @@ parse_measurements(ResultPath, Region) ->
         {error, _} ->
             [];
         {ok, Bin} ->
-            maps:to_list(binary_to_term(Bin))
+            FoldFun =
+                fun(_Node, Values, Acc) ->
+                    lists:foldl(
+                        fun
+                            %% Ignore counters for now
+                            ({counter, _Name, _Total}, InnerAcc) ->
+                                InnerAcc;
+                            %% Rolling max, plus accumulate ops for weighted mean later
+                            ({stat, Name, #{ops := Ops, avg := Avg, max := Max}}, InnerAcc) ->
+                                maps:update_with(
+                                    Name,
+                                    fun({Operations, Rollmax}) ->
+                                        {[{Avg, Ops} | Operations], max(Rollmax, Max)}
+                                    end,
+                                    {[{Avg, Ops}], Max},
+                                    InnerAcc
+                                )
+                        end,
+                        Acc,
+                        Values
+                    )
+                end,
+            maps:fold(
+                fun(Stat, {Ops, Max}, Acc) ->
+                    %% Make weighted average
+                    {Top, Bot} = lists:foldl(
+                        fun({Avg, N}, {T, B}) ->
+                            {(Avg * N) + T, B + N}
+                        end,
+                        {0, 0},
+                        Ops
+                    ),
+                    [ {Stat, Top / Bot, Max} | Acc]
+                end,
+                [],
+                maps:fold(FoldFun, #{}, binary_to_term(Bin))
+            )
     end.
 
 parse_latencies(ResultPath, ClusterStr) ->
