@@ -1,0 +1,7 @@
+"error","operation",count
+"crash","writeonly_red","10","crash","writeonly_red",10
+"{abort,stale_decided}","writeonly_red",10
+"crash","writeonly_red","8","crash","writeonly_red",8
+"{abort,conflict}","writeonly_red",51
+"{abort,stale_committed}","writeonly_red",21
+
