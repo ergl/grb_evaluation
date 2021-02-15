@@ -56,7 +56,8 @@ main(Args) ->
 
             ok = maybe_print_abort_ratio(Reports, GlobalErrors, Opt),
 
-            %% Report on visibility. Requires results to be present locally.
+            %% Report on measurements / visibility. Requires results to be present locally.
+            ok = maybe_print_measurements(ClusterMap, ResultPath, Opt),
             ok = maybe_print_visibility(ClusterMap, ResultPath, Opt),
 
             true = ets:delete(?CONF)
@@ -76,6 +77,33 @@ config_file(Path) ->
     FindConfig = io_lib:format("find ~s -type f -name cluster.config -print", [Path]),
     Matches = nonl(os:cmd(FindConfig)),
     hd(string:split(Matches, "\n", all)).
+
+-spec maybe_print_measurements(_, _, _) -> ok.
+maybe_print_measurements(ClusterMap, ResultPath, _Opt=#{measurements := true}) ->
+    VisibilityReports = pmap(
+        fun(Cluster) ->
+            ClusterStr = atom_to_list(Cluster),
+            Rep = parse_measurements(ResultPath, ClusterStr),
+            {ClusterStr, Rep}
+        end,
+        maps:keys(ClusterMap)
+    ),
+    FoldFun =
+        fun({Node, Values}, Acc) ->
+            io_lib:format(
+                "~p,~p~n~s",
+                [Node, Values, Acc]
+            )
+        end,
+    lists:foreach(
+        fun({ClusterStr, Values}) ->
+            Content = lists:foldl(FoldFun, "", Values),
+            io:format("~s~n~s~n", [string:to_upper(ClusterStr),Content])
+        end,
+        VisibilityReports
+    );
+maybe_print_measurements(_, _, _) ->
+    ok.
 
 -spec maybe_print_visibility(_, _, _) -> ok.
 maybe_print_visibility(ClusterMap, ResultPath, _Opt=#{visibility := true}) ->
@@ -180,6 +208,15 @@ parse_visibility(ResultPath, Region) ->
                 end,
 
             maps:fold(FoldFun, [], binary_to_term(Bin))
+    end.
+
+parse_measurements(ResultPath, Region) ->
+    Path = unicode:characters_to_list(io_lib:format("measurements-aws-~s.bin", [Region])),
+    case file:read_file(filename:join(ResultPath, Path)) of
+        {error, _} ->
+            [];
+        {ok, Bin} ->
+            maps:to_list(binary_to_term(Bin))
     end.
 
 parse_latencies(ResultPath, ClusterStr) ->
@@ -344,6 +381,8 @@ parse_args_inner([[$- | Flag] | Args], Acc) ->
             parse_args_inner(Args, Acc#{rubis => true});
         "-visibility" ->
             parse_args_inner(Args, Acc#{visibility => true});
+        "-measurements" ->
+            parse_args_inner(Args, Acc#{measurements => true});
         [$h] ->
             usage(),
             halt(0);

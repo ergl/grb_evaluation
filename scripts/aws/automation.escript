@@ -202,13 +202,29 @@ do_command({pull, Path}) ->
         )
     end,
 
-    PullVisibility = fun() ->
+    % PullVisibility = fun() ->
+    %     pmap(
+    %         fun({Region, NodeIP}) ->
+    %             NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
+    %             TargetFile = io_lib:format("~s/visibility-aws-~s.bin", [Path, Region]),
+    %             Cmd = io_lib:format(
+    %                 "scp -i ~s ubuntu@~s:/home/ubuntu/visibility.bin ~s",
+    %                 [NodeKey, NodeIP, TargetFile]
+    %             ),
+    %             safe_cmd(Cmd),
+    %             ok
+    %         end,
+    %         main_region_server_nodes()
+    %     )
+    % end,
+
+    PullMeasurements = fun() ->
         pmap(
             fun({Region, NodeIP}) ->
                 NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
-                TargetFile = io_lib:format("~s/visibility-aws-~s.bin", [Path, Region]),
+                TargetFile = io_lib:format("~s/measurements-aws-~s.bin", [Path, Region]),
                 Cmd = io_lib:format(
-                    "scp -i ~s ubuntu@~s:/home/ubuntu/visibility.bin ~s",
+                    "scp -i ~s ubuntu@~s:/home/ubuntu/measurements.bin ~s",
                     [NodeKey, NodeIP, TargetFile]
                 ),
                 safe_cmd(Cmd),
@@ -220,7 +236,8 @@ do_command({pull, Path}) ->
 
     DoFun = fun() ->
         _ = PullClients(),
-        _ = PullVisibility(),
+        % _ = PullVisibility(),
+        _ = PullMeasurements(),
         ok
     end,
 
