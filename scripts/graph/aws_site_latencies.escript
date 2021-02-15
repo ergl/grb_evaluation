@@ -12,7 +12,7 @@ usage() ->
     Name = filename:basename(escript:script_name()),
     ok = io:fwrite(
         standard_error,
-        "Usage: ~s [-vra] /path/to/results [-f <config-file>]~n",
+        "Usage: ~s [-ra] [--visibility] /path/to/results [-f <config-file>]~n",
         [Name]
     ).
 
@@ -40,53 +40,6 @@ main(Args) ->
                 maps:keys(ClusterMap)
             ),
 
-            DoVisibility = maps:get(visibility, Opt, false),
-            if
-                DoVisibility ->
-                    VisibilityReports = pmap(
-                        fun(Cluster) ->
-                            ClusterStr = atom_to_list(Cluster),
-                            Rep = parse_visibility(ResultPath, ClusterStr),
-                            {ClusterStr, Rep}
-                        end,
-                        maps:keys(ClusterMap)
-                    ),
-                    lists:foreach(
-                        fun({ClusterStr, Values}) ->
-                            Content = lists:foldl(
-                                fun({Remote, RemValues}, Acc) ->
-                                    io_lib:format(
-                                        "~p,~s~n~s",
-                                        [
-                                            element(1, Remote),
-                                            RemValues,
-                                            Acc]
-                                    )
-                                % fun({Remote, Min, Max, Avg, Med}, Acc) ->
-                                %     io_lib:format(
-                                %         "~p,~b,~b,~b,~b~n~s",
-                                %         [
-                                %             element(1, Remote),
-                                %             Min div 1000,
-                                %             Max div 1000,
-                                %             Avg div 1000,
-                                %             Med div 1000,
-                                %             Acc]
-                                %     )
-                                end,
-                                "",
-                                Values
-                            ),
-                            Header = "remote,min,max,avg,med",
-                            io:format("~s~n~s~n~s~n", [string:to_upper(ClusterStr), Header, Content])
-                        end,
-                        VisibilityReports
-                    ),
-                    io:format("~n");
-                true ->
-                    ok
-            end,
-
             {GlobalResults, GlobalErrors} = parse_global_latencies(ResultPath),
             io:format("~s~n~n", [GlobalResults]),
 
@@ -101,23 +54,10 @@ main(Args) ->
                 Reports
             ),
 
-            PrintAbortRatio = maps:get(abort_ratio, Opt, false),
-            if
-                PrintAbortRatio ->
-                    io:format("================================~n"),
-                    io:format("~s~n~s~n",
-                              ["OVERALL", GlobalErrors]),
-                    lists:foreach(
-                        fun({ClusterStr, _, Errors}) ->
-                            io:format("~n~s~n~s~n",
-                                      [string:to_upper(ClusterStr), Errors])
-                        end,
-                        Reports
-                    ),
-                    io:format("================================~n");
-                true ->
-                    ok
-            end,
+            ok = maybe_print_abort_ratio(Reports, GlobalErrors, Opt),
+
+            %% Report on visibility. Requires results to be present locally.
+            ok = maybe_print_visibility(ClusterMap, ResultPath, Opt),
 
             true = ets:delete(?CONF)
     end.
@@ -137,6 +77,65 @@ config_file(Path) ->
     Matches = nonl(os:cmd(FindConfig)),
     hd(string:split(Matches, "\n", all)).
 
+-spec maybe_print_visibility(_, _, _) -> ok.
+maybe_print_visibility(ClusterMap, ResultPath, _Opt=#{visibility := true}) ->
+    VisibilityReports = pmap(
+        fun(Cluster) ->
+            ClusterStr = atom_to_list(Cluster),
+            Rep = parse_visibility(ResultPath, ClusterStr),
+            {ClusterStr, Rep}
+        end,
+        maps:keys(ClusterMap)
+    ),
+
+    % FoldFun =
+    %     fun({Remote, Min, Max, Avg, Med}, Acc) ->
+    %         io_lib:format(
+    %             "~p,~b,~b,~b,~b~n~s",
+    %             [element(1, Remote)
+    %              , Min div 1000
+    %              , Max div 1000
+    %              , Avg div 1000
+    %              , Med div 1000
+    %              , Acc]
+    %         )
+    % end,
+
+    FoldFun =
+        fun({Remote, RemValues}, Acc) ->
+            io_lib:format(
+                "~p,~s~n~s",
+                [element(1, Remote),RemValues,Acc]
+            )
+        end,
+
+    lists:foreach(
+        fun({ClusterStr, Values}) ->
+            Content = lists:foldl(FoldFun, "", Values),
+            Header = "remote,min,max,avg,med",
+            io:format("~s~n~s~n~s~n", [string:to_upper(ClusterStr), Header, Content])
+        end,
+        VisibilityReports
+    );
+
+maybe_print_visibility(_, _, _) ->
+    ok.
+
+-spec maybe_print_abort_ratio(_, _, _) -> ok.
+maybe_print_abort_ratio(Reports, GlobalErrors, _Opt=#{abort_ratio := true}) ->
+    io:format("================================~n"),
+    io:format("~s~n~s~n", ["OVERALL", GlobalErrors]),
+    lists:foreach(
+        fun({ClusterStr, _, Errors}) ->
+            io:format("~n~s~n~s~n",
+                        [string:to_upper(ClusterStr), Errors])
+        end,
+        Reports
+    ),
+    io:format("================================~n");
+
+maybe_print_abort_ratio(_, _, _) ->
+    ok.
 
 parse_global_latencies(ResultPath) ->
     MergeAll = io_lib:format(
@@ -164,18 +163,23 @@ parse_visibility(ResultPath, Region) ->
         {error, _} ->
             [];
         {ok, Bin} ->
-            maps:fold(
+            % FoldFun =
+            %     fun(Remote, Values, Acc) ->
+            %         [Min | _] = Sort = lists:sort(Values),
+            %         Length = length(Sort),
+            %         Max = lists:max(Sort),
+            %         Med = lists:nth((length(Sort) div 2), Sort),
+            %         Avg = lists:sum(Sort) div Length,
+            %         [ {Remote, Min, Max, Avg, Med} | Acc ]
+            %     end,
+
+            FoldFun =
                 fun(Remote, Values, Acc) ->
-                    [Min | _] = Sort = lists:sort(Values),
-                    Length = length(Sort),
-                    Max = lists:max(Sort),
-                    Med = lists:nth((length(Sort) div 2), Sort),
-                    Avg = lists:sum(Sort) div Length,
-                    [ {Remote, Min, Max, Avg, Med} | Acc ]
+                    ValueStr = string:join([integer_to_list(X) || X <- Values], ","),
+                    [ {Remote, ValueStr} | Acc ]
                 end,
-                [],
-                binary_to_term(Bin)
-            )
+
+            maps:fold(FoldFun, [], binary_to_term(Bin))
     end.
 
 parse_latencies(ResultPath, ClusterStr) ->
@@ -336,10 +340,10 @@ parse_args_inner([[$- | Flag] | Args], Acc) ->
             parse_flag(Flag, Args, fun(Arg) -> Acc#{config => Arg} end);
         [$a] ->
             parse_args_inner(Args, Acc#{abort_ratio => true});
-        [$v] ->
-            parse_args_inner(Args, Acc#{visibility => true});
         [$r] ->
             parse_args_inner(Args, Acc#{rubis => true});
+        "-visibility" ->
+            parse_args_inner(Args, Acc#{visibility => true});
         [$h] ->
             usage(),
             halt(0);
