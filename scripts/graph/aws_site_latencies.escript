@@ -12,7 +12,7 @@ usage() ->
     Name = filename:basename(escript:script_name()),
     ok = io:fwrite(
         standard_error,
-        "Usage: ~s [-ra] [--visibility] [--measurements] /path/to/results [-f <config-file>]~n",
+        "Usage: ~s [-ra] [--visibility] [-m | --measurements] /path/to/results [-f <config-file>]~n",
         [Name]
     ).
 
@@ -424,6 +424,8 @@ parse_args_inner([[$- | Flag] | Args], Acc) ->
             parse_args_inner(Args, Acc#{rubis => true});
         "-visibility" ->
             parse_args_inner(Args, Acc#{visibility => true});
+        [$m] ->
+            parse_args_inner(Args, Acc#{measurements => true});
         "-measurements" ->
             parse_args_inner(Args, Acc#{measurements => true});
         [$h] ->
