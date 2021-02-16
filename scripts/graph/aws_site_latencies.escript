@@ -230,6 +230,9 @@ parse_measurements(ResultPath, Region) ->
                             %% Ignore counters for now
                             ({counter, _Name, _Total}, InnerAcc) ->
                                 InnerAcc;
+                            ({stat, Name, _}, InnerAcc)
+                                when element(1, Name) =:= grb_dc_connection_receiver ->
+                                    InnerAcc;
                             %% Rolling max, plus accumulate ops for weighted mean later
                             ({stat, Name, #{ops := Ops, avg := Avg, max := Max}}, InnerAcc) ->
                                 maps:update_with(
