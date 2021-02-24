@@ -91,7 +91,7 @@ maybe_print_measurements(ClusterMap, ResultPath, _Opt=#{measurements := true}) -
     FoldFun =
         fun({StatName, Avg, Max}, Acc) ->
             io_lib:format(
-                "~p,~p,~p~n~s",
+                "~w,~p,~p~n~s",
                 [StatName, Avg, Max, Acc]
             )
         end,
@@ -227,39 +227,60 @@ parse_measurements(ResultPath, Region) ->
                 fun(_Node, Values, Acc) ->
                     lists:foldl(
                         fun
-                            %% Ignore counters for now
-                            ({counter, _Name, _Total}, InnerAcc) ->
-                                InnerAcc;
                             %% Rolling max, plus accumulate ops for weighted mean later
-                            ({stat, Name, #{ops := Ops, avg := Avg, max := Max}}, InnerAcc) ->
+                            ({stat, Name, #{ops := Ops, avg := Avg, max := Max}}, InnerAcc)
+                                when Ops > 0 ->
+                                    maps:update_with(
+                                        {stat, Name},
+                                        fun({Operations, Rollmax}) ->
+                                            {[{Avg, Ops} | Operations], max(Rollmax, Max)}
+                                        end,
+                                        {[{Avg, Ops}], Max},
+                                        InnerAcc
+                                    );
+
+                            ({counter, Name, Total}, InnerAcc) ->
                                 maps:update_with(
-                                    Name,
-                                    fun({Operations, Rollmax}) ->
-                                        {[{Avg, Ops} | Operations], max(Rollmax, Max)}
-                                    end,
-                                    {[{Avg, Ops}], Max},
+                                    {counter, Name},
+                                    fun(Old) -> Old + Total end,
+                                    Total,
                                     InnerAcc
-                                )
+                                );
+
+                            %% Ignore everything else for now
+                            (_, InnerAcc) ->
+                                InnerAcc
                         end,
                         Acc,
                         Values
                     )
                 end,
-            maps:fold(
-                fun(Stat, {Ops, Max}, Acc) ->
-                    %% Make weighted average
-                    {Top, Bot} = lists:foldl(
-                        fun({Avg, N}, {T, B}) ->
-                            {(Avg * N) + T, B + N}
-                        end,
-                        {0, 0},
-                        Ops
-                    ),
-                    [ {Stat, Top / Bot, Max} | Acc]
+            lists:reverse(lists:sort(maps:fold(
+                fun
+                    ({counter, Stat}, Total, Acc) ->
+                        [ {{counter, Stat}, Total} | Acc ];
+
+                    ({stat, Stat}, {Ops, Max}, Acc) ->
+                        %% Make weighted average
+                        {Top, Bot} = lists:foldl(
+                            fun({Avg, N}, {T, B}) ->
+                                {(Avg * N) + T, B + N}
+                            end,
+                            {0, 0},
+                            Ops
+                        ),
+                        case Stat of
+                            {grb_red_coordinator, _} ->
+                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                            {grb_paxos_vnode, _, Attr} when Attr =/= message_queue_len ->
+                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                            _ ->
+                                [ {Stat, Top / Bot, Max} | Acc]
+                        end
                 end,
                 [],
                 maps:fold(FoldFun, #{}, binary_to_term(Bin))
-            )
+            )))
     end.
 
 parse_latencies(ResultPath, ClusterStr) ->
