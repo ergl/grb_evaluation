@@ -89,11 +89,17 @@ maybe_print_measurements(ClusterMap, ResultPath, _Opt=#{measurements := true}) -
         maps:keys(ClusterMap)
     ),
     FoldFun =
-        fun({StatName, Avg, Max}, Acc) ->
-            io_lib:format(
-                "~w,~p,~p~n~s",
-                [StatName, Avg, Max, Acc]
-            )
+        fun
+            ({StatName, Avg, Max}, Acc) ->
+                io_lib:format(
+                    "~w,~p,~p~n~s",
+                    [StatName, Avg, Max, Acc]
+                );
+            ({StatName, Total}, Acc) ->
+                io_lib:format(
+                    "~w,~p~n~s",
+                    [StatName, Total, Acc]
+                )
         end,
     io:format("================================~n"),
     lists:foreach(
@@ -271,6 +277,10 @@ parse_measurements(ResultPath, Region) ->
                         ),
                         case Stat of
                             {grb_red_coordinator, _} ->
+                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                            {grb_red_coordinator, _, _} ->
+                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                            {grb_red_coordinator, _, _, sent_to_ack} ->
                                 [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
                             {grb_paxos_vnode, _, Attr} when Attr =/= message_queue_len ->
                                 [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
