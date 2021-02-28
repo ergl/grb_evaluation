@@ -282,6 +282,8 @@ parse_measurements(ResultPath, Region) ->
                                 [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
                             {grb_red_coordinator, _, _, sent_to_ack} ->
                                 [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                            {grb_red_coordinator, _, _, ack_in_flight} ->
+                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
                             {grb_paxos_vnode, _, Attr} when Attr =/= message_queue_len ->
                                 [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
                             _ ->
