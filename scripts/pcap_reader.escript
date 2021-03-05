@@ -125,7 +125,9 @@
     %% Kind of message
     msg_type := non_neg_integer(),
     %% Payload, if any
-    data := term()
+    data := term(),
+    %% Size of the packet payload
+    payload_size := integer()
 }.
 
 -type flow_id() :: {inet:ip4_address(), non_neg_integer(), inet:ip4_address(), non_neg_integer()}.
@@ -253,19 +255,22 @@ print_extra(PacketInfo, ShowData, Msg) ->
     } = PacketInfo,
     CaptureTSMicros = packet_capture_time_micros(PacketInfo),
     CaptureDate = calendar:system_time_to_rfc3339(CaptureTSMicros, [{unit, microsecond}]),
-    SentDate =
+    {SentDate, Size} =
         if
             is_map(Msg) ->
-                calendar:system_time_to_rfc3339(
-                    maps:get(sent_ts, Msg, CaptureTSMicros),
-                    [{unit, microsecond}]
-                );
+                {
+                    calendar:system_time_to_rfc3339(
+                        maps:get(sent_ts, Msg, CaptureTSMicros),
+                        [{unit, microsecond}]
+                    ),
+                    maps:get(payload_size, Msg, 0)
+                };
             true ->
-                "N/A"
+                {"N/A", 0}
         end,
     io:format(
-        "Capture Date := ~s | SentDate := ~s | Seq := ~b | ACK := ~b | Rcv Window := ~p bytes~n",
-        [CaptureDate, SentDate, Seq, Ack, WindowSize]
+        "Capture Date := ~s | SentDate := ~s | Seq := ~b | ACK := ~b | Rcv Window := ~p bytes | Bin size := ~b~n",
+        [CaptureDate, SentDate, Seq, Ack, WindowSize, Size]
     ),
     Trimmed = maps:get(packet_trimmed, PacketInfo, false),
     Trimmed andalso io:format("(message trimmed)~n"),
@@ -559,7 +564,8 @@ decode_msg(#{packet_trimmed := Trimmed}, Msg) ->
         version => VSN,
         sent_ts => SentTimestamp,
         msg_type => Type,
-        data => Decoded
+        data => Decoded,
+        payload_size => byte_size(Payload)
     }.
 
 -spec parse_data(Info :: packet_info(),
