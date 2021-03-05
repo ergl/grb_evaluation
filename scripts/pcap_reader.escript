@@ -15,32 +15,32 @@
 -define(REST_TABLE, rest_data_table).
 -define(DEFAULT_PACKET_HEADER, 4).
 
--define(MSG_KINDS, {
-    "BLUE_HB_KIND", %% 0
-    "REPL_TX_KIND", %% 1
-    "UPDATE_CLOCK_KIND", %% 2
-    "UPDATE_CLOCK_HEARTBEAT_KIND", %% 3
-    "RED_PREPARE_KIND", %% 4
-    "RED_ACCEPT_KIND", %% 5
-    "RED_ACCEPT_ACK_KIND", %% 6
-    "RED_DECIDE_KIND", %% 7
-    "RED_ALREADY_DECIDED_KIND", %% 8
-    "RED_HB_KIND", %% 9
-    "RED_HB_ACK_KIND", %% 10
-    "RED_DELIVER_KIND", %% 11
-    "FWD_BLUE_HB_KIND", %% 12
-    "FWD_BLUE_TX_KIND", %% 13
-    "REPL_TX_4_KIND", %% 14
-    "REPL_TX_8_KIND", %% 15
-    "DC_PING", %% 16
-    "DC_CREATE", %% 17
-    "DC_GET_DESCRIPTOR", %% 18
-    "DC_CONNECT_TO_DESCR", %% 19
-    "DC_START_BLUE_PROCESSES", %% 20
-    "DC_START_RED_FOLLOWER", %% 21
-    "UPDATE_CLOCK_CURE_KIND", %% 22
-    "UPDATE_CLOCK_CURE_HEARTBEAT_KIND", %% 23
-    "RED_LEARN_ABORT_KIND" %% 24
+-define(MSG_KINDS, #{
+    0 => "BLUE_HB_KIND",
+    1 => "REPL_TX_KIND",
+    2 => "UPDATE_CLOCK_KIND",
+    3 => "UPDATE_CLOCK_HEARTBEAT_KIND",
+    4 => "RED_PREPARE_KIND",
+    5 => "RED_ACCEPT_KIND",
+    6 => "RED_ACCEPT_ACK_KIND",
+    7 => "RED_DECIDE_KIND",
+    8 => "RED_ALREADY_DECIDED_KIND",
+    9 => "RED_HB_KIND",
+    10 => "RED_HB_ACK_KIND",
+    11 => "RED_DELIVER_KIND",
+    12 => "FWD_BLUE_HB_KIND",
+    13 => "FWD_BLUE_TX_KIND",
+    14 => "REPL_TX_4_KIND",
+    15 => "REPL_TX_8_KIND",
+    16 => "DC_PING",
+    17 => "DC_CREATE",
+    18 => "DC_GET_DESCRIPTOR",
+    19 => "DC_CONNECT_TO_DESCR",
+    20 => "DC_START_BLUE_PROCESSES",
+    21 => "DC_START_RED_FOLLOWER",
+    22 => "UPDATE_CLOCK_CURE_KIND",
+    23 => "UPDATE_CLOCK_CURE_HEARTBEAT_KIND",
+    24 => "RED_LEARN_ABORT_KIND"
 }).
 
 -record(pcap_header, {
@@ -135,15 +135,14 @@
 
 -spec format_msg_types() -> string().
 format_msg_types() ->
-    Types = tuple_to_list(?MSG_KINDS),
-    {_, Str} = lists:foldl(
-        fun(Type, {N, Acc}) ->
-            {N + 1, io_lib:format("~s~n\t~b:\t~s", [Acc, N, Type])}
+    Types = lists:sort(maps:to_list(?MSG_KINDS)),
+    lists:foldl(
+        fun({N, Type}, Acc) ->
+            io_lib:format("~s~n\t~b:\t~s", [Acc, N, Type])
         end,
-        {0, ""},
+        "",
         Types
-    ),
-    Str.
+    ).
 
 usage() ->
     Fmt =
@@ -804,6 +803,7 @@ bin_to_hexstr(Bin) ->
 
 -spec translate_type(non_neg_integer()) -> string().
 translate_type(Type)
-    when Type >= 0 andalso Type =< 24 -> element((Type + 1), ?MSG_KINDS);
+    when is_map_key(Type, ?MSG_KINDS) ->
+        maps:get(Type, ?MSG_KINDS);
 translate_type(_) ->
     "UNKNOWN_KIND".
