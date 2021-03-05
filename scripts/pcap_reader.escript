@@ -68,6 +68,7 @@
     verbose => boolean(),
     print_data => boolean(),
     data_errors => boolean(),
+    count => boolean(),
 
     src_ip => inet:ip4_address(),
     dst_ip => inet:ip4_address(),
@@ -77,7 +78,12 @@
 
     msg_type => non_neg_integer(),
 
-    match_limit => non_neg_integer()
+    %% How many matches to print
+    match_limit => non_neg_integer(),
+
+    %% Print only those that differ by this ms from capture time
+    capture_diff_threshold_min => non_neg_integer(),
+    capture_diff_threshold_max => non_neg_integer()
 }.
 
 -type packet_info() :: #{
@@ -124,7 +130,8 @@
 
 -type flow_id() :: {inet:ip4_address(), non_neg_integer(), inet:ip4_address(), non_neg_integer()}.
 
--export([main/1]).
+-export([main/1,
+         bin_to_hexstr/1]).
 
 -spec format_msg_types() -> string().
 format_msg_types() ->
@@ -142,17 +149,20 @@ usage() ->
     Fmt =
         begin
             "NAME~n" ++
-            "\t~s - search in pcap files containing application messages~n~n" ++
-            "USAGE~n" ++
-            "\t~s -f trace.pcap [ -vde ]~n" ++
+            "\t~s - search in pcap files containing application messages~n" ++
+            "~nUSAGE~n" ++
+            "\t~s -f trace.pcap [ -vcde ]~n" ++
             "\t\t\t    [ -t --type MSG_TYPE ]~n" ++
             "\t\t\t    [ --src-ip IP ] [ --dst-ip IP ]~n" ++
-            "\t\t\t    [ --src-port PORT ] [ --dst-port PORT ]~n~n" ++
-            "FLAGS~n" ++
+            "\t\t\t    [ --src-port PORT ] [ --dst-port PORT ]~n" ++
+            "\t\t\t    [ --threshold_min THRESHOLD ] [ --threshold_max THRESHOLD ]~n" ++
+            "\t\t\t    [ --limit LIMIT ]~n" ++
+            "~nFLAGS~n" ++
             "\t-v: verbose~n" ++
+            "\t-c: count, don't print~n" ++
             "\t-d: show matching payload~n" ++
-            "\t-e: show errors~n~n" ++
-            "AVAILABLE MSG_TYPES~n" ++
+            "\t-e: show errors~n" ++
+            "~nAVAILABLE MSG_TYPES~n" ++
             "~s~n~n"
         end,
     Name = filename:basename(escript:script_name()),
@@ -184,14 +194,13 @@ main(Args) ->
 %% Output functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec print_packet(packet_info(), boolean(), boolean()) -> ok.
+-spec print_packet(packet_info(), boolean(), boolean()) -> non_neg_integer().
 print_packet(PacketInfo, Verbose, ShowData) ->
     #{
-        packet_timestamp := {Secs, MicrosOffset},
         tcp_flow_id := {SrcIp, SrcPort, DstIp, DstPort},
         payload := Msgs
     } = PacketInfo,
-    CaptureTSMicros = (Secs * 1_000_000) + MicrosOffset,
+    CaptureTSMicros = packet_capture_time_micros(PacketInfo),
     case Msgs of
         {error, Reason} ->
             io:format(
@@ -205,54 +214,66 @@ print_packet(PacketInfo, Verbose, ShowData) ->
                     {error, Reason}
                 ]
             ),
-            Verbose andalso print_extra(PacketInfo);
+            Verbose andalso print_extra(PacketInfo, ShowData, {error, Reason}),
+            1;
         _ ->
             PrintFun = fun(Msg) ->
                 #{msg_type := Type, data := Data} = Msg,
-                SentTs = maps:get(sent_ts, Msg, CaptureTSMicros),
-                OffsetTsMs = (CaptureTSMicros - SentTs) / 1000,
-                if OffsetTsMs >= 1 ->
+                PacketTsMicros = maps:get(sent_ts, Msg, CaptureTSMicros),
+                CaptureDiff = capture_diff(
+                    CaptureTSMicros,
+                    PacketTsMicros
+                ),
                 io:format(
-                    "~b \t~s:~p => ~s:~p \ttype=~s\tcapture_diff_ms=~f~n",
+                    "~b ~b (~f) ~s:~p => ~s:~p \ttype=~s~n",
                     [CaptureTSMicros,
+                     PacketTsMicros,
+                     CaptureDiff,
                      inet:ntoa(SrcIp),
                      SrcPort,
                      inet:ntoa(DstIp),
                      DstPort,
-                     translate_type(Type),
-                     OffsetTsMs]
+                     translate_type(Type)]
                 ),
-                Verbose andalso print_extra(PacketInfo),
-                ShowData andalso io:format("~n~w~n~n", [Data]);
-                true -> ok
-                end
+                Verbose andalso print_extra(PacketInfo, ShowData, Msg),
+                ShowData andalso io:format("~n~w~n~n", [Data])
             end,
             lists:foreach(
                 PrintFun,
                 Msgs
-            )
+            ),
+            length(Msgs)
     end.
 
--spec print_extra(packet_info()) -> ok.
-print_extra(PacketInfo) ->
+-spec print_extra(packet_info(), boolean(), packet()) -> ok.
+print_extra(PacketInfo, ShowData, Msg) ->
     #{
-        packet_timestamp := {Secs, MicrosOffset},
         seq_rel := Seq,
         ack_rel := Ack,
         window_size := WindowSize
     } = PacketInfo,
-    CaptureTSMicros = (Secs * 1_000_000) + MicrosOffset,
+    CaptureTSMicros = packet_capture_time_micros(PacketInfo),
     CaptureDate = calendar:system_time_to_rfc3339(CaptureTSMicros, [{unit, microsecond}]),
+    SentDate =
+        if
+            is_map(Msg) ->
+                calendar:system_time_to_rfc3339(
+                    maps:get(sent_ts, Msg, CaptureTSMicros),
+                    [{unit, microsecond}]
+                );
+            true ->
+                "N/A"
+        end,
     io:format(
-        "Capture Date := ~s | Seq := ~b | ACK := ~b | Rcv Window := ~p bytes~n",
-        [CaptureDate, Seq, Ack, WindowSize]
+        "Capture Date := ~s | SentDate := ~s | Seq := ~b | ACK := ~b | Rcv Window := ~p bytes~n",
+        [CaptureDate, SentDate, Seq, Ack, WindowSize]
     ),
     Trimmed = maps:get(packet_trimmed, PacketInfo, false),
     Trimmed andalso io:format("(message trimmed)~n"),
     FlowId = maps:get(tcp_flow_id, PacketInfo, ignore),
-    FlowId =/= ignore andalso begin
+    FlowId =/= ignore andalso ShowData andalso begin
         Bytes = get_extra_bytes(FlowId),
-        Bytes =/= <<>> andalso io:format("Extra bytes := ~s~n", [bin_to_hexstr(Bytes)])
+        Bytes =/= <<>> andalso io:format("Extra bytes := ~p~n", [Bytes])
     end,
     io:format("~n").
 
@@ -321,20 +342,36 @@ parse_network(_) -> {error, unknown_network}.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 -spec filter_pcap_packets(opts(), binary(), non_neg_integer()) -> ok.
-filter_pcap_packets(_, <<>>, _) -> ok;
+filter_pcap_packets(Opts, <<>>, N) ->
+    case Opts of
+        #{count := true} ->
+            io:format("~b~n", [N]);
+        _ ->
+        ok
+    end;
 filter_pcap_packets(Opts, Bin, N) ->
     {Packet, Rest} = parse_packet(Opts, Bin),
     case Packet of
         skip ->
             filter_pcap_packets(Opts, Rest, N);
         _ ->
+            ShouldPrint = not (maps:get(count, Opts, false)),
             Limit = maps:get(match_limit, Opts, infinity),
             if
                 N >= Limit ->
-                    ok;
+                    if
+                        not ShouldPrint ->
+                            io:format("~b~n", [N]);
+                        true ->
+                            ok
+                    end;
                 true ->
-                    print_packet(Packet, maps:get(verbose, Opts, false), maps:get(print_data, Opts, false)),
-                    filter_pcap_packets(Opts, Rest, N + 1)
+                    Printed = print_packet(
+                        Packet,
+                        maps:get(verbose, Opts, false),
+                        maps:get(print_data, Opts, false)
+                    ),
+                    filter_pcap_packets(Opts, Rest, N + Printed)
             end
     end.
 
@@ -428,9 +465,11 @@ parse_app_level(Packet, Opts, PacketInfo=#{tcp_flow_id := FlowId}) ->
     case parse_data(PacketInfo, NewPacketPayload) of
         {ok, Data, Rest} ->
             ok = set_extra_bytes(FlowId, Rest),
-            case match_app_level(Opts, Data) of
-                [] -> skip;
-                FilterData -> PacketInfo#{payload => FilterData}
+            case match_app_level(Opts, PacketInfo, Data) of
+                [] ->
+                    skip;
+                FilterData ->
+                    PacketInfo#{payload => FilterData}
             end;
 
         %% We got some bad data. It might be that this packet is a retransmission, in which case we
@@ -466,16 +505,28 @@ match_tcp_level(Opts, SrcPort, DstPort) ->
     MatchDst = DstPort =:= maps:get(dst_port, Opts, DstPort),
     MatchSrc andalso MatchDst.
 
-match_app_level(Opts, Msgs) ->
+match_app_level(Opts, PacketInfo, Msgs) ->
+    CaptureTS = packet_capture_time_micros(PacketInfo),
+    CaptureDiffThMin = maps:get(capture_diff_threshold_min, Opts, 0),
+    CaptureDiffThMax = maps:get(capture_diff_threshold_max, Opts, infinity),
     lists:filtermap(fun(Msg=#{msg_type := MsgType}) ->
         MatchedType = maps:get(msg_type, Opts, MsgType),
+        CaptureDiff = capture_diff(CaptureTS, maps:get(sent_ts, Msg, CaptureTS)),
         if
-            MsgType =:= MatchedType ->
+            (MsgType =:= MatchedType) andalso
+            (CaptureDiff >= CaptureDiffThMin) andalso
+            (CaptureDiff =< CaptureDiffThMax) ->
                 {true, Msg};
             true ->
                 false
         end
     end, Msgs).
+
+packet_capture_time_micros(#{packet_timestamp := {Secs, MicrosOffset}}) ->
+    (Secs * 1_000_000) + MicrosOffset.
+
+capture_diff(PacketCapture, PacketTs) ->
+    (PacketCapture - PacketTs) / 1000.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% Protocol Parsing (Ethernet, IP, TCP)
@@ -485,19 +536,31 @@ match_app_level(Opts, Msgs) ->
 valid_data(Msgs) ->
     not lists:any(fun(<<>>) -> true; (_) -> false end, Msgs).
 
--spec decode_msg(binary()) -> packet().
-decode_msg(Msg) ->
+-spec decode_msg(packet_info(), binary()) -> packet().
+decode_msg(#{packet_trimmed := Trimmed}, Msg) ->
     <<
         VSN:8,
         SentTimestamp:8/unit:8-integer-big-unsigned,
         Type:8,
         Payload/binary
     >> = Msg,
+    Decoded =
+        if
+            Trimmed ->
+                %% Be careful, we might be cut off
+                try
+                    binary_to_term(Payload)
+                catch _:_ ->
+                    {error, incomplete}
+                end;
+            true ->
+                binary_to_term(Payload)
+        end,
     #{
         version => VSN,
         sent_ts => SentTimestamp,
         msg_type => Type,
-        data => binary_to_term(Payload)
+        data => Decoded
     }.
 
 -spec parse_data(Info :: packet_info(),
@@ -506,14 +569,14 @@ decode_msg(Msg) ->
                                     | incomplete_data
                                     | {error, term()}.
 
-parse_data(_, Data) ->
+parse_data(Info, Data) ->
     case decode_data(Data) of
         {ok, Msgs, Rest} ->
             case valid_data(Msgs) of
                 false ->
                     {error, {bad_data, Data}};
                 true ->
-                    MsgInfo = lists:map(fun decode_msg/1, Msgs),
+                    MsgInfo = [ decode_msg(Info, M) || M <- Msgs ],
                     {ok, MsgInfo, Rest}
             end;
 
@@ -538,14 +601,14 @@ decode_data(Data) ->
     end.
 
 decode_data_inner(<<>>, Acc) ->
-    {ok, Acc, <<>>};
+    {ok, lists:reverse(Acc), <<>>};
 
 decode_data_inner(Data, Acc) ->
     case erlang:decode_packet(?DEFAULT_PACKET_HEADER, Data, []) of
         {ok, Message, More} ->
             decode_data_inner(More, [Message | Acc]);
         _ ->
-            {ok, Acc, Data}
+            {ok, lists:reverse(Acc), Data}
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -567,6 +630,8 @@ parse_args([ [$- | Flag] | Args], Acc) ->
     case Flag of
         [$v] ->
             parse_args(Args, Acc#{verbose => true});
+        [$c] ->
+            parse_args(Args, Acc#{count => true});
         [$e] ->
             parse_args(Args, Acc#{data_errors => true});
         [$d] ->
@@ -587,6 +652,32 @@ parse_args([ [$- | Flag] | Args], Acc) ->
             parse_flag(Flag, Args, fun(Arg) -> Acc#{dst_port => list_to_integer(Arg)} end);
         "-limit" ->
             parse_flag(Flag, Args, fun(Arg) -> Acc#{match_limit => list_to_integer(Arg)} end);
+        "-threshold_min" ->
+            parse_flag(
+                Flag,
+                Args,
+                fun(Arg) ->
+                    Conv = case catch list_to_integer(Arg) of
+                        N when is_integer(N) -> N;
+                        {'EXIT', _} ->
+                            list_to_float(Arg)
+                    end,
+                    Acc#{capture_diff_threshold_min => Conv}
+                end
+            );
+        "-threshold_max" ->
+            parse_flag(
+                Flag,
+                Args,
+                fun(Arg) ->
+                    Conv = case catch list_to_integer(Arg) of
+                        N when is_integer(N) -> N;
+                        {'EXIT', _} ->
+                            list_to_float(Arg)
+                    end,
+                    Acc#{capture_diff_threshold_max => Conv}
+                end
+            );
         [$h] ->
             usage(),
             halt(0);
@@ -710,7 +801,6 @@ reuse_ack(#{tcp_flow_id := Id, ack_rel := CurrentACK}) ->
 %% from http://necrobious.blogspot.com/2008/03/binary-to-hex-string-back-to-binary-in.html
 bin_to_hexstr(Bin) ->
     lists:flatten([io_lib:format("~2.16.0B", [X]) || X <- binary_to_list(Bin)]).
-
 
 -spec translate_type(non_neg_integer()) -> string().
 translate_type(Type)
