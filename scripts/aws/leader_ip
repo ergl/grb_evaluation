@@ -1,0 +1,16 @@
+#!/usr/bin/env escript
+
+-mode(compile).
+
+-export([main/1]).
+
+-define(path, "/home/ubuntu/pcluster.config").
+
+main([Region]) ->
+    try
+        {ok, Terms} = file:consult(?path),
+        {_, [Main | _]} = lists:keyfind({servers, public, Region}, 1, Terms),
+        io:format("~s", [Main])
+    catch _:_ ->
+        halt(1)
+    end.

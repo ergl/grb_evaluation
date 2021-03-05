@@ -558,7 +558,12 @@ decode_msg(#{packet_trimmed := Trimmed}, Msg) ->
                     {error, incomplete}
                 end;
             true ->
-                binary_to_term(Payload)
+                case catch binary_to_term(Payload) of
+                    {'EXIT', _} ->
+                        {error, bad_binary};
+                    Other ->
+                        Other
+                end
         end,
     #{
         version => VSN,

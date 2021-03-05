@@ -92,7 +92,7 @@ maybe_print_measurements(ClusterMap, ResultPath, _Opt=#{measurements := true}) -
         fun
             ({StatName, Avg, Max}, Acc) ->
                 io_lib:format(
-                    "~w,~p,~p~n~s",
+                    "~w,~f,~p~n~s",
                     [StatName, Avg, Max, Acc]
                 );
             ({StatName, Total}, Acc) ->
@@ -284,8 +284,26 @@ parse_measurements(ResultPath, Region) ->
                                 [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
                             {grb_red_coordinator, _, _, ack_in_flight} ->
                                 [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                            {grb_paxos_vnode, _, Attr} when Attr =/= message_queue_len ->
-                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                            {grb_paxos_vnode, _, Attr}
+                                when Attr =/= message_queue_len ->
+                                    [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                            {grb_dc_messages, _, _, Attr}
+                                when Attr =/= message_queue_len ->
+                                    [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                            {grb_dc_connection_sender, _, _, Attr} ->
+                                case
+                                    lists:member(
+                                        Attr,
+                                        [message_queue_len,
+                                         pending_queue_len,
+                                         pending_queue_bytes]
+                                    )
+                                of
+                                    false ->
+                                        [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                                    true ->
+                                        [ {Stat, Top / Bot, Max} | Acc]
+                                end;
                             _ ->
                                 [ {Stat, Top / Bot, Max} | Acc]
                         end
