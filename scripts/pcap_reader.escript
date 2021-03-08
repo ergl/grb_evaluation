@@ -80,6 +80,7 @@
 
     %% How many matches to print
     match_limit => non_neg_integer(),
+    curr_matches => non_neg_integer(),
 
     %% Print only those that differ by this ms from capture time
     capture_diff_threshold_min => non_neg_integer(),
@@ -184,7 +185,7 @@ main(Args) ->
             case parse_header(Contents) of
                 {ok, Header, Packets} ->
                     io:format("~s~n", [fmt_header(Header)]),
-                    filter_pcap_packets(Opts, Packets, 0);
+                    filter_pcap_packets(Opts#{curr_matches => 0}, Packets);
                 {error, Reason} ->
                     io:fwrite(standard_error, "Wrong header: reason ~p~n", [Reason]),
                     halt(1)
@@ -195,8 +196,11 @@ main(Args) ->
 %% Output functions
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec print_packet(packet_info(), boolean(), boolean()) -> non_neg_integer().
-print_packet(PacketInfo, Verbose, ShowData) ->
+-spec print_packet(packet_info(), opts()) -> non_neg_integer().
+print_packet(PacketInfo, Opts) ->
+    ShouldPrint = not (maps:get(count, Opts, false)),
+    Verbose = ShouldPrint andalso maps:get(verbose, Opts, false),
+    ShowData = ShouldPrint andalso maps:get(print_data, Opts, false),
     #{
         tcp_flow_id := {SrcIp, SrcPort, DstIp, DstPort},
         payload := Msgs
@@ -204,7 +208,8 @@ print_packet(PacketInfo, Verbose, ShowData) ->
     CaptureTSMicros = packet_capture_time_micros(PacketInfo),
     case Msgs of
         {error, Reason} ->
-            io:format(
+            maybe_print(
+                ShouldPrint,
                 "~b\t~s:~p => ~s:~p \tN/A \t~w~n",
                 [
                     CaptureTSMicros,
@@ -225,7 +230,8 @@ print_packet(PacketInfo, Verbose, ShowData) ->
                     CaptureTSMicros,
                     PacketTsMicros
                 ),
-                io:format(
+                maybe_print(
+                    ShouldPrint,
                     "~b ~b (~f) ~s:~p => ~s:~p \ttype=~s~n",
                     [CaptureTSMicros,
                      PacketTsMicros,
@@ -345,38 +351,47 @@ parse_network(_) -> {error, unknown_network}.
 %% Packet Parsing (Ethernet, IP, TCP)
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
--spec filter_pcap_packets(opts(), binary(), non_neg_integer()) -> ok.
-filter_pcap_packets(Opts, <<>>, N) ->
+-spec filter_pcap_packets(opts(), binary()) -> ok.
+filter_pcap_packets(Opts=#{curr_matches := N}, <<>>) ->
     case Opts of
-        #{count := true} ->
+        #{ count := true } ->
             io:format("~b~n", [N]);
         _ ->
-        ok
+            ok
     end;
-filter_pcap_packets(Opts, Bin, N) ->
-    {Packet, Rest} = parse_packet(Opts, Bin),
-    case Packet of
-        skip ->
-            filter_pcap_packets(Opts, Rest, N);
-        _ ->
-            ShouldPrint = not (maps:get(count, Opts, false)),
-            Limit = maps:get(match_limit, Opts, infinity),
-            if
-                N >= Limit ->
-                    if
-                        not ShouldPrint ->
-                            io:format("~b~n", [N]);
-                        true ->
-                            ok
-                    end;
-                true ->
-                    Printed = print_packet(
-                        Packet,
-                        maps:get(verbose, Opts, false),
-                        maps:get(print_data, Opts, false)
-                    ),
-                    filter_pcap_packets(Opts, Rest, N + Printed)
+filter_pcap_packets(Opts, Bin) ->
+    ShouldPrintCount = maps:get(count, Opts, false),
+    case reached_match_limit(Opts) of
+        true ->
+            maybe_print(ShouldPrintCount, "~b~n", [maps:get(curr_matches, Opts)]);
+
+        false ->
+            {Packet, Rest} = parse_packet(Opts, Bin),
+            case Packet of
+                skip ->
+                    filter_pcap_packets(Opts, Rest);
+                _ ->
+                    Matched = print_packet(Packet, Opts),
+                    filter_pcap_packets(update_matches(Opts, Matched), Rest)
             end
+    end.
+
+reached_match_limit(Opts=#{curr_matches := N})
+    when is_map_key(match_limit, Opts) ->
+        N >= maps:get(match_limit, Opts);
+
+reached_match_limit(_) ->
+    false.
+
+update_matches(Opts = #{curr_matches := N}, M) ->
+    Opts#{curr_matches => N + M}.
+
+maybe_print(ShouldPrint, Fmt, Args) ->
+    if
+        ShouldPrint ->
+            io:format(Fmt, Args);
+        true ->
+            ok
     end.
 
 -spec parse_packet(opts(), binary()) -> {skip, binary()} | {packet_info(), binary()}.
