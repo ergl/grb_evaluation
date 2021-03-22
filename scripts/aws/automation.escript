@@ -229,43 +229,43 @@ do_command({pull, Path}) ->
     %     )
     % end,
 
-    PullMeasurements = fun() ->
-        pmap(
-            fun({Region, NodeIP}) ->
-                NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
-                TargetFile = io_lib:format("~s/measurements-aws-~s.bin", [Path, Region]),
-                Cmd = io_lib:format(
-                    "scp -i ~s ubuntu@~s:/home/ubuntu/measurements.bin ~s",
-                    [NodeKey, NodeIP, TargetFile]
-                ),
-                safe_cmd(Cmd),
-                ok
-            end,
-            main_region_server_nodes()
-        )
-    end,
+    % PullMeasurements = fun() ->
+    %     pmap(
+    %         fun({Region, NodeIP}) ->
+    %             NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
+    %             TargetFile = io_lib:format("~s/measurements-aws-~s.bin", [Path, Region]),
+    %             Cmd = io_lib:format(
+    %                 "scp -i ~s ubuntu@~s:/home/ubuntu/measurements.bin ~s",
+    %                 [NodeKey, NodeIP, TargetFile]
+    %             ),
+    %             safe_cmd(Cmd),
+    %             ok
+    %         end,
+    %         main_region_server_nodes()
+    %     )
+    % end,
 
-    PullCaptures = fun() ->
-        pmap(
-            fun({Region, NodeIP}) ->
-                NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
-                TargetFile = io_lib:format("~s/capture-aws-~s.cap", [Path, Region]),
-                Cmd = io_lib:format(
-                    "scp -i ~s ubuntu@~s:/home/ubuntu/capture.cap ~s",
-                    [NodeKey, NodeIP, TargetFile]
-                ),
-                safe_cmd(Cmd),
-                ok
-            end,
-            main_region_server_nodes()
-        )
-    end,
+    % PullCaptures = fun() ->
+    %     pmap(
+    %         fun({Region, NodeIP}) ->
+    %             NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
+    %             TargetFile = io_lib:format("~s/capture-aws-~s.cap", [Path, Region]),
+    %             Cmd = io_lib:format(
+    %                 "scp -i ~s ubuntu@~s:/home/ubuntu/capture.cap ~s",
+    %                 [NodeKey, NodeIP, TargetFile]
+    %             ),
+    %             safe_cmd(Cmd),
+    %             ok
+    %         end,
+    %         main_region_server_nodes()
+    %     )
+    % end,
 
     DoFun = fun() ->
         _ = PullClients(),
         % _ = PullVisibility(),
-        _ = PullMeasurements(),
-        _ = PullCaptures(),
+        % _ = PullMeasurements(),
+        % _ = PullCaptures(),
         ok
     end,
 

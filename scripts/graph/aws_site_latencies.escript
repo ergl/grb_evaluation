@@ -284,9 +284,19 @@ parse_measurements(ResultPath, Region) ->
                                 [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
                             {grb_red_coordinator, _, _, ack_in_flight} ->
                                 [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                            {grb_paxos_vnode, _, Attr}
-                                when Attr =/= message_queue_len ->
-                                    [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                            {grb_paxos_vnode, _, Attr} ->
+                                case
+                                    lists:member(
+                                        Attr,
+                                        [message_queue_len,
+                                         deliver_updates_called]
+                                    )
+                                of
+                                    false ->
+                                        [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                                    true ->
+                                        [ {Stat, Top / Bot, Max} | Acc]
+                                end;
                             {grb_dc_messages, _, _, Attr}
                                 when Attr =/= message_queue_len ->
                                     [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
