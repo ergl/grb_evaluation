@@ -366,6 +366,7 @@ do_command(join) ->
             ok
     after ?JOIN_TIMEOUT ->
         io:fwrite(standard_error, "Ring timed out after ~b milis~n", [?JOIN_TIMEOUT]),
+        alert("Ring timed out!"),
         erlang:exit(ChildPid, kill),
         error
     end;

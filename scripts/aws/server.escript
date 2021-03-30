@@ -191,6 +191,7 @@ execute_command({visibility, Region}, Config) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start_grb(Config) ->
+    _ = os_cmd("sudo sysctl net.ipv4.ip_local_port_range=\"15000 61000\""),
     IP = get_current_ip_addres(),
     INTER_DC_IP = get_public_ip_address(IP),
 

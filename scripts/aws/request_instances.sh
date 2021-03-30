@@ -3,7 +3,7 @@
 set -eo pipefail
 
 usage() {
-    echo "start_instances.sh [-hy] [options]"
+    echo "request_instances.sh [-hy] [options]"
     echo -e "  where options are:"
     echo -e "  -r <region>"
     echo -e "  -t <instance_type>"

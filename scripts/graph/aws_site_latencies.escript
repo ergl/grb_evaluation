@@ -264,7 +264,12 @@ parse_measurements(ResultPath, Region) ->
             lists:reverse(lists:sort(maps:fold(
                 fun
                     ({counter, Stat}, Total, Acc) ->
-                        [ {{counter, Stat}, Total} | Acc ];
+                        case Stat of
+                            {grb_red_coordinator, _, _, _} ->
+                                Acc;
+                            _ ->
+                                [ {{counter, Stat}, Total} | Acc ]
+                        end;
 
                     ({stat, Stat}, {Ops, Max}, Acc) ->
                         %% Make weighted average
