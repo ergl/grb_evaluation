@@ -305,7 +305,7 @@ parse_measurements(ResultPath, Region) ->
                             {grb_dc_messages, _, _, Attr}
                                 when Attr =/= message_queue_len ->
                                     [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                            {grb_dc_connection_sender, _, _, Attr} ->
+                            {grb_dc_connection_sender_socket, _, _, Attr} ->
                                 case
                                     lists:member(
                                         Attr,
