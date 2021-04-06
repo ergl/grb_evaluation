@@ -1,0 +1,6 @@
+"error","operation","count"
+"abort","put_bid","1"
+"abort","register_item","4"
+"abort","store_bid","5"
+"abort","view_bid_history","2"
+"abort","view_item","1"

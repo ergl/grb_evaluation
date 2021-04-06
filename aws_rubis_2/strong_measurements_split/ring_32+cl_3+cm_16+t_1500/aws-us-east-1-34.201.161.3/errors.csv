@@ -1,0 +1,5 @@
+"error","operation","count"
+"abort","get_auctions_ready_for_close","1"
+"abort","register_item","80"
+"abort","store_bid","1"
+"abort","view_item","4"
