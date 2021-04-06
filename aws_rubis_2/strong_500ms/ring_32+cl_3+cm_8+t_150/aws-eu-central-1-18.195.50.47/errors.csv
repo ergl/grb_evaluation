@@ -1,0 +1,8 @@
+"error","operation","count"
+"abort","get_auctions_ready_for_close","5"
+"abort","put_bid","32"
+"abort","register_item","9"
+"abort","store_bid","36"
+"abort","store_buy_now","16"
+"abort","view_bid_history","8"
+"abort","view_item","26"
