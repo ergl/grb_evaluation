@@ -443,8 +443,21 @@ do_command(rebuild_clients, _, ClusterMap) ->
     ok;
 
 do_command(cleanup_latencies, _, ClusterMap) ->
-    ServerNodes = server_nodes(ClusterMap),
-    io:format("~p~n", [do_in_nodes_par(server_command("tclean"), ServerNodes)]),
+    ok = maps:fold(
+        fun(ClusterName, #{servers := ClusterServers}, _Acc) ->
+            io:format(
+                "~p~n",
+                [
+                    do_in_nodes_par(
+                        server_command("tclean", atom_to_list(ClusterName)),
+                        ClusterServers
+                    )
+                ]
+            )
+        end,
+        ok,
+        ClusterMap
+    ),
     ok;
 
 do_command(cleanup, Args, ClusterMap) ->

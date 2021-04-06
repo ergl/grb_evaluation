@@ -38,7 +38,7 @@
     {restart, false},
     {rebuild, false},
     {tc, true},
-    {tclean, false},
+    {tclean, true},
     {join, false},
     {connect_dcs, false},
     {measurements, false},
@@ -134,20 +134,21 @@ execute_command(rebuild, Config) ->
 execute_command({tc, ClusterName}, Config) ->
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
     Cmd = io_lib:format(
-        "escript -c -n ./sources/~s/bin/build_tc_rules.escript -c ~s -f /home/borja.deregil/cluster.config",
+        "escript -c -n ./sources/~s/bin/build_tc_rules.escript -c ~s -f /home/borja.deregil/cluster.config -r run",
         [Branch, ClusterName]
     ),
     os_cmd(Cmd),
     ok;
-execute_command(tclean, _Config) ->
-    Iface =
-        case inet:gethostname() of
-            {ok, "apollo-2-4"} -> "eth0";
-            {ok, "apollo-1-6"} -> "enp1s0.1004";
-            _ -> "enp1s0"
-        end,
-    os_cmd(io_lib:format("sudo tc qdisc del dev ~s root", [Iface])),
+
+execute_command({tclean, ClusterName}, Config) ->
+    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
+    Cmd = io_lib:format(
+        "escript -c -n ./sources/~s/bin/build_tc_rules.escript -c ~s -f /home/borja.deregil/cluster.config -r cleanup",
+        [Branch, ClusterName]
+    ),
+    os_cmd(Cmd),
     ok;
+
 execute_command(join, Config) ->
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
     Cmd = io_lib:format(
