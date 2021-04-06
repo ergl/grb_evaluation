@@ -25,7 +25,8 @@
 -define(DEFAULT_RED_PRUNE, 20).
 -define(DEFAULT_RED_ABORT_DELAY_MS, 100).
 -define(DEFAULT_RED_COORD_SIZE, 50).
--define(DEFAULT_VISIBILITY_RATE, 100).
+-define(DEFAULT_INTER_DC_PORT, 8989).
+-define(DEFAULT_VISIBILITY_RATE, 1000).
 -define(DEFAULT_BLUE_STALL_MS, 0).
 -define(REPO_URL, "https://github.com/ergl/grb.git").
 -define(COMMANDS, [
@@ -40,6 +41,7 @@
     {tclean, false},
     {join, false},
     {connect_dcs, false},
+    {measurements, false},
     {visibility, false}
 ]).
 
@@ -161,6 +163,15 @@ execute_command(connect_dcs, Config) ->
     ]),
     os_cmd(Cmd),
     ok;
+execute_command(measurements, Config) ->
+    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
+    Cmd =
+        io_lib:format(
+            "./sources/~s/bin/get_measurements.escript -f /home/borja.deregil/cluster.config -o /home/borja.deregil/measurements.bin",
+            [Branch]
+        ),
+    os_cmd(Cmd),
+    ok;
 execute_command(visibility, Config) ->
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
     Cmd = io_lib:format(
@@ -175,7 +186,10 @@ execute_command(visibility, Config) ->
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 start_grb(Config) ->
+    _ = os_cmd("sudo sysctl net.ipv4.ip_local_port_range=\"15000 61000\""),
     IP = get_current_ip_addres(),
+    INTER_DC_IP = IP,
+
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
     Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
 
@@ -238,10 +252,14 @@ start_grb(Config) ->
     RED_PRUNE_INTERVAL = get_config_key(red_prune_interval, Config, ?DEFAULT_RED_PRUNE),
     RED_ABORT_INTERVAL_MS = get_config_key(red_abort_interval_ms, Config, ?DEFAULT_RED_ABORT_DELAY_MS),
     RED_COORD_SIZE = get_config_key(red_coord_pool_size, Config, ?DEFAULT_RED_COORD_SIZE),
-    VISIBILITY_RATE = get_config_key(visibility_sample_rate, Config, ?DEFAULT_VISIBILITY_RATE),
+    VISIBILITY_RATE = get_config_key(
+        visibility_sample_rate,
+        Config,
+        ?DEFAULT_VISIBILITY_RATE
+    ),
 
     EnvVarString = io_lib:format(
-        "TCP_ID_LEN=~b INTER_DC_SENDER_POOL_SIZE=~b OP_LOG_READERS=~b VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b PARTITION_RETRY_MS=~b REPLICATION_INTERVAL_MS=~b PREPARED_BLUE_STALE_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b FAULT_TOLERANCE_FACTOR=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_HB_SCHEDULE_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_ABORT_INTERVAL_MS=~b RED_COORD_POOL_SIZE=~b VISIBILITY_RATE=~b IP=~s",
+        "TCP_ID_LEN=~b INTER_DC_SENDER_POOL_SIZE=~b OP_LOG_READERS=~b VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b PARTITION_RETRY_MS=~b REPLICATION_INTERVAL_MS=~b PREPARED_BLUE_STALE_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b FAULT_TOLERANCE_FACTOR=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_HB_SCHEDULE_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_ABORT_INTERVAL_MS=~b RED_COORD_POOL_SIZE=~b VISIBILITY_RATE=~b IP=~s INTER_DC_IP=~s",
         [
             TCP_ID_LEN,
             INTER_DC_SENDER_POOL_SIZE,
@@ -263,7 +281,8 @@ start_grb(Config) ->
             RED_ABORT_INTERVAL_MS,
             RED_COORD_SIZE,
             VISIBILITY_RATE,
-            IP
+            IP,
+            INTER_DC_IP
         ]
     ),
 

@@ -11,7 +11,9 @@
     unicode:characters_to_list(io_lib:format("~s/execute-in-nodes.sh", [?SELF_DIR]))
 ).
 
--define(CONFIG_DIR, unicode:characters_to_list(io_lib:format("~s/configuration", [?SELF_DIR]))).
+-define(CONFIG_DIR,
+    unicode:characters_to_list(io_lib:format("~s/configuration", [?SELF_DIR]))
+).
 
 -define(GRB_BRANCH, "master").
 -define(LASP_BENCH_BRANCH, "bench_grb").
@@ -43,11 +45,17 @@
 
     {restart, false},
     {recompile, false},
+    {recompile_clients, false},
     {rebuild, false},
+    {rebuild_grb, false},
+    {rebuild_clients, false},
     {cleanup_latencies, false},
     {cleanup, false},
-    {pull, true},
-    {visibility, true}
+    {cleanup_servers, false},
+    {cleanup_clients, false},
+    {visibility, true},
+    {measurements, true},
+    {pull, true}
 ]).
 
 usage() ->
@@ -122,8 +130,8 @@ main(Args) ->
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 %% Commands
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 prompt_gate(Msg, Default, Fun) ->
     case prompt(Msg, Default) of
@@ -204,18 +212,26 @@ do_command(brutal_client_kill, _, ClusterMap) ->
     io:format("~p~n", [Res]),
     ok;
 do_command(brutal_server_kill, _, ClusterMap) ->
-    NodeNames = server_nodes(ClusterMap),
-    Res = do_in_nodes_par("pkill -9 beam", NodeNames),
-    io:format("~p~n", [Res]),
+    io:format("Will abruptly stop nodes~n"),
+    prompt_gate("Are you sure you want to proceed?", default_no, fun() ->
+        NodeNames = server_nodes(ClusterMap),
+        Res = do_in_nodes_par("pkill -9 beam", NodeNames),
+        io:format("~p~n", [Res])
+    end),
     ok;
+
 do_command(check, _, ClusterMap) ->
     ok = check_nodes(ClusterMap);
+
 do_command(sync, _, ClusterMap) ->
     ok = sync_nodes(ClusterMap);
+
 do_command(server, _, ClusterMap) ->
     ok = prepare_server(ClusterMap);
+
 do_command(clients, _, ClusterMap) ->
     ok = prepare_lasp_bench(ClusterMap);
+
 do_command(prologue, Arg, ClusterMap) ->
     ok = check_nodes(ClusterMap),
     ok = sync_nodes(ClusterMap),
@@ -224,13 +240,16 @@ do_command(prologue, Arg, ClusterMap) ->
     ok = do_command(latencies, Arg, ClusterMap),
     alert("Prologue finished!"),
     ok;
+
 do_command(start, _, ClusterMap) ->
     Rep = do_in_nodes_par(server_command("start"), server_nodes(ClusterMap)),
     io:format("~p~n", [Rep]),
     ok;
+
 do_command(stop, _, ClusterMap) ->
     do_in_nodes_par(server_command("stop"), server_nodes(ClusterMap)),
     ok;
+
 do_command(prepare, Arg, ClusterMap) ->
     ok = do_command(join, Arg, ClusterMap),
     ok = do_command(connect_dcs, Arg, ClusterMap),
@@ -241,15 +260,14 @@ do_command(join, _, ClusterMap) ->
     Parent = self(),
     Reference = erlang:make_ref(),
     ChildFun = fun() ->
-        Reply = do_in_nodes_seq(server_command("join"), [hd(NodeNames)]),
-        Parent ! {Reference, Reply}
+        do_in_nodes_seq(server_command("join"), [hd(NodeNames)]),
+        Parent ! {ok, Reference}
     end,
     Start = erlang:timestamp(),
     ChildPid = erlang:spawn(ChildFun),
     receive
-        {Reference, Reply} ->
+        {ok, Reference} ->
             End = erlang:timestamp(),
-            io:format("~p~n", [Reply]),
             io:format("Ring done after ~p~n", [timer:now_diff(End, Start)]),
             ok
     after ?JOIN_TIMEOUT ->
@@ -257,6 +275,7 @@ do_command(join, _, ClusterMap) ->
         erlang:exit(ChildPid, kill),
         error
     end;
+
 do_command(connect_dcs, _, ClusterMap) ->
     [MainNode | _] = server_nodes(ClusterMap),
     Rep = do_in_nodes_seq(
@@ -265,6 +284,7 @@ do_command(connect_dcs, _, ClusterMap) ->
     ),
     io:format("~p~n", [Rep]),
     ok;
+
 do_command(grb_load, _, ClusterMap) ->
     pmap(
         fun(Node) ->
@@ -304,6 +324,7 @@ do_command(grb_load, _, ClusterMap) ->
         )
     ),
     ok;
+
 do_command(rubis_load, _, ClusterMap) ->
     pmap(
         fun(Node) ->
@@ -343,6 +364,7 @@ do_command(rubis_load, _, ClusterMap) ->
         )
     ),
     ok;
+
 do_command(latencies, _, ClusterMap) ->
     ok = maps:fold(
         fun(ClusterName, #{servers := ClusterServers}, _Acc) ->
@@ -361,6 +383,7 @@ do_command(latencies, _, ClusterMap) ->
         ClusterMap
     ),
     ok;
+
 do_command(bench, _, ClusterMap) ->
     NodeNames = client_nodes(ClusterMap),
     BootstrapInfo = build_bootstrap_info(ClusterMap),
@@ -382,29 +405,62 @@ do_command(bench, _, ClusterMap) ->
     ),
     alert("Benchmark finished!"),
     ok;
-do_command(recompile, _, ClusterMap) ->
-    io:format("~p~n", [do_in_nodes_par(server_command("recompile"), server_nodes(ClusterMap))]),
-    ok;
-do_command(restart, _, ClusterMap) ->
-    io:format("~p~n", [do_in_nodes_par(server_command("restart"), server_nodes(ClusterMap))]),
-    ok;
-do_command(rebuild, _, ClusterMap) ->
-    DBNodes = server_nodes(ClusterMap),
-    ClientNodes = client_nodes(ClusterMap),
 
+do_command(recompile, _, ClusterMap) ->
+    io:format(
+        "~p~n",
+        [do_in_nodes_par(server_command("recompile"), server_nodes(ClusterMap))]
+    ),
+    ok;
+
+do_command(recompile_clients, _, ClusterMap) ->
+    io:format(
+        "~p~n",
+        [do_in_nodes_par(server_command("recompile"), client_nodes(ClusterMap))]
+    ),
+    ok;
+
+do_command(restart, _, ClusterMap) ->
+    io:format(
+        "~p~n",
+        [do_in_nodes_par(server_command("restart"), server_nodes(ClusterMap))]
+    ),
+    ok;
+
+do_command(rebuild, Args, ClusterMap) ->
+    do_command(rebuild_grb, Args, ClusterMap),
+    do_command(rebuild_clients, Args, ClusterMap),
+    ok;
+
+do_command(rebuild_grb, _, ClusterMap) ->
+    DBNodes = server_nodes(ClusterMap),
     do_in_nodes_par(server_command("rebuild"), DBNodes),
+    ok;
+
+do_command(rebuild_clients, _, ClusterMap) ->
+    ClientNodes = client_nodes(ClusterMap),
     do_in_nodes_par(client_command("rebuild"), ClientNodes),
     ok;
+
 do_command(cleanup_latencies, _, ClusterMap) ->
     ServerNodes = server_nodes(ClusterMap),
     io:format("~p~n", [do_in_nodes_par(server_command("tclean"), ServerNodes)]),
     ok;
-do_command(cleanup, _, ClusterMap) ->
-    AllNodes = all_nodes(ClusterMap),
-    ServerNodes = server_nodes(ClusterMap),
 
+do_command(cleanup, Args, ClusterMap) ->
+    do_command(cleanup_servers, Args, ClusterMap),
+    do_command(cleanup_clients, Args, ClusterMap),
+    ok;
+
+do_command(cleanup_servers, _, ClusterMap) ->
+    ServerNodes = server_nodes(ClusterMap),
     io:format("~p~n", [do_in_nodes_par(server_command("tclean"), ServerNodes)]),
-    io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", AllNodes)]),
+    io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", ServerNodes)]),
+    ok;
+
+do_command(cleanup_clients, _, ClusterMap) ->
+    ClientNodes = client_nodes(ClusterMap),
+    io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", ClientNodes)]),
     ok;
 
 do_command(visibility, {true, Path}, ClusterMap) ->
@@ -438,11 +494,44 @@ do_command(visibility, {true, Path}, ClusterMap) ->
                 DoFun
             )
     end,
+    ok;
+
+do_command(measurements, {true, Path}, ClusterMap) ->
+    ServerNodes = server_nodes(ClusterMap),
+    io:format("~p~n", [do_in_nodes_par(server_command("measurements"), ServerNodes)]),
+    DoFun = fun() ->
+        pmap(
+            fun(Node) ->
+                NodeStr = atom_to_list(Node),
+                Cmd0 = io_lib:format("mkdir -p ~s", [Path]),
+                safe_cmd(Cmd0),
+                TargetFile = io_lib:format("~s/~s.bin", [Path, NodeStr]),
+                Cmd = io_lib:format(
+                    "scp -i ~s borja.deregil@~s:/home/borja.deregil/measurements.bin ~s",
+                    [?SSH_PRIV_KEY, NodeStr, TargetFile]
+                ),
+                safe_cmd(Cmd),
+                ok
+            end,
+            ServerNodes
+        )
+    end,
+    case filelib:is_dir(Path) of
+        false ->
+            DoFun(),
+            ok;
+        true ->
+            prompt_gate(
+                io_lib:format("Target directory ~s already exists, do you want to overwrite it?", [Path]),
+                default_no,
+                DoFun
+            )
+    end,
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%% Command Impl
+%% Command Implementation
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 check_nodes(ClusterMap) ->
     io:format("Checking that all nodes are up and on the correct governor mode~n"),
@@ -498,8 +587,8 @@ prepare_lasp_bench(ClusterMap) ->
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 %% Util
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 server_command(Command) ->
     io_lib:format("./server.escript -v -f /home/borja.deregil/cluster.config -c ~s", [Command]).
