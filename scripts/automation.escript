@@ -461,13 +461,13 @@ do_command(cleanup_latencies, _, ClusterMap) ->
     ok;
 
 do_command(cleanup, Args, ClusterMap) ->
+    do_command(cleanup_latencies, Args, ClusterMap),
     do_command(cleanup_servers, Args, ClusterMap),
     do_command(cleanup_clients, Args, ClusterMap),
     ok;
 
 do_command(cleanup_servers, _, ClusterMap) ->
     ServerNodes = server_nodes(ClusterMap),
-    io:format("~p~n", [do_in_nodes_par(server_command("tclean"), ServerNodes)]),
     io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", ServerNodes)]),
     ok;
 
