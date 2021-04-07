@@ -66,6 +66,11 @@ mergeSite() {
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "writeonly-red-barrier_latencies.csv"
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "read-write-red-barrier_latencies.csv"
 
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "writeonly-red-time_latencies.csv"
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "writeonly-red-time_start_latencies.csv"
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "writeonly-red-time_update_latencies.csv"
+    mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "writeonly-red-time_commit_latencies.csv"
+
     # Rubis operations
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "register-user_latencies.csv"
     mergeSiteLatency "${folder}" "${glob}" "${token_dir}" "browse-categories_latencies.csv"

@@ -41,7 +41,7 @@
     {tclean, true},
     {join, false},
     {connect_dcs, false},
-    {measurements, false},
+    {measurements, true},
     {visibility, false}
 ]).
 
@@ -164,13 +164,12 @@ execute_command(connect_dcs, Config) ->
     ]),
     os_cmd(Cmd),
     ok;
-execute_command(measurements, Config) ->
+execute_command({measurements, ClusterName}, Config) ->
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    Cmd =
-        io_lib:format(
-            "./sources/~s/bin/get_measurements.escript -f /home/borja.deregil/cluster.config -o /home/borja.deregil/measurements.bin",
-            [Branch]
-        ),
+    Cmd = io_lib:format(
+        "escript -c -n ./sources/~s/bin/get_measurements.escript -c ~s -f /home/borja.deregil/cluster.config -o /home/borja.deregil/measurements.bin",
+        [Branch, ClusterName]
+    ),
     os_cmd(Cmd),
     ok;
 execute_command(visibility, Config) ->

@@ -158,6 +158,7 @@ get_default_latencies <- function(Dir) {
     red_median_latency_ronly <- r$median
 
     r <- latency_for_file(sprintf("%s/writeonly-red_latencies.csv", Dir))
+    # r <- latency_for_file(sprintf("%s/writeonly-red-time_latencies.csv", Dir))
     red_mean_latency_wonly <- r$mean
     red_median_latency_wonly <- r$median
 

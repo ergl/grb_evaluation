@@ -54,7 +54,7 @@
     {cleanup_servers, false},
     {cleanup_clients, false},
     {visibility, true},
-    {measurements, true},
+    {measurements, false},
     {pull, true}
 ]).
 
@@ -166,32 +166,59 @@ do_command(reboot, _, ClusterMap) ->
     end);
 
 do_command(pull, {true, Path}, ClusterMap) ->
-    DoFun = fun() ->
+    PullClients = fun() ->
         pmap(
-        fun(Node) ->
-            NodeStr = atom_to_list(Node),
-            TargetPath = io_lib:format("~s/~s", [Path, NodeStr]),
-            Cmd0 = io_lib:format("mkdir -p ~s", [TargetPath]),
-            safe_cmd(Cmd0),
-            Cmd1 = io_lib:format(
-                "scp -i ~s borja.deregil@~s:/home/borja.deregil//sources/lasp-bench/tests/current/* ~s",
-                [?SSH_PRIV_KEY, NodeStr, TargetPath]
-            ),
-            safe_cmd(Cmd1),
-            Cmd2 = io_lib:format(
-                "scp -i ~s borja.deregil@~s:/home/borja.deregil/cluster.config ~s",
-                [?SSH_PRIV_KEY, NodeStr, TargetPath]
-            ),
-            safe_cmd(Cmd2),
-            Cmd3 = io_lib:format(
-                "scp -i ~s borja.deregil@~s:/home/borja.deregil/rubis_properties.config ~s",
-                [?SSH_PRIV_KEY, NodeStr, TargetPath]
-            ),
-            safe_cmd(Cmd3),
-            ok
-        end,
-        client_nodes(ClusterMap)
+            fun(Node) ->
+                NodeStr = atom_to_list(Node),
+                TargetPath = io_lib:format("~s/~s", [Path, NodeStr]),
+                Cmd0 = io_lib:format("mkdir -p ~s", [TargetPath]),
+                safe_cmd(Cmd0),
+                Cmd1 = io_lib:format(
+                    "scp -i ~s borja.deregil@~s:/home/borja.deregil//sources/lasp-bench/tests/current/* ~s",
+                    [?SSH_PRIV_KEY, NodeStr, TargetPath]
+                ),
+                safe_cmd(Cmd1),
+                Cmd2 = io_lib:format(
+                    "scp -i ~s borja.deregil@~s:/home/borja.deregil/cluster.config ~s",
+                    [?SSH_PRIV_KEY, NodeStr, TargetPath]
+                ),
+                safe_cmd(Cmd2),
+                Cmd3 = io_lib:format(
+                    "scp -i ~s borja.deregil@~s:/home/borja.deregil/rubis_properties.config ~s",
+                    [?SSH_PRIV_KEY, NodeStr, TargetPath]
+                ),
+                safe_cmd(Cmd3),
+                ok
+            end,
+            client_nodes(ClusterMap)
         )
+    end,
+
+    PullMeasurements = fun() ->
+        pmap(
+            fun({Cluster, Node}) ->
+                ClusterStr = atom_to_list(Cluster),
+                NodeStr = atom_to_list(Node),
+                TargetFile =
+                    io_lib:format(
+                        "~s/measurements-apollo-~s.bin",
+                        [Path, ClusterStr]
+                    ),
+                Cmd = io_lib:format(
+                    "scp -i ~s borja.deregil@~s:/home/borja.deregil/measurements.bin ~s",
+                    [?SSH_PRIV_KEY, NodeStr, TargetFile]
+                ),
+                safe_cmd(Cmd),
+                ok
+            end,
+            main_server_nodes(ClusterMap)
+        )
+    end,
+
+    DoFun = fun() ->
+        _ = PullClients(),
+        _ = PullMeasurements(),
+        ok
     end,
 
     case filelib:is_dir(Path) of
@@ -509,37 +536,16 @@ do_command(visibility, {true, Path}, ClusterMap) ->
     end,
     ok;
 
-do_command(measurements, {true, Path}, ClusterMap) ->
-    ServerNodes = server_nodes(ClusterMap),
-    io:format("~p~n", [do_in_nodes_par(server_command("measurements"), ServerNodes)]),
-    DoFun = fun() ->
-        pmap(
-            fun(Node) ->
-                NodeStr = atom_to_list(Node),
-                Cmd0 = io_lib:format("mkdir -p ~s", [Path]),
-                safe_cmd(Cmd0),
-                TargetFile = io_lib:format("~s/~s.bin", [Path, NodeStr]),
-                Cmd = io_lib:format(
-                    "scp -i ~s borja.deregil@~s:/home/borja.deregil/measurements.bin ~s",
-                    [?SSH_PRIV_KEY, NodeStr, TargetFile]
-                ),
-                safe_cmd(Cmd),
-                ok
-            end,
-            ServerNodes
-        )
-    end,
-    case filelib:is_dir(Path) of
-        false ->
-            DoFun(),
-            ok;
-        true ->
-            prompt_gate(
-                io_lib:format("Target directory ~s already exists, do you want to overwrite it?", [Path]),
-                default_no,
-                DoFun
-            )
-    end,
+do_command(measurements, _, ClusterMap) ->
+    maps:fold(
+        fun(ClusterName, #{servers := ServerNodes}, _) ->
+            MainNode = hd(lists:usort(ServerNodes)),
+            do_in_nodes_seq(server_command("measurements", ClusterName), [MainNode]),
+            ok
+        end,
+        ok,
+        ClusterMap
+    ),
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -648,6 +654,14 @@ all_nodes(Map) ->
 
 server_nodes(Map) ->
     lists:usort(lists:flatten([N || #{servers := N} <- maps:values(Map)])).
+
+main_server_nodes(Map) ->
+    lists:usort(
+        [
+            {ClusterName, hd(lists:usort(N))}
+            || {ClusterName, #{servers := N}} <- maps:to_list(Map)
+        ]
+    ).
 
 client_nodes(Map) ->
     lists:usort(lists:flatten([N || #{clients := N} <- maps:values(Map)])).

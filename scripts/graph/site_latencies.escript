@@ -13,7 +13,7 @@ usage() ->
     Name = filename:basename(escript:script_name()),
     ok = io:fwrite(
         standard_error,
-        "Usage: ~s /path/to/results [-r] [-f <config-file>] [-s --server-reports]~n",
+        "Usage: ~s /path/to/results [-r] [-m | --measurements] [-f <config-file>] [-s --server-reports]~n",
         [Name]
     ).
 
@@ -97,7 +97,9 @@ main(Args) ->
                 end,
                 Reports
             ),
-            io:format("================================~n"),
+
+            %% Report on measurements / visibility. Requires results to be present locally.
+            ok = maybe_print_measurements(ClusterMap, ResultPath, Opt),
             true = ets:delete(?CONF)
     end.
 
@@ -116,6 +118,40 @@ config_file(Path) ->
     Matches = nonl(os:cmd(FindConfig)),
     hd(string:split(Matches, "\n", all)).
 
+maybe_print_measurements(ClusterMap, ResultPath, #{measurements := true}) ->
+    VisibilityReports = pmap(
+        fun(Cluster) ->
+            ClusterStr = atom_to_list(Cluster),
+            Rep = parse_measurements(ResultPath, ClusterStr),
+            {ClusterStr, Rep}
+        end,
+        maps:keys(ClusterMap)
+    ),
+    FoldFun =
+        fun
+            ({StatName, Avg, Max}, Acc) ->
+                io_lib:format(
+                    "~w,~f,~p~n~s",
+                    [StatName, Avg, Max, Acc]
+                );
+            ({StatName, Total}, Acc) ->
+                io_lib:format(
+                    "~w,~p~n~s",
+                    [StatName, Total, Acc]
+                )
+        end,
+    io:format("================================~n"),
+    lists:foreach(
+        fun({ClusterStr, Values}) ->
+            Content = lists:foldl(FoldFun, "", Values),
+            Header = "stat,avg,max",
+            io:format("~s,~s~n~s~n", [string:to_upper(ClusterStr), Header, Content])
+        end,
+        VisibilityReports
+    ),
+    io:format("================================~n");
+maybe_print_measurements(_, _, _) ->
+    ok.
 
 parse_global_latencies(ResultPath) ->
     MergeAll = io_lib:format("~s ~s", [
@@ -225,6 +261,11 @@ parse_latencies(ResultPath, ClusterStr, BenchNodes) ->
     _ = MergeLatencies("readonly-red-track_coordinator_commit_latencies.csv"),
     _ = MergeLatencies("readonly-red-track_coordinator_commit_barrier_latencies.csv"),
 
+    _ = MergeLatencies("writeonly-red-time_latencies.csv"),
+    _ = MergeLatencies("writeonly-red-time_start_latencies.csv"),
+    _ = MergeLatencies("writeonly-red-time_update_latencies.csv"),
+    _ = MergeLatencies("writeonly-red-time_commit_latencies.csv"),
+
     % Rubis latencies
     _ = MergeLatencies("register-user_latencies.csv"),
     _ = MergeLatencies("browse-categories_latencies.csv"),
@@ -255,6 +296,111 @@ parse_latencies(ResultPath, ClusterStr, BenchNodes) ->
         ]),
 
     nonl(os:cmd(ReadResult)).
+
+parse_measurements(ResultPath, Region) ->
+    Path = unicode:characters_to_list(io_lib:format("measurements-aws-~s.bin", [Region])),
+    case file:read_file(filename:join(ResultPath, Path)) of
+        {error, _} ->
+            [];
+        {ok, Bin} ->
+            FoldFun =
+                fun(_Node, Values, Acc) ->
+                    lists:foldl(
+                        fun
+                            %% Rolling max, plus accumulate ops for weighted mean later
+                            ({stat, Name, #{ops := Ops, avg := Avg, max := Max}}, InnerAcc)
+                                when Ops > 0 ->
+                                    maps:update_with(
+                                        {stat, Name},
+                                        fun({Operations, Rollmax}) ->
+                                            {[{Avg, Ops} | Operations], max(Rollmax, Max)}
+                                        end,
+                                        {[{Avg, Ops}], Max},
+                                        InnerAcc
+                                    );
+
+                            ({counter, Name, Total}, InnerAcc) ->
+                                maps:update_with(
+                                    {counter, Name},
+                                    fun(Old) -> Old + Total end,
+                                    Total,
+                                    InnerAcc
+                                );
+
+                            %% Ignore everything else for now
+                            (_, InnerAcc) ->
+                                InnerAcc
+                        end,
+                        Acc,
+                        Values
+                    )
+                end,
+            lists:reverse(lists:sort(maps:fold(
+                fun
+                    ({counter, Stat}, Total, Acc) ->
+                        case Stat of
+                            {grb_red_coordinator, _, _, _} ->
+                                Acc;
+                            _ ->
+                                [ {{counter, Stat}, Total} | Acc ]
+                        end;
+
+                    ({stat, Stat}, {Ops, Max}, Acc) ->
+                        %% Make weighted average
+                        {Top, Bot} = lists:foldl(
+                            fun({Avg, N}, {T, B}) ->
+                                {(Avg * N) + T, B + N}
+                            end,
+                            {0, 0},
+                            Ops
+                        ),
+                        case Stat of
+                            {grb_red_coordinator, _} ->
+                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                            {grb_red_coordinator, _, _} ->
+                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                            {grb_red_coordinator, _, _, sent_to_ack} ->
+                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                            {grb_red_coordinator, _, _, ack_in_flight} ->
+                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                            {grb_paxos_vnode, _, Attr} ->
+                                case
+                                    lists:member(
+                                        Attr,
+                                        [message_queue_len,
+                                         deliver_updates_called]
+                                    )
+                                of
+                                    false ->
+                                        [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                                    true ->
+                                        [ {Stat, Top / Bot, Max} | Acc]
+                                end;
+                            {grb_dc_messages, _, _, Attr}
+                                when Attr =/= message_queue_len ->
+                                    [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                            {grb_dc_connection_sender_socket, _, _, Attr} ->
+                                case
+                                    lists:member(
+                                        Attr,
+                                        [message_queue_len,
+                                         pending_queue_len,
+                                         pending_queue_bytes]
+                                    )
+                                of
+                                    false ->
+                                        [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                                    true ->
+                                        [ {Stat, Top / Bot, Max} | Acc]
+                                end;
+                            _ ->
+                                [ {Stat, Top / Bot, Max} | Acc]
+                        end
+                end,
+                [],
+                maps:fold(FoldFun, #{}, binary_to_term(Bin))
+            )))
+    end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% util
@@ -307,6 +453,10 @@ parse_args_inner([[$- | Flag] | Args], Acc) ->
             parse_args_inner(Args, Acc#{server_reports => true});
         [$r] ->
             parse_args_inner(Args, Acc#{rubis => true});
+        [$m] ->
+            parse_args_inner(Args, Acc#{measurements => true});
+        "-measurements" ->
+            parse_args_inner(Args, Acc#{measurements => true});
         [$h] ->
             usage(),
             halt(0);
