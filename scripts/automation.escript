@@ -194,30 +194,30 @@ do_command(pull, {true, Path}, ClusterMap) ->
         )
     end,
 
-    PullMeasurements = fun() ->
-        pmap(
-            fun({Cluster, Node}) ->
-                ClusterStr = atom_to_list(Cluster),
-                NodeStr = atom_to_list(Node),
-                TargetFile =
-                    io_lib:format(
-                        "~s/measurements-apollo-~s.bin",
-                        [Path, ClusterStr]
-                    ),
-                Cmd = io_lib:format(
-                    "scp -i ~s borja.deregil@~s:/home/borja.deregil/measurements.bin ~s",
-                    [?SSH_PRIV_KEY, NodeStr, TargetFile]
-                ),
-                safe_cmd(Cmd),
-                ok
-            end,
-            main_server_nodes(ClusterMap)
-        )
-    end,
+    % PullMeasurements = fun() ->
+    %     pmap(
+    %         fun({Cluster, Node}) ->
+    %             ClusterStr = atom_to_list(Cluster),
+    %             NodeStr = atom_to_list(Node),
+    %             TargetFile =
+    %                 io_lib:format(
+    %                     "~s/measurements-apollo-~s.bin",
+    %                     [Path, ClusterStr]
+    %                 ),
+    %             Cmd = io_lib:format(
+    %                 "scp -i ~s borja.deregil@~s:/home/borja.deregil/measurements.bin ~s",
+    %                 [?SSH_PRIV_KEY, NodeStr, TargetFile]
+    %             ),
+    %             safe_cmd(Cmd),
+    %             ok
+    %         end,
+    %         main_server_nodes(ClusterMap).
+    %     )
+    % end,
 
     DoFun = fun() ->
         _ = PullClients(),
-        _ = PullMeasurements(),
+        % _ = PullMeasurements(),
         ok
     end,
 
@@ -443,7 +443,7 @@ do_command(recompile, _, ClusterMap) ->
 do_command(recompile_clients, _, ClusterMap) ->
     io:format(
         "~p~n",
-        [do_in_nodes_par(server_command("recompile"), client_nodes(ClusterMap))]
+        [do_in_nodes_par(client_command("recompile"), client_nodes(ClusterMap))]
     ),
     ok;
 

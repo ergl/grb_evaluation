@@ -297,8 +297,9 @@ parse_latencies(ResultPath, ClusterStr, BenchNodes) ->
 
     nonl(os:cmd(ReadResult)).
 
-parse_measurements(ResultPath, Region) ->
-    Path = unicode:characters_to_list(io_lib:format("measurements-aws-~s.bin", [Region])),
+parse_measurements(ResultPath, Cluster) ->
+    Path =
+        unicode:characters_to_list(io_lib:format("measurements-apollo-~s.bin", [Cluster])),
     case file:read_file(filename:join(ResultPath, Path)) of
         {error, _} ->
             [];
