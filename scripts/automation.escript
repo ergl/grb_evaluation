@@ -361,7 +361,12 @@ do_command(rubis_load, _, ClusterMap) ->
     ),
     Targets = maps:fold(
         fun(_, #{servers := S, clients := C}, Acc) ->
-            [ { hd(lists:sort(S)), hd(lists:sort(C)) } | Acc ]
+            case {S, C} of
+                {[_ | _], [_ | _]} ->
+                    [ { hd(lists:sort(S)), hd(lists:sort(C)) } | Acc ];
+                _ ->
+                    Acc
+            end
         end,
         [],
         ClusterMap
