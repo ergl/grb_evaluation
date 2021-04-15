@@ -185,28 +185,43 @@ do_command({pull, Path}) ->
         fun({Region, NodeIP}) ->
             NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
             TargetPath = io_lib:format("~s/aws-~s-~s", [Path, Region, NodeIP]),
-            Cmd0 = io_lib:format("mkdir -p ~s", [TargetPath]),
-            safe_cmd(Cmd0),
-            Cmd1 = io_lib:format(
-                "scp -i ~s ubuntu@~s:/home/ubuntu/sources/lasp-bench/tests/current/* ~s",
+
+            %% Create the directory if it doesn't exist
+            safe_cmd(io_lib:format("mkdir -p ~s", [TargetPath])),
+
+            %% Compress the results before returning, speeds up transfer
+            CompressFun = client_command("compress"),
+            safe_cmd(io_lib:format(
+                "~s -i ~s \"~s\" ~s",
+                [?IN_NODES_PATH, NodeKey, CompressFun(Region), NodeIP]
+            )),
+
+            %% Transfer results (-C compresses on flight)
+            safe_cmd(io_lib:format(
+                "scp -C -i ~s ubuntu@~s:/home/ubuntu/results.tar.gz ~s",
                 [NodeKey, NodeIP, TargetPath]
-            ),
-            safe_cmd(Cmd1),
-            Cmd2 = io_lib:format(
+            )),
+
+            safe_cmd(io_lib:format(
                 "scp -i ~s ubuntu@~s:/home/ubuntu/cluster.config ~s",
                 [NodeKey, NodeIP, TargetPath]
-            ),
-            safe_cmd(Cmd2),
-            Cmd3 = io_lib:format(
+            )),
+
+            safe_cmd(io_lib:format(
                 "scp -i ~s ubuntu@~s:/home/ubuntu/pcluster.config ~s",
                 [NodeKey, NodeIP, TargetPath]
-            ),
-            safe_cmd(Cmd3),
-            Cmd4 = io_lib:format(
+            )),
+
+            safe_cmd(io_lib:format(
                 "scp -i ~s ubuntu@~s:/home/ubuntu/~s ~s",
                 [NodeKey, NodeIP, ?RUBIS_PROPS, TargetPath]
-            ),
-            safe_cmd(Cmd4),
+            )),
+
+            %% Uncompress results
+            safe_cmd(io_lib:format(
+                "tar -xzf ~s/results.tar.gz -C ~s --strip-components 1",
+                [TargetPath, TargetPath]
+            )),
             ok
         end,
         client_nodes()
@@ -218,43 +233,40 @@ do_command({pull, Path}) ->
     %         fun({Region, NodeIP}) ->
     %             NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
     %             TargetFile = io_lib:format("~s/visibility-aws-~s.bin", [Path, Region]),
-    %             Cmd = io_lib:format(
+    %             safe_cmd(io_lib:format(
     %                 "scp -i ~s ubuntu@~s:/home/ubuntu/visibility.bin ~s",
     %                 [NodeKey, NodeIP, TargetFile]
-    %             ),
-    %             safe_cmd(Cmd),
+    %             )),
     %             ok
     %         end,
     %         main_region_server_nodes()
     %     )
     % end,
 
-    % PullMeasurements = fun() ->
-    %     pmap(
-    %         fun({Region, NodeIP}) ->
-    %             NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
-    %             TargetFile = io_lib:format("~s/measurements-aws-~s.bin", [Path, Region]),
-    %             Cmd = io_lib:format(
-    %                 "scp -i ~s ubuntu@~s:/home/ubuntu/measurements.bin ~s",
-    %                 [NodeKey, NodeIP, TargetFile]
-    %             ),
-    %             safe_cmd(Cmd),
-    %             ok
-    %         end,
-    %         main_region_server_nodes()
-    %     )
-    % end,
+    PullMeasurements = fun() ->
+        pmap(
+            fun({Region, NodeIP}) ->
+                NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
+                TargetFile = io_lib:format("~s/measurements-aws-~s.bin", [Path, Region]),
+                safe_cmd(io_lib:format(
+                    "scp -i ~s ubuntu@~s:/home/ubuntu/measurements.bin ~s",
+                    [NodeKey, NodeIP, TargetFile]
+                )),
+                ok
+            end,
+            main_region_server_nodes()
+        )
+    end,
 
     % PullCaptures = fun() ->
     %     pmap(
     %         fun({Region, NodeIP}) ->
     %             NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
     %             TargetFile = io_lib:format("~s/capture-aws-~s.cap", [Path, Region]),
-    %             Cmd = io_lib:format(
+    %             safe_cmd(io_lib:format(
     %                 "scp -i ~s ubuntu@~s:/home/ubuntu/capture.cap ~s",
     %                 [NodeKey, NodeIP, TargetFile]
-    %             ),
-    %             safe_cmd(Cmd),
+    %             )),
     %             ok
     %         end,
     %         main_region_server_nodes()

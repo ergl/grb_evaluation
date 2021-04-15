@@ -7,3 +7,4 @@ _images/
 .vscode/
 */aws/keys/*
 */aws/configuration/pcluster-*.config
+*.tar.gz

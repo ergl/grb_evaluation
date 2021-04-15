@@ -74,6 +74,15 @@ do_rebuild() {
     popd
 }
 
+do_compress() {
+    local target
+    target=$(readlink -f "${HOME}/sources/lasp-bench/tests/current")
+    target=$(basename "${target}")
+    pushd "${HOME}/sources/lasp-bench/tests/"
+    tar -czf "${HOME}/results.tar.gz" "${target}"
+    popd
+}
+
 do_run() {
     local profile="${1}"
     local config="${2}"
@@ -87,7 +96,7 @@ do_run() {
 }
 
 usage() {
-    echo "bench.sh [-hy] [-b <branch>=bench_grb] [-p <profile>=default] dl | compile | run <config> <bootstrap-node> <bootstrap-port> | load_grb <node> <config> | load_rubis <node> <config> | rebuild"
+    echo "bench.sh [-hy] [-b <branch>=bench_grb] [-p <profile>=default] dl | compile | run <config> <bootstrap-node> <bootstrap-port> | load_grb <node> <config> | load_rubis <node> <config> | rebuild | compress"
 }
 
 run () {
@@ -164,6 +173,10 @@ run () {
         "rebuild")
             do_rebuild "${branch}"
             do_compile "${profile}"
+            exit $?
+            ;;
+        "compress")
+            do_compress
             exit $?
             ;;
         *)
