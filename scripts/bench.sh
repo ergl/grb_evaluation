@@ -31,14 +31,22 @@ do_load_grb() {
 
     if [[ "${confirm_load}" -eq 1 ]]; then
         pushd "${HOME}/sources/lasp-bench/scripts"
-        ./grb_load.escript "${target_machine}" "7878" "${config_file}"
+        ./bench_load.escript \
+            -f "${HOME}/cluster.config" \
+            -a "${target_machine}" \
+            -p "7878" \
+            -c grb="${config_file}"
         popd
     else
         read -r -n 1 -p "Load target ${target_machine}:7878 ? [y/n] " response
         case "${response}" in
             [yY] )
                 pushd "${HOME}/sources/lasp-bench/scripts"
-                ./grb_load.escript "${target_machine}" "7878" "${config_file}"
+                ./bench_load.escript \
+                    -f "${HOME}/cluster.config" \
+                    -a "${target_machine}" \
+                    -p "7878" \
+                    -c grb="${config_file}"
                 popd
                 ;;
             *)
@@ -55,14 +63,22 @@ do_load_rubis() {
 
     if [[ "${confirm_load}" -eq 1 ]]; then
         pushd "${HOME}/sources/lasp-bench/scripts"
-        ./rubis_load.escript "${target_machine}" "7878" "${config_file}"
+        ./bench_load.escript \
+            -f "${HOME}/cluster.config" \
+            -a "${target_machine}" \
+            -p "7878" \
+            -c rubis="${config_file}"
         popd
     else
         read -r -n 1 -p "Load target ${target_machine}:7878 ? [y/n] " response
         case "${response}" in
             [yY] )
                 pushd "${HOME}/sources/lasp-bench/scripts"
-                ./rubis_load.escript "${target_machine}" "7878" "${config_file}"
+                ./bench_load.escript \
+                    -f "${HOME}/cluster.config" \
+                    -a "${target_machine}" \
+                    -p "7878" \
+                    -c rubis="${config_file}"
                 popd
                 ;;
             *)
@@ -77,6 +93,15 @@ do_rebuild() {
     pushd "${HOME}/sources/lasp-bench"
     git fetch origin
     git reset --hard origin/"${branch}"
+    popd
+}
+
+do_compress() {
+    local target
+    target=$(readlink -f "${HOME}/sources/lasp-bench/tests/current")
+    target=$(basename "${target}")
+    pushd "${HOME}/sources/lasp-bench/tests/"
+    tar -czf "${HOME}/results.tar.gz" "${target}"
     popd
 }
 
@@ -174,6 +199,10 @@ run () {
         "rebuild")
             do_rebuild "${branch}"
             do_compile "${profile}"
+            exit $?
+            ;;
+        "compress")
+            do_compress
             exit $?
             ;;
         *)

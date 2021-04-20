@@ -171,23 +171,37 @@ do_command(pull, {true, Path}, ClusterMap) ->
             fun(Node) ->
                 NodeStr = atom_to_list(Node),
                 TargetPath = io_lib:format("~s/~s", [Path, NodeStr]),
-                Cmd0 = io_lib:format("mkdir -p ~s", [TargetPath]),
-                safe_cmd(Cmd0),
-                Cmd1 = io_lib:format(
-                    "scp -i ~s borja.deregil@~s:/home/borja.deregil//sources/lasp-bench/tests/current/* ~s",
+
+                safe_cmd(io_lib:format("mkdir -p ~s", [TargetPath])),
+
+                %% Compress the results before returning, speeds up transfer
+                safe_cmd(io_lib:format(
+                    "~s -i ~s \"~s\" ~s",
+                    [?IN_NODES_PATH, ?SSH_PRIV_KEY, client_command("compress"), NodeStr]
+                )),
+
+                %% Transfer results (-C compresses on flight)
+                safe_cmd(io_lib:format(
+                    "scp -C -i ~s borja.deregil@~s:/home/borja.deregil/results.tar.gz ~s",
                     [?SSH_PRIV_KEY, NodeStr, TargetPath]
-                ),
-                safe_cmd(Cmd1),
-                Cmd2 = io_lib:format(
+                )),
+
+                safe_cmd(io_lib:format(
                     "scp -i ~s borja.deregil@~s:/home/borja.deregil/cluster.config ~s",
                     [?SSH_PRIV_KEY, NodeStr, TargetPath]
-                ),
-                safe_cmd(Cmd2),
-                Cmd3 = io_lib:format(
+                )),
+
+                safe_cmd(io_lib:format(
                     "scp -i ~s borja.deregil@~s:/home/borja.deregil/rubis_properties.config ~s",
                     [?SSH_PRIV_KEY, NodeStr, TargetPath]
-                ),
-                safe_cmd(Cmd3),
+                )),
+
+                %% Uncompress results
+                safe_cmd(io_lib:format(
+                    "tar -xzf ~s/results.tar.gz -C ~s --strip-components 1",
+                    [TargetPath, TargetPath]
+                )),
+
                 ok
             end,
             client_nodes(ClusterMap)

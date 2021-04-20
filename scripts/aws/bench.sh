@@ -25,14 +25,22 @@ do_load_grb() {
 
     if [[ "${confirm_load}" -eq 1 ]]; then
         pushd "${HOME}/sources/lasp-bench/scripts"
-        ./grb_load.escript "${target_machine}" "7878" "${config_file}"
+        ./bench_load.escript \
+            -f "/home/ubuntu/cluster.config" \
+            -a "${target_machine}" \
+            -p "7878" \
+            -c grb="${config_file}"
         popd
     else
         read -r -n 1 -p "Load target ${target_machine}:7878 ? [y/n] " response
         case "${response}" in
             [yY] )
                 pushd "${HOME}/sources/lasp-bench/scripts"
-                ./grb_load.escript "${target_machine}" "7878" "${config_file}"
+                ./bench_load.escript \
+                    -f "/home/ubuntu/cluster.config" \
+                    -a "${target_machine}" \
+                    -p "7878" \
+                    -c grb="${config_file}"
                 popd
                 ;;
             *)
@@ -49,14 +57,22 @@ do_load_rubis() {
 
     if [[ "${confirm_load}" -eq 1 ]]; then
         pushd "${HOME}/sources/lasp-bench/scripts"
-        ./rubis_load.escript "${target_machine}" "7878" "${config_file}"
+        ./bench_load.escript \
+            -f "/home/ubuntu/cluster.config" \
+            -a "${target_machine}" \
+            -p "7878" \
+            -c rubis="${config_file}"
         popd
     else
         read -r -n 1 -p "Load target ${target_machine}:7878 ? [y/n] " response
         case "${response}" in
             [yY] )
                 pushd "${HOME}/sources/lasp-bench/scripts"
-                ./rubis_load.escript "${target_machine}" "7878" "${config_file}"
+                ./bench_load.escript \
+                    -f "/home/ubuntu/cluster.config" \
+                    -a "${target_machine}" \
+                    -p "7878" \
+                    -c rubis="${config_file}"
                 popd
                 ;;
             *)

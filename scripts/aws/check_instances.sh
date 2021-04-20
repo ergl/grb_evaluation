@@ -3,7 +3,16 @@
 set -eo pipefail
 
 usage() {
-    echo "check_instances.sh -r region reservation_id-1 reservation_id-2 ..."
+    echo "check_instances.sh -r region [reservation_id-1 reservation_id-2 ...]"
+}
+
+output_all_instances_for_region() {
+    local region_name="${1}"
+    aws ec2 describe-spot-instance-requests \
+        --filters "Name=state,Values=active" \
+        --query "SpotInstanceRequests[*].[InstanceId]" \
+        --output text \
+        --region "${region_name}"
 }
 
 run() {
@@ -37,24 +46,19 @@ run() {
 
     shift $((OPTIND - 1))
 
+    if [[ $# -eq 0 ]]; then
+        echo "Missing spot request id, giving all instances at ${region_name}"
+        output_all_instances_for_region "${region_name}"
+        exit 0
+    fi
+
     for request_id in "${@}"; do
-        while true; do
-            # echo "Waiting for instances of ${request_id} to become active"
-            ids=$(aws ec2 describe-spot-instance-requests \
-                  --filters "Name=spot-instance-request-id,Values=${request_id}" \
-                      "Name=state,Values=active" \
-                  --query "SpotInstanceRequests[*].[InstanceId]" \
-                  --output text \
-                  --region "${region_name}")
-            if [[ "$?" != "0" ]]; then
-                echo "Bad ids ${ids}"
-                exit 1
-            else
-                # echo "Id ${ids}"
-                echo "${ids}"
-                break
-            fi
-        done
+        aws ec2 describe-spot-instance-requests \
+            --filters "Name=spot-instance-request-id,Values=${request_id}" \
+                "Name=state,Values=active" \
+            --query "SpotInstanceRequests[*].[InstanceId]" \
+            --output text \
+            --region "${region_name}"
     done
 }
 
