@@ -9,17 +9,22 @@ fi
 
 cd "$(dirname "$SELF")"
 
-graph () {
+summary_graph() {
     local y="${1}"
     local x="${2}"
     local global_step="${3}"
-    local single_step="${4}"
-    local folder="${5}"
-
+    local folder="${4}"
     local image_folder="${folder}/_images"
     mkdir -p "${image_folder}"
-
     Rscript --vanilla ./grid_summary.r -x "${x}" -y "${y}" -s "${global_step}" -i "${folder}" -o "${image_folder}"/summary.png
+}
+
+individual_graphs() {
+    local y="${1}"
+    local x="${2}"
+    local single_step="${3}"
+    local folder="${4}"
+    local image_folder="${folder}/_images"
 
     # Even if it contains a /, append one, doesn't change anything
     folder+="/"
@@ -35,7 +40,7 @@ graph () {
 }
 
 usage() {
-    echo "do_graph.sh [-t <total-step>] [-s <node-step>] [-h] input-folder"
+    echo "do_graph.sh [-t <total-step>] [-s <node-step>] [-hS] input-folder"
 }
 
 run () {
@@ -44,13 +49,14 @@ run () {
         exit 1
     fi
 
+    local summary_only=0
     local total_step=10000
     local node_step=5000
     local input_folder
     local width=1500
     local height=2000
 
-    while getopts ":t:s:x:y:h" opt; do
+    while getopts ":t:s:x:y:hS" opt; do
         case $opt in
             h)
                 usage
@@ -61,6 +67,9 @@ run () {
                 ;;
             s)
                 node_step="${OPTARG}"
+                ;;
+            S)
+                summary_only=1
                 ;;
             x)
                 width="${OPTARG}"
@@ -93,8 +102,10 @@ run () {
         exit 1
     fi
 
-    graph "${height}" "${width}" "${total_step}" "${node_step}" "${input_folder}"
-    exit $?
+    summary_graph "${height}" "${width}" "${total_step}" "${input_folder}"
+    if [[ "${summary_only}" -eq 0 ]]; then
+        individual_graphs "${height}" "${width}" "${node_step}" "${input_folder}"
+    fi
 }
 
 run "$@"
