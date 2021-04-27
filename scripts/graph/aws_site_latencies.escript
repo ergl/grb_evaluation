@@ -280,53 +280,57 @@ parse_measurements(ResultPath, Region) ->
                             {0, 0},
                             Ops
                         ),
-                        case Stat of
-                            {grb_red_coordinator, _} ->
-                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                            {grb_red_coordinator, _, _} ->
-                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                            {grb_red_coordinator, _, _, sent_to_ack} ->
-                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                            {grb_red_coordinator, _, _, ack_in_flight} ->
-                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                            {grb_paxos_vnode, _, Attr} ->
-                                case
-                                    lists:member(
-                                        Attr,
-                                        [message_queue_len,
-                                         deliver_updates_called]
-                                    )
-                                of
-                                    false ->
-                                        [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                                    true ->
-                                        [ {Stat, Top / Bot, Max} | Acc]
-                                end;
-                            {grb_dc_messages, _, _, Attr}
-                                when Attr =/= message_queue_len ->
-                                    [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                            {grb_dc_connection_sender_socket, _, _, Attr} ->
-                                case
-                                    lists:member(
-                                        Attr,
-                                        [message_queue_len,
-                                         pending_queue_len,
-                                         pending_queue_bytes]
-                                    )
-                                of
-                                    false ->
-                                        [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                                    true ->
-                                        [ {Stat, Top / Bot, Max} | Acc]
-                                end;
-                            _ ->
-                                [ {Stat, Top / Bot, Max} | Acc]
-                        end
+                        [ transform_measurements(Stat, Top, Bot, Max) | Acc ]
                 end,
                 [],
                 maps:fold(FoldFun, #{}, binary_to_term(Bin))
             )))
     end.
+
+transform_measurements(Stat, AvgSum, AvgCount, Max) ->
+    {Avg, TrueMax} = case Stat of
+        {grb_red_coordinator, _} ->
+            {(AvgSum / AvgCount) / 1000, Max / 1000};
+        {grb_red_coordinator, _, _} ->
+            {(AvgSum / AvgCount) / 1000, Max / 1000};
+        {grb_red_coordinator, _, _, sent_to_ack} ->
+            {(AvgSum / AvgCount) / 1000, Max / 1000};
+        {grb_red_coordinator, _, _, ack_in_flight} ->
+            {(AvgSum / AvgCount) / 1000, Max / 1000};
+        {grb_paxos_vnode, _, Attr} ->
+            case
+                lists:member(
+                    Attr,
+                    [message_queue_len,
+                     deliver_updates_called]
+                )
+            of
+                false ->
+                    {(AvgSum / AvgCount) / 1000, Max / 1000};
+                true ->
+                    {AvgSum / AvgCount, Max}
+            end;
+        {grb_dc_messages, _, _, Attr}
+            when Attr =/= message_queue_len ->
+                {(AvgSum / AvgCount) / 1000, Max / 1000};
+        {grb_dc_connection_sender_socket, _, _, Attr} ->
+            case
+                lists:member(
+                    Attr,
+                    [message_queue_len,
+                     pending_queue_len,
+                     pending_queue_bytes]
+                )
+            of
+                false ->
+                    {(AvgSum / AvgCount) / 1000, Max / 1000};
+                true ->
+                    {AvgSum / AvgCount, Max}
+            end;
+        _ ->
+            {AvgSum / AvgCount, Max}
+    end,
+    {Stat, Avg, TrueMax}.
 
 parse_latencies(ResultPath, ClusterStr) ->
     WithPrefix = io_lib:format("aws-~s", [ClusterStr]),
