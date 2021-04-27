@@ -181,18 +181,25 @@ do_command(measurements) ->
     ok;
 
 do_command({uncompress, Path}) ->
-    PathList = filelib:wildcard(unicode:characters_to_list(
-        io_lib:format("~s*", [filename:join(Path, "aws-")])
-    )),
-    pmap(
+    DoItFun =
         fun(NodePath) ->
             safe_cmd(io_lib:format(
                 "tar -xzf ~s/results.tar.gz -C ~s --strip-components 1",
                 [NodePath, NodePath]
             ))
         end,
-    PathList
-    ),
+    IsNodePath = filelib:is_file(filename:join(Path, "results.tar.gz")),
+    if
+        IsNodePath ->
+            DoItFun(Path);
+        true ->
+            pmap(
+                DoItFun,
+                filelib:wildcard(unicode:characters_to_list(
+                    io_lib:format("~s*", [filename:join(Path, "aws-")])
+                ))
+            )
+    end,
     ok;
 
 do_command({pull, Path}) ->
