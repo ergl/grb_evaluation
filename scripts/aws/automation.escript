@@ -61,6 +61,7 @@
     {visibility, false},
     {measurements, false},
     {pull, true},
+    {uncompress, true},
     {terminate, false}
 ]).
 
@@ -179,6 +180,21 @@ do_command(measurements) ->
     ),
     ok;
 
+do_command({uncompress, Path}) ->
+    PathList = filelib:wildcard(unicode:characters_to_list(
+        io_lib:format("~s*", [filename:join(Path, "aws-")])
+    )),
+    pmap(
+        fun(NodePath) ->
+            safe_cmd(io_lib:format(
+                "tar -xzf ~s/results.tar.gz -C ~s --strip-components 1",
+                [NodePath, NodePath]
+            ))
+        end,
+    PathList
+    ),
+    ok;
+
 do_command({pull, Path}) ->
     PullClients = fun() ->
         pmap(
@@ -217,9 +233,9 @@ do_command({pull, Path}) ->
                 [NodeKey, NodeIP, ?RUBIS_PROPS, TargetPath]
             )),
 
-            %% Uncompress results
+            %% Uncompress results (don't extract trace log, too big)
             safe_cmd(io_lib:format(
-                "tar -xzf ~s/results.tar.gz -C ~s --strip-components 1",
+                "tar -xzf ~s/results.tar.gz -C ~s --strip-components 1 --exclude='trace.log'",
                 [TargetPath, TargetPath]
             )),
             ok
