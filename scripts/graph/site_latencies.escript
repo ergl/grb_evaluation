@@ -48,7 +48,7 @@ main(Args) ->
             io:fwrite(standard_error, "Wrong option: reason ~p~n", [Reason]),
             usage(),
             halt(1);
-        {ok, Opt=#{rest := ResultPath}} ->
+        {ok, Opt = #{rest := ResultPath}} ->
             NumClients = client_threads(ResultPath),
             {ok, Terms} = file:consult(config_file(ResultPath)),
             {clusters, ClusterMap} = lists:keyfind(clusters, 1, Terms),
@@ -83,7 +83,7 @@ main(Args) ->
                             string:replace(Latencies, "NA", NumClients, all),
                             ""
                         ),
-                        io:format("~s,~s~n", [string:to_upper(ClusterStr),Formatted]);
+                        io:format("~s,~s~n", [string:to_upper(ClusterStr), Formatted]);
                     ({ClusterStr, ServerReports, Latencies}) ->
                         Formatted = string:join(
                             string:replace(Latencies, "NA", NumClients, all),
@@ -105,9 +105,9 @@ main(Args) ->
 
 client_threads(Path) ->
     try
-        {match, [ {Start0, Len0} ]} = re:run(Path, "t[_=][0-9]+"),
+        {match, [{Start0, Len0}]} = re:run(Path, "t[_=][0-9]+"),
         Match = string:slice(Path, Start0, Len0),
-        {match, [ {Start1, Len1} ]} = re:run(Match, "[0-9]+"),
+        {match, [{Start1, Len1}]} = re:run(Match, "[0-9]+"),
         string:slice(Match, Start1, Len1)
     catch
         _:_ -> "NA"
@@ -171,8 +171,9 @@ is_rubis_flag() ->
     try
         true = ets:lookup_element(?CONF, rubis, 2),
         "-r"
-    catch _:_ ->
-        ""
+    catch
+        _:_ ->
+            ""
     end.
 
 server_reports(ResultPath, ClusterStr, ServerNodes) ->
@@ -309,17 +310,17 @@ parse_measurements(ResultPath, Cluster) ->
                     lists:foldl(
                         fun
                             %% Rolling max, plus accumulate ops for weighted mean later
-                            ({stat, Name, #{ops := Ops, avg := Avg, max := Max}}, InnerAcc)
-                                when Ops > 0 ->
-                                    maps:update_with(
-                                        {stat, Name},
-                                        fun({Operations, Rollmax}) ->
-                                            {[{Avg, Ops} | Operations], max(Rollmax, Max)}
-                                        end,
-                                        {[{Avg, Ops}], Max},
-                                        InnerAcc
-                                    );
-
+                            ({stat, Name, #{ops := Ops, avg := Avg, max := Max}}, InnerAcc) when
+                                Ops > 0
+                            ->
+                                maps:update_with(
+                                    {stat, Name},
+                                    fun({Operations, Rollmax}) ->
+                                        {[{Avg, Ops} | Operations], max(Rollmax, Max)}
+                                    end,
+                                    {[{Avg, Ops}], Max},
+                                    InnerAcc
+                                );
                             ({counter, Name, Total}, InnerAcc) ->
                                 maps:update_with(
                                     {counter, Name},
@@ -327,7 +328,6 @@ parse_measurements(ResultPath, Cluster) ->
                                     Total,
                                     InnerAcc
                                 );
-
                             %% Ignore everything else for now
                             (_, InnerAcc) ->
                                 InnerAcc
@@ -336,71 +336,79 @@ parse_measurements(ResultPath, Cluster) ->
                         Values
                     )
                 end,
-            lists:reverse(lists:sort(maps:fold(
-                fun
-                    ({counter, Stat}, Total, Acc) ->
-                        case Stat of
-                            {grb_red_coordinator, _, _, _} ->
-                                Acc;
-                            _ ->
-                                [ {{counter, Stat}, Total} | Acc ]
-                        end;
-
-                    ({stat, Stat}, {Ops, Max}, Acc) ->
-                        %% Make weighted average
-                        {Top, Bot} = lists:foldl(
-                            fun({Avg, N}, {T, B}) ->
-                                {(Avg * N) + T, B + N}
-                            end,
-                            {0, 0},
-                            Ops
-                        ),
-                        case Stat of
-                            {grb_red_coordinator, _} ->
-                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                            {grb_red_coordinator, _, _} ->
-                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                            {grb_red_coordinator, _, _, sent_to_ack} ->
-                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                            {grb_red_coordinator, _, _, ack_in_flight} ->
-                                [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                            {grb_paxos_vnode, _, Attr} ->
-                                case
-                                    lists:member(
-                                        Attr,
-                                        [message_queue_len,
-                                         deliver_updates_called]
-                                    )
-                                of
-                                    false ->
-                                        [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                                    true ->
-                                        [ {Stat, Top / Bot, Max} | Acc]
+            lists:reverse(
+                lists:sort(
+                    maps:fold(
+                        fun
+                            ({counter, Stat}, Total, Acc) ->
+                                case Stat of
+                                    {grb_red_coordinator, _, _, _} ->
+                                        Acc;
+                                    _ ->
+                                        [{{counter, Stat}, Total} | Acc]
                                 end;
-                            {grb_dc_messages, _, _, Attr}
-                                when Attr =/= message_queue_len ->
-                                    [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                            {grb_dc_connection_sender_socket, _, _, Attr} ->
-                                case
-                                    lists:member(
-                                        Attr,
-                                        [message_queue_len,
-                                         pending_queue_len,
-                                         pending_queue_bytes]
-                                    )
-                                of
-                                    false ->
-                                        [ {Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
-                                    true ->
-                                        [ {Stat, Top / Bot, Max} | Acc]
-                                end;
-                            _ ->
-                                [ {Stat, Top / Bot, Max} | Acc]
-                        end
-                end,
-                [],
-                maps:fold(FoldFun, #{}, binary_to_term(Bin))
-            )))
+                            ({stat, Stat}, {Ops, Max}, Acc) ->
+                                %% Make weighted average
+                                {Top, Bot} = lists:foldl(
+                                    fun({Avg, N}, {T, B}) ->
+                                        {(Avg * N) + T, B + N}
+                                    end,
+                                    {0, 0},
+                                    Ops
+                                ),
+                                case Stat of
+                                    {grb_red_coordinator, _} ->
+                                        [{Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                                    {grb_red_coordinator, _, _} ->
+                                        [{Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                                    {grb_red_coordinator, _, _, sent_to_ack} ->
+                                        [{Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                                    {grb_red_coordinator, _, _, ack_in_flight} ->
+                                        [{Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                                    {grb_paxos_vnode, _, Attr} ->
+                                        case
+                                            lists:member(
+                                                Attr,
+                                                [
+                                                    message_queue_len,
+                                                    deliver_updates_called
+                                                ]
+                                            )
+                                        of
+                                            false ->
+                                                [{Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                                            true ->
+                                                [{Stat, Top / Bot, Max} | Acc]
+                                        end;
+                                    {grb_dc_messages, _, _, Attr} when
+                                        Attr =/= message_queue_len
+                                    ->
+                                        [{Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                                    {grb_dc_connection_sender_socket, _, _, Attr} ->
+                                        case
+                                            lists:member(
+                                                Attr,
+                                                [
+                                                    message_queue_len,
+                                                    pending_queue_len,
+                                                    pending_queue_bytes
+                                                ]
+                                            )
+                                        of
+                                            false ->
+                                                [{Stat, (Top / Bot) / 1000, Max / 1000} | Acc];
+                                            true ->
+                                                [{Stat, Top / Bot, Max} | Acc]
+                                        end;
+                                    _ ->
+                                        [{Stat, Top / Bot, Max} | Acc]
+                                end
+                        end,
+                        [],
+                        maps:fold(FoldFun, #{}, binary_to_term(Bin))
+                    )
+                )
+            )
     end.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -421,7 +429,7 @@ pmap(F, L) ->
         receive
             {pmap, N, R} -> {N, R}
         end
-        || _ <- L
+     || _ <- L
     ],
     L3 = lists:keysort(1, L2),
     [R || {_, R} <- L3].

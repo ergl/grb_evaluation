@@ -22,7 +22,7 @@ main(Args) ->
             io:fwrite(standard_error, "Wrong option: reason ~p~n", [Reason]),
             usage(),
             halt(1);
-        {ok, Opt=#{rest := ResultPath}} ->
+        {ok, Opt = #{rest := ResultPath}} ->
             NumClients = client_threads(ResultPath),
             {ok, Terms} = file:consult(config_file(ResultPath)),
             {clusters, ClusterMap} = lists:keyfind(clusters, 1, Terms),
@@ -49,7 +49,7 @@ main(Args) ->
                         string:replace(Latencies, "NA", NumClients, all),
                         ""
                     ),
-                    io:format("~s,~s~n", [string:to_upper(ClusterStr),Formatted])
+                    io:format("~s,~s~n", [string:to_upper(ClusterStr), Formatted])
                 end,
                 Reports
             ),
@@ -65,9 +65,9 @@ main(Args) ->
 
 client_threads(Path) ->
     try
-        {match, [ {Start0, Len0} ]} = re:run(Path, "t[_=][0-9]+"),
+        {match, [{Start0, Len0}]} = re:run(Path, "t[_=][0-9]+"),
         Match = string:slice(Path, Start0, Len0),
-        {match, [ {Start1, Len1} ]} = re:run(Match, "[0-9]+"),
+        {match, [{Start1, Len1}]} = re:run(Match, "[0-9]+"),
         string:slice(Match, Start1, Len1)
     catch
         _:_ -> "NA"
@@ -79,7 +79,7 @@ config_file(Path) ->
     hd(string:split(Matches, "\n", all)).
 
 -spec maybe_print_measurements(_, _, _) -> ok.
-maybe_print_measurements(ClusterMap, ResultPath, _Opt=#{measurements := true}) ->
+maybe_print_measurements(ClusterMap, ResultPath, _Opt = #{measurements := true}) ->
     VisibilityReports = pmap(
         fun(Cluster) ->
             ClusterStr = atom_to_list(Cluster),
@@ -115,7 +115,7 @@ maybe_print_measurements(_, _, _) ->
     ok.
 
 -spec maybe_print_visibility(_, _, _) -> ok.
-maybe_print_visibility(ClusterMap, ResultPath, _Opt=#{visibility := true}) ->
+maybe_print_visibility(ClusterMap, ResultPath, _Opt = #{visibility := true}) ->
     VisibilityReports = pmap(
         fun(Cluster) ->
             ClusterStr = atom_to_list(Cluster),
@@ -142,7 +142,7 @@ maybe_print_visibility(ClusterMap, ResultPath, _Opt=#{visibility := true}) ->
         fun({Remote, RemValues}, Acc) ->
             io_lib:format(
                 "~p,~s~n~s",
-                [element(1, Remote),RemValues,Acc]
+                [element(1, Remote), RemValues, Acc]
             )
         end,
 
@@ -158,23 +158,23 @@ maybe_print_visibility(ClusterMap, ResultPath, _Opt=#{visibility := true}) ->
     ),
 
     io:format("================================~n");
-
 maybe_print_visibility(_, _, _) ->
     ok.
 
 -spec maybe_print_abort_ratio(_, _, _) -> ok.
-maybe_print_abort_ratio(Reports, GlobalErrors, _Opt=#{abort_ratio := true}) ->
+maybe_print_abort_ratio(Reports, GlobalErrors, _Opt = #{abort_ratio := true}) ->
     io:format("================================~n"),
     io:format("~s~n~s~n", ["OVERALL", GlobalErrors]),
     lists:foreach(
         fun({ClusterStr, _, Errors}) ->
-            io:format("~n~s~n~s~n",
-                        [string:to_upper(ClusterStr), Errors])
+            io:format(
+                "~n~s~n~s~n",
+                [string:to_upper(ClusterStr), Errors]
+            )
         end,
         Reports
     ),
     io:format("================================~n");
-
 maybe_print_abort_ratio(_, _, _) ->
     ok.
 
@@ -217,7 +217,7 @@ parse_visibility(ResultPath, Region) ->
             FoldFun =
                 fun(Remote, Values, Acc) ->
                     ValueStr = string:join([integer_to_list(X) || X <- Values], ","),
-                    [ {Remote, ValueStr} | Acc ]
+                    [{Remote, ValueStr} | Acc]
                 end,
 
             maps:fold(FoldFun, [], binary_to_term(Bin))
@@ -234,17 +234,17 @@ parse_measurements(ResultPath, Region) ->
                     lists:foldl(
                         fun
                             %% Rolling max, plus accumulate ops for weighted mean later
-                            ({stat, Name, #{ops := Ops, avg := Avg, max := Max}}, InnerAcc)
-                                when Ops > 0 ->
-                                    maps:update_with(
-                                        {stat, Name},
-                                        fun({Operations, Rollmax}) ->
-                                            {[{Avg, Ops} | Operations], max(Rollmax, Max)}
-                                        end,
-                                        {[{Avg, Ops}], Max},
-                                        InnerAcc
-                                    );
-
+                            ({stat, Name, #{ops := Ops, avg := Avg, max := Max}}, InnerAcc) when
+                                Ops > 0
+                            ->
+                                maps:update_with(
+                                    {stat, Name},
+                                    fun({Operations, Rollmax}) ->
+                                        {[{Avg, Ops} | Operations], max(Rollmax, Max)}
+                                    end,
+                                    {[{Avg, Ops}], Max},
+                                    InnerAcc
+                                );
                             ({counter, Name, Total}, InnerAcc) ->
                                 maps:update_with(
                                     {counter, Name},
@@ -252,7 +252,6 @@ parse_measurements(ResultPath, Region) ->
                                     Total,
                                     InnerAcc
                                 );
-
                             %% Ignore everything else for now
                             (_, InnerAcc) ->
                                 InnerAcc
@@ -261,83 +260,94 @@ parse_measurements(ResultPath, Region) ->
                         Values
                     )
                 end,
-            lists:reverse(lists:sort(maps:fold(
-                fun
-                    ({counter, Stat}, Total, Acc) ->
-                        case Stat of
-                            {grb_red_coordinator, _, _, _} ->
-                                Acc;
-                            _ ->
-                                [ {{counter, Stat}, Total} | Acc ]
-                        end;
-
-                    ({stat, Stat}, {Ops, Max}, Acc) ->
-                        %% Make weighted average
-                        {Top, Bot} = lists:foldl(
-                            fun({Avg, N}, {T, B}) ->
-                                {(Avg * N) + T, B + N}
-                            end,
-                            {0, 0},
-                            Ops
-                        ),
-                        [ transform_measurements(Stat, Top, Bot, Max) | Acc ]
-                end,
-                [],
-                maps:fold(FoldFun, #{}, binary_to_term(Bin))
-            )))
+            lists:reverse(
+                lists:sort(
+                    maps:fold(
+                        fun
+                            ({counter, Stat}, Total, Acc) ->
+                                case Stat of
+                                    {grb_red_coordinator, _, _, _} ->
+                                        Acc;
+                                    _ ->
+                                        [{{counter, Stat}, Total} | Acc]
+                                end;
+                            ({stat, Stat}, {Ops, Max}, Acc) ->
+                                %% Make weighted average
+                                {Top, Bot} = lists:foldl(
+                                    fun({Avg, N}, {T, B}) ->
+                                        {(Avg * N) + T, B + N}
+                                    end,
+                                    {0, 0},
+                                    Ops
+                                ),
+                                [transform_measurements(Stat, Top, Bot, Max) | Acc]
+                        end,
+                        [],
+                        maps:fold(FoldFun, #{}, binary_to_term(Bin))
+                    )
+                )
+            )
     end.
 
 transform_measurements(Stat, AvgSum, AvgCount, Max) ->
-    {Avg, TrueMax} = case Stat of
-        {grb_red_coordinator, _} ->
-            {(AvgSum / AvgCount) / 1000, Max / 1000};
-        {grb_red_coordinator, _, _} ->
-            {(AvgSum / AvgCount) / 1000, Max / 1000};
-        {grb_red_coordinator, _, _, sent_to_ack} ->
-            {(AvgSum / AvgCount) / 1000, Max / 1000};
-        {grb_red_coordinator, _, _, ack_in_flight} ->
-            {(AvgSum / AvgCount) / 1000, Max / 1000};
-        {grb_paxos_vnode, _, Attr} ->
-            case
-                lists:member(
-                    Attr,
-                    [message_queue_len,
-                     deliver_updates_called]
-                )
-            of
-                false ->
-                    {(AvgSum / AvgCount) / 1000, Max / 1000};
-                true ->
-                    {AvgSum / AvgCount, Max}
-            end;
-        {grb_dc_messages, _, _, Attr}
-            when Attr =/= message_queue_len ->
+    {Avg, TrueMax} =
+        case Stat of
+            {grb_red_coordinator, _} ->
                 {(AvgSum / AvgCount) / 1000, Max / 1000};
-        {grb_dc_connection_sender_socket, _, _, Attr} ->
-            case
-                lists:member(
-                    Attr,
-                    [message_queue_len,
-                     pending_queue_len,
-                     pending_queue_bytes]
-                )
-            of
-                false ->
-                    {(AvgSum / AvgCount) / 1000, Max / 1000};
-                true ->
-                    {AvgSum / AvgCount, Max}
-            end;
-        _ ->
-            {AvgSum / AvgCount, Max}
-    end,
+            {grb_red_coordinator, _, _} ->
+                {(AvgSum / AvgCount) / 1000, Max / 1000};
+            {grb_red_coordinator, _, _, sent_to_ack} ->
+                {(AvgSum / AvgCount) / 1000, Max / 1000};
+            {grb_red_coordinator, _, _, ack_in_flight} ->
+                {(AvgSum / AvgCount) / 1000, Max / 1000};
+            {grb_paxos_vnode, _, Attr} ->
+                case
+                    lists:member(
+                        Attr,
+                        [
+                            message_queue_len,
+                            deliver_updates_called
+                        ]
+                    )
+                of
+                    false ->
+                        {(AvgSum / AvgCount) / 1000, Max / 1000};
+                    true ->
+                        {AvgSum / AvgCount, Max}
+                end;
+            {grb_dc_messages, _, _, Attr} when
+                Attr =/= message_queue_len
+            ->
+                {(AvgSum / AvgCount) / 1000, Max / 1000};
+            {grb_dc_connection_sender_socket, _, _, Attr} ->
+                case
+                    lists:member(
+                        Attr,
+                        [
+                            message_queue_len,
+                            pending_queue_len,
+                            pending_queue_bytes
+                        ]
+                    )
+                of
+                    false ->
+                        {(AvgSum / AvgCount) / 1000, Max / 1000};
+                    true ->
+                        {AvgSum / AvgCount, Max}
+                end;
+            _ ->
+                {AvgSum / AvgCount, Max}
+        end,
     {Stat, Avg, TrueMax}.
 
 parse_latencies(ResultPath, ClusterStr) ->
     WithPrefix = io_lib:format("aws-~s", [ClusterStr]),
     %% Find all files with prefix ResultPath/ClusterStr*
-    PathList = filelib:wildcard(unicode:characters_to_list(
-        io_lib:format("~s-*", [filename:join(ResultPath, WithPrefix)])
-    )),
+    PathList = filelib:wildcard(
+        unicode:characters_to_list(
+            io_lib:format("~s-*", [filename:join(ResultPath, WithPrefix)])
+        )
+    ),
 
     %% Given the file, return the path of that file in all paths in PathList
     %% Also return a string with all the results in a single line, so we can
@@ -443,8 +453,9 @@ is_rubis_flag() ->
     try
         true = ets:lookup_element(?CONF, rubis, 2),
         "-r"
-    catch _:_ ->
-        ""
+    catch
+        _:_ ->
+            ""
     end.
 
 pmap(F, L) ->
@@ -461,7 +472,7 @@ pmap(F, L) ->
         receive
             {pmap, N, R} -> {N, R}
         end
-        || _ <- L
+     || _ <- L
     ],
     L3 = lists:keysort(1, L2),
     [R || {_, R} <- L3].

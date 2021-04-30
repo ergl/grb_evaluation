@@ -94,7 +94,6 @@ main(Args) ->
             io:fwrite(standard_error, "Wrong option: reason ~s~n", [Reason]),
             usage(),
             halt(1);
-
         {ok, Opts = #{config := ConfigFile}} ->
             _ = ets:new(?CONF, [ordered_set, named_table]),
             true = ets:insert(?CONF, {dry_run, maps:get(dry_run, Opts, false)}),
@@ -108,7 +107,6 @@ main(Args) ->
                         []
                     ),
                     halt(1);
-
                 {error, cluster_overlap} ->
                     true = ets:delete(?CONF),
                     io:fwrite(
@@ -117,13 +115,13 @@ main(Args) ->
                         []
                     ),
                     halt(1);
-
                 ok ->
                     Command = maps:get(command, Opts),
-                    Cmd = case maps:get(command_arg, Opts, false) of
-                        false -> Command;
-                        {true, Arg} -> {Command, Arg}
-                    end,
+                    Cmd =
+                        case maps:get(command_arg, Opts, false) of
+                            false -> Command;
+                            {true, Arg} -> {Command, Arg}
+                        end,
                     ok = do_command(Cmd),
                     true = ets:delete(?CONF),
                     ok
@@ -145,19 +143,25 @@ prompt_gate(Msg, Default, Fun) ->
     end.
 
 prompt(Msg, Default) ->
-    {Prompt, Validate} = case Default of
-        default_no ->
-            {
-                Msg ++ " [N/y]: ",
-                fun(I) when I =:= "y\n" orelse I =:= "Y\n" -> true; (_) -> false end
-            };
-
-        default_yes ->
-            {
-                Msg ++ " [Y/n]: ",
-                fun(I) when I =:= "n\n" orelse I =:= "N\n" -> true; (_) -> false end
-            }
-    end,
+    {Prompt, Validate} =
+        case Default of
+            default_no ->
+                {
+                    Msg ++ " [N/y]: ",
+                    fun
+                        (I) when I =:= "y\n" orelse I =:= "Y\n" -> true;
+                        (_) -> false
+                    end
+                };
+            default_yes ->
+                {
+                    Msg ++ " [Y/n]: ",
+                    fun
+                        (I) when I =:= "n\n" orelse I =:= "N\n" -> true;
+                        (_) -> false
+                    end
+                }
+        end,
     Validate(io:get_line(Prompt)).
 
 do_command(visibility) ->
@@ -169,7 +173,6 @@ do_command(visibility) ->
         MainNodes
     ),
     ok;
-
 do_command(measurements) ->
     MainNodes = main_region_server_nodes(),
     pmap(
@@ -179,14 +182,15 @@ do_command(measurements) ->
         MainNodes
     ),
     ok;
-
 do_command({uncompress, Path}) ->
     DoItFun =
         fun(NodePath) ->
-            safe_cmd(io_lib:format(
-                "tar -xzf ~s/results.tar.gz -C ~s --strip-components 1",
-                [NodePath, NodePath]
-            ))
+            safe_cmd(
+                io_lib:format(
+                    "tar -xzf ~s/results.tar.gz -C ~s --strip-components 1",
+                    [NodePath, NodePath]
+                )
+            )
         end,
     IsNodePath = filelib:is_file(filename:join(Path, "results.tar.gz")),
     if
@@ -195,59 +199,72 @@ do_command({uncompress, Path}) ->
         true ->
             pmap(
                 DoItFun,
-                filelib:wildcard(unicode:characters_to_list(
-                    io_lib:format("~s*", [filename:join(Path, "aws-")])
-                ))
+                filelib:wildcard(
+                    unicode:characters_to_list(
+                        io_lib:format("~s*", [filename:join(Path, "aws-")])
+                    )
+                )
             )
     end,
     ok;
-
 do_command({pull, Path}) ->
     PullClients = fun() ->
         pmap(
-        fun({Region, NodeIP}) ->
-            NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
-            TargetPath = io_lib:format("~s/aws-~s-~s", [Path, Region, NodeIP]),
+            fun({Region, NodeIP}) ->
+                NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
+                TargetPath = io_lib:format("~s/aws-~s-~s", [Path, Region, NodeIP]),
 
-            %% Create the directory if it doesn't exist
-            safe_cmd(io_lib:format("mkdir -p ~s", [TargetPath])),
+                %% Create the directory if it doesn't exist
+                safe_cmd(io_lib:format("mkdir -p ~s", [TargetPath])),
 
-            %% Compress the results before returning, speeds up transfer
-            CompressFun = client_command("compress"),
-            safe_cmd(io_lib:format(
-                "~s -i ~s \"~s\" ~s",
-                [?IN_NODES_PATH, NodeKey, CompressFun(Region), NodeIP]
-            )),
+                %% Compress the results before returning, speeds up transfer
+                CompressFun = client_command("compress"),
+                safe_cmd(
+                    io_lib:format(
+                        "~s -i ~s \"~s\" ~s",
+                        [?IN_NODES_PATH, NodeKey, CompressFun(Region), NodeIP]
+                    )
+                ),
 
-            %% Transfer results (-C compresses on flight)
-            safe_cmd(io_lib:format(
-                "scp -C -i ~s ubuntu@~s:/home/ubuntu/results.tar.gz ~s",
-                [NodeKey, NodeIP, TargetPath]
-            )),
+                %% Transfer results (-C compresses on flight)
+                safe_cmd(
+                    io_lib:format(
+                        "scp -C -i ~s ubuntu@~s:/home/ubuntu/results.tar.gz ~s",
+                        [NodeKey, NodeIP, TargetPath]
+                    )
+                ),
 
-            safe_cmd(io_lib:format(
-                "scp -i ~s ubuntu@~s:/home/ubuntu/cluster.config ~s",
-                [NodeKey, NodeIP, TargetPath]
-            )),
+                safe_cmd(
+                    io_lib:format(
+                        "scp -i ~s ubuntu@~s:/home/ubuntu/cluster.config ~s",
+                        [NodeKey, NodeIP, TargetPath]
+                    )
+                ),
 
-            safe_cmd(io_lib:format(
-                "scp -i ~s ubuntu@~s:/home/ubuntu/pcluster.config ~s",
-                [NodeKey, NodeIP, TargetPath]
-            )),
+                safe_cmd(
+                    io_lib:format(
+                        "scp -i ~s ubuntu@~s:/home/ubuntu/pcluster.config ~s",
+                        [NodeKey, NodeIP, TargetPath]
+                    )
+                ),
 
-            safe_cmd(io_lib:format(
-                "scp -i ~s ubuntu@~s:/home/ubuntu/~s ~s",
-                [NodeKey, NodeIP, ?RUBIS_PROPS, TargetPath]
-            )),
+                safe_cmd(
+                    io_lib:format(
+                        "scp -i ~s ubuntu@~s:/home/ubuntu/~s ~s",
+                        [NodeKey, NodeIP, ?RUBIS_PROPS, TargetPath]
+                    )
+                ),
 
-            %% Uncompress results (don't extract trace log if it exists, too big)
-            safe_cmd(io_lib:format(
-                "tar -xzf ~s/results.tar.gz -C ~s --strip-components 1 --exclude='trace.log'",
-                [TargetPath, TargetPath]
-            )),
-            ok
-        end,
-        client_nodes()
+                %% Uncompress results (don't extract trace log if it exists, too big)
+                safe_cmd(
+                    io_lib:format(
+                        "tar -xzf ~s/results.tar.gz -C ~s --strip-components 1 --exclude='trace.log'",
+                        [TargetPath, TargetPath]
+                    )
+                ),
+                ok
+            end,
+            client_nodes()
         )
     end,
 
@@ -310,27 +327,29 @@ do_command({pull, Path}) ->
             ok;
         true ->
             prompt_gate(
-                io_lib:format("Target directory ~s already exists, do you want to overwrite it?", [Path]),
+                io_lib:format("Target directory ~s already exists, do you want to overwrite it?", [
+                    Path
+                ]),
                 default_no,
                 DoFun
             )
     end;
-
 do_command(terminate) ->
     Instances = all_instance_ids(),
     io:format("Will terminate instances~n~p~n", [Instances]),
     prompt_gate("Are you sure you want to proceed?", default_no, fun() ->
-        lists:foreach(fun({Region, Instance}) ->
-            terminate_instance(Region, Instance)
-        end, Instances)
+        lists:foreach(
+            fun({Region, Instance}) ->
+                terminate_instance(Region, Instance)
+            end,
+            Instances
+        )
     end);
-
 do_command(brutal_client_kill) ->
     NodeNames = client_nodes(),
     Res = do_in_nodes_par("pkill -9 beam.smp", NodeNames),
     io:format("~p~n", [Res]),
     ok;
-
 do_command(brutal_server_kill) ->
     io:format("Will abruptly stop nodes~n"),
     prompt_gate("Are you sure you want to proceed?", default_no, fun() ->
@@ -339,23 +358,17 @@ do_command(brutal_server_kill) ->
         io:format("~p~n", [Res])
     end),
     ok;
-
 % Does nothing, useful to preload the ip data
 do_command(init) ->
     ok;
-
 do_command(check) ->
     check_nodes();
-
 do_command(sync) ->
     ok = sync_nodes();
-
 do_command(server) ->
     ok = prepare_server();
-
 do_command(clients) ->
     ok = prepare_lasp_bench();
-
 do_command(prologue) ->
     ok = check_nodes(),
     ok = sync_nodes(),
@@ -363,22 +376,18 @@ do_command(prologue) ->
     ok = prepare_lasp_bench(),
     alert("Prologue finished!"),
     ok;
-
 do_command(start) ->
     Rep = do_in_nodes_par(server_command("start"), server_nodes()),
     io:format("~p~n", [Rep]),
     ok;
-
 do_command(stop) ->
     do_in_nodes_par(server_command("stop"), server_nodes()),
     ok;
-
 do_command(prepare) ->
     ok = do_command(join),
     ok = do_command(connect_dcs),
     alert("Prepare finished!"),
     ok;
-
 do_command(join) ->
     MainNodes = main_region_server_nodes(),
     Parent = self(),
@@ -405,7 +414,6 @@ do_command(join) ->
         erlang:exit(ChildPid, kill),
         error
     end;
-
 do_command(connect_dcs) ->
     MainNode = hd(server_nodes()),
     Rep = do_in_nodes_seq(
@@ -414,7 +422,6 @@ do_command(connect_dcs) ->
     ),
     io:format("~p~n", [Rep]),
     ok;
-
 do_command(grb_load) ->
     pmap(
         fun({Region, Node}) ->
@@ -449,7 +456,6 @@ do_command(grb_load) ->
         )
     ),
     ok;
-
 do_command(rubis_load) ->
     pmap(
         fun({Region, Node}) ->
@@ -484,7 +490,6 @@ do_command(rubis_load) ->
         )
     ),
     ok;
-
 do_command(bench) ->
     NodeNames = client_nodes(),
     BootstrapPort = 7878,
@@ -501,7 +506,12 @@ do_command(bench) ->
             ),
             Cmd = io_lib:format(
                 "~s -i ~s \"~s\" ~s",
-                [?IN_NODES_PATH, ets:lookup_element(?CONF, {NodeIP, Region, key}, 2), CommandFun(Region), NodeIP]
+                [
+                    ?IN_NODES_PATH,
+                    ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
+                    CommandFun(Region),
+                    NodeIP
+                ]
             ),
             safe_cmd(Cmd)
         end,
@@ -509,42 +519,33 @@ do_command(bench) ->
     ),
     alert("Benchmark finished!"),
     ok;
-
 do_command(recompile) ->
     io:format("~p~n", [do_in_nodes_par(server_command("recompile"), server_nodes())]),
     ok;
-
 do_command(recompile_clients) ->
     do_in_nodes_par(client_command("compile"), client_nodes()),
     ok;
-
 do_command(restart) ->
     io:format("~p~n", [do_in_nodes_par(server_command("restart"), server_nodes())]),
     ok;
-
 do_command(rebuild) ->
     do_command(rebuild_grb),
     do_command(rebuild_clients),
     ok;
-
 do_command(rebuild_grb) ->
     do_in_nodes_par(server_command("rebuild"), server_nodes()),
     ok;
-
 do_command(rebuild_clients) ->
     do_in_nodes_par(client_command("rebuild"), client_nodes()),
     ok;
-
 do_command(cleanup) ->
     do_command(cleanup_servers),
     do_command(cleanup_clients),
     ok;
-
 do_command(cleanup_servers) ->
     AllNodes = server_nodes(),
     io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", AllNodes)]),
     ok;
-
 do_command(cleanup_clients) ->
     AllNodes = client_nodes(),
     io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", AllNodes)]),
@@ -618,13 +619,15 @@ server_command(Command, Arg) ->
     fun(Region) ->
         io_lib:format(
             "./server.escript -v -r ~s -f /home/ubuntu/cluster.config -p /home/ubuntu/pcluster.config -c ~s=~s",
-            [Region, Command,Arg]
+            [Region, Command, Arg]
         )
     end.
 
 client_command(Command) ->
     Profile = ets:lookup_element(?CONF, ?CLIENT_PROFILE_KEY, 2),
-    fun(_) -> io_lib:format("./bench.sh -b ~s -p ~p ~s", [?LASP_BENCH_BRANCH, Profile, Command]) end.
+    fun(_) ->
+        io_lib:format("./bench.sh -b ~s -p ~p ~s", [?LASP_BENCH_BRANCH, Profile, Command])
+    end.
 
 client_command(Command, Arg1, Arg2) ->
     Profile = ets:lookup_element(?CONF, ?CLIENT_PROFILE_KEY, 2),
@@ -667,51 +670,56 @@ transfer_direct(Region, IP, FilePath, TargetName) ->
     safe_cmd(Cmd).
 
 all_nodes() ->
-    All = ets:select(?CONF, [{ {{'_', public, '$1'}, '$2'}, [], [{{'$1', '$2'}}] }]),
-    lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [ {R, N} || N <- L] end, [], All)).
+    All = ets:select(?CONF, [{{{'_', public, '$1'}, '$2'}, [], [{{'$1', '$2'}}]}]),
+    lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [{R, N} || N <- L] end, [], All)).
 
 all_instance_ids() ->
-    All = ets:select(?CONF, [{ {{instance_ids, '$1'}, '$2'}, [], [{{'$1', '$2'}}]  }]),
-    lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [ {R, N} || N <- L] end, [], All)).
+    All = ets:select(?CONF, [{{{instance_ids, '$1'}, '$2'}, [], [{{'$1', '$2'}}]}]),
+    lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [{R, N} || N <- L] end, [], All)).
 
 server_nodes() ->
-    All = ets:select(?CONF, [{ {{servers, public, '$1'}, '$2'}, [], [{{'$1', '$2'}}] }]),
-    lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [ {R, N} || N <- L] end, [], All)).
+    All = ets:select(?CONF, [{{{servers, public, '$1'}, '$2'}, [], [{{'$1', '$2'}}]}]),
+    lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [{R, N} || N <- L] end, [], All)).
 
 main_region_server_nodes() ->
-    ets:select(?CONF, [{ {{servers, public, '$1'}, [ '$2' | '_' ]}, [], [{{'$1', '$2'}}] }]).
+    ets:select(?CONF, [{{{servers, public, '$1'}, ['$2' | '_']}, [], [{{'$1', '$2'}}]}]).
 
 client_nodes() ->
-    All = ets:select(?CONF, [{ {{clients, public, '$1'}, '$2'}, [], [{{'$1', '$2'}}] }]),
-    lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [ {R, N} || N <- L] end, [], All)).
+    All = ets:select(?CONF, [{{{clients, public, '$1'}, '$2'}, [], [{{'$1', '$2'}}]}]),
+    lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [{R, N} || N <- L] end, [], All)).
 
 main_region_client_nodes() ->
-    ets:select(?CONF, [{ {{clients, public, '$1'}, [ '$2' | '_' ]}, [], [{{'$1', '$2'}}] }]).
+    ets:select(?CONF, [{{{clients, public, '$1'}, ['$2' | '_']}, [], [{{'$1', '$2'}}]}]).
 
 main_private_ip(Region) ->
-    [Node] = ets:select(?CONF, [{ {{servers, private, Region}, ['$1' | '_' ]}, [], ['$1']  }]),
+    [Node] = ets:select(?CONF, [{{{servers, private, Region}, ['$1' | '_']}, [], ['$1']}]),
     Node.
 
 do_in_nodes_seq(CommandFun, Nodes) ->
-    lists:foreach(fun({Region, IP}) ->
-        Command = if
-            erlang:is_function(CommandFun) -> CommandFun(Region);
-            true -> CommandFun
+    lists:foreach(
+        fun({Region, IP}) ->
+            Command =
+                if
+                    erlang:is_function(CommandFun) -> CommandFun(Region);
+                    true -> CommandFun
+                end,
+            Cmd = io_lib:format(
+                "~s -i ~s \"~s\" ~s",
+                [?IN_NODES_PATH, ets:lookup_element(?CONF, {IP, Region, key}, 2), Command, IP]
+            ),
+            safe_cmd(Cmd)
         end,
-        Cmd = io_lib:format(
-            "~s -i ~s \"~s\" ~s",
-            [?IN_NODES_PATH, ets:lookup_element(?CONF, {IP, Region, key}, 2), Command, IP]
-        ),
-        safe_cmd(Cmd)
-    end, Nodes).
+        Nodes
+    ).
 
 do_in_nodes_par(CommandFun, Nodes) ->
     pmap(
         fun({Region, IP}) ->
-            Command = if
-                erlang:is_function(CommandFun) -> CommandFun(Region);
-                true -> CommandFun
-            end,
+            Command =
+                if
+                    erlang:is_function(CommandFun) -> CommandFun(Region);
+                    true -> CommandFun
+                end,
             Cmd = io_lib:format(
                 "~s -i ~s \"~s\" ~s",
                 [?IN_NODES_PATH, ets:lookup_element(?CONF, {IP, Region, key}, 2), Command, IP]
@@ -751,7 +759,7 @@ pmap(F, L) ->
         receive
             {pmap, N, R} -> {N, R}
         end
-        || _ <- L
+     || _ <- L
     ],
     L3 = lists:keysort(1, L2),
     [R || {_, R} <- L3].
@@ -776,20 +784,20 @@ load_processed_data(Table, ConfigPath) ->
 
     Digest = erlang:phash2(ClusterMap, ?DIGEST_RANGE),
     ProcessedPath = filename:join(ConfigDir, io_lib:format("pcluster-~b.config", [Digest])),
-    ProcTerms = case filelib:is_file(ProcessedPath) of
-        true ->
-            io:format("Reading cached data~n"),
-            {ok, Terms1} = file:consult(ProcessedPath),
-            Terms1;
-
-        false ->
-            io:format("Processing data~n"),
-            Terms1 = preprocess_cluster_map(ClusterMap),
-            Format = fun(T) -> io_lib:format("~tp.~n", [T]) end,
-            Serialized = lists:map(Format, Terms1),
-            ok = file:write_file(ProcessedPath, Serialized),
-            Terms1
-    end,
+    ProcTerms =
+        case filelib:is_file(ProcessedPath) of
+            true ->
+                io:format("Reading cached data~n"),
+                {ok, Terms1} = file:consult(ProcessedPath),
+                Terms1;
+            false ->
+                io:format("Processing data~n"),
+                Terms1 = preprocess_cluster_map(ClusterMap),
+                Format = fun(T) -> io_lib:format("~tp.~n", [T]) end,
+                Serialized = lists:map(Format, Terms1),
+                ok = file:write_file(ProcessedPath, Serialized),
+                Terms1
+        end,
 
     true = ets:insert(Table, ProcTerms),
     true = ets:insert(Table, {?PROC_FILE_KEY, ProcessedPath}),
@@ -809,15 +817,15 @@ load_processed_data(Table, ConfigPath) ->
     end.
 
 preprocess_cluster_map(ClusterMap) ->
-    Terms0 = [{regions, [ atom_to_list(R) || R <- maps:keys(ClusterMap)]}],
+    Terms0 = [{regions, [atom_to_list(R) || R <- maps:keys(ClusterMap)]}],
     lists:foldl(
         fun({RegionAtom, #{servers := ServerIds, clients := ClientIds}}, Acc) ->
             RName = atom_to_list(RegionAtom),
             RelPrivateKeyPath = io_lib:format("./keys/kp-~s.pem", [RName]),
             PrivateKeyPath = filename:absname_join(?SELF_DIR, RelPrivateKeyPath),
 
-            PublicServers = [ public_ip(RName, Id) || Id <- ServerIds ],
-            PrivateServers = [ private_ip(RName, Id) || Id <- ServerIds ],
+            PublicServers = [public_ip(RName, Id) || Id <- ServerIds],
+            PrivateServers = [private_ip(RName, Id) || Id <- ServerIds],
             %% So we can map private to public addresses
             PrivateMappings = lists:zipwith(
                 fun(Priv, Pub) ->
@@ -826,11 +834,11 @@ preprocess_cluster_map(ClusterMap) ->
                 PrivateServers,
                 PublicServers
             ),
-            PublicClients = [ public_ip(RName, Id) || Id <- ClientIds ],
-            PrivateClients = [ private_ip(RName, Id) || Id <- ClientIds ],
+            PublicClients = [public_ip(RName, Id) || Id <- ClientIds],
+            PrivateClients = [private_ip(RName, Id) || Id <- ClientIds],
 
-            ServerKeys = [ {{Ip, RName, key}, PrivateKeyPath} || Ip <- PublicServers],
-            ClientKeys = [ {{Ip, RName, key}, PrivateKeyPath} || Ip <- PublicClients],
+            ServerKeys = [{{Ip, RName, key}, PrivateKeyPath} || Ip <- PublicServers],
+            ClientKeys = [{{Ip, RName, key}, PrivateKeyPath} || Ip <- PublicClients],
             [
                 {{key, RName}, PrivateKeyPath},
                 {{servers, public, RName}, PublicServers},

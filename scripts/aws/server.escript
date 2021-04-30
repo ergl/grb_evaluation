@@ -265,7 +265,11 @@ start_grb(Config) ->
     ),
     RED_DELIVER_INTERVAL_MS = get_config_key(red_delivery_interval, Config, ?DEFAULT_RED_DELIVERY),
     RED_PRUNE_INTERVAL = get_config_key(red_prune_interval, Config, ?DEFAULT_RED_PRUNE),
-    RED_ABORT_INTERVAL_MS = get_config_key(red_abort_interval_ms, Config, ?DEFAULT_RED_ABORT_DELAY_MS),
+    RED_ABORT_INTERVAL_MS = get_config_key(
+        red_abort_interval_ms,
+        Config,
+        ?DEFAULT_RED_ABORT_DELAY_MS
+    ),
     RED_COORD_SIZE = get_config_key(red_coord_pool_size, Config, ?DEFAULT_RED_COORD_SIZE),
     VISIBILITY_RATE = get_config_key(
         visibility_sample_rate,
@@ -360,7 +364,7 @@ get_current_ip_addres() ->
     {ok, Hostname} = inet:gethostname(),
     ip_for_node(Hostname).
 
-ip_for_node([$i ,$p, $- | Rest]) ->
+ip_for_node([$i, $p, $- | Rest]) ->
     %% For aws, node names are ip-XXX-XXX-XXX-XXX
     %% We trim ip- prefix and change the dashes with points
     string:join(string:replace(Rest, "-", ".", all), "").
@@ -388,7 +392,7 @@ get_region_grb_nodes_str(Region) ->
 
 -spec get_public_leader_grb_ips() -> [string()].
 get_public_leader_grb_ips() ->
-    ets:select(?IP_CONF, [{ {{servers, public, '_'}, ['$1' | '_' ]}, [], ['$1'] }]).
+    ets:select(?IP_CONF, [{{{servers, public, '_'}, ['$1' | '_']}, [], ['$1']}]).
 
 -spec get_public_leader_grb_ips_str() -> string().
 get_public_leader_grb_ips_str() ->
@@ -404,7 +408,7 @@ get_public_leader_grb_ips_str() ->
 
 -spec get_public_leader_grb_ip(string()) -> string().
 get_public_leader_grb_ip(Region) ->
-    [IP] = ets:select(?IP_CONF, [{ {{servers, public, Region}, ['$1' | '_' ]}, [], ['$1'] }]),
+    [IP] = ets:select(?IP_CONF, [{{{servers, public, Region}, ['$1' | '_']}, [], ['$1']}]),
     IP.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

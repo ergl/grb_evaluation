@@ -48,10 +48,8 @@ main(Args) ->
 -spec compute_commit_latency(atom(), atom(), latencies(), non_neg_integer()) -> non_neg_integer().
 compute_commit_latency(Leader, Leader, _, 1) ->
     0;
-
 compute_commit_latency(Leader, Leader, Latencies, N) ->
     compute_minimal_quorum_rtt(Leader, Latencies, N);
-
 compute_commit_latency(Region, LeaderRegion, Latencies, N) when Region =/= LeaderRegion ->
     compute_follower_latency(Region, LeaderRegion, Latencies, N).
 
@@ -59,31 +57,38 @@ compute_commit_latency(Region, LeaderRegion, Latencies, N) when Region =/= Leade
 %% utils
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-
--spec compute_minimal_quorum_rtt(At :: atom(),
-                                 Latencies :: latencies(),
-                                 QuorumSize :: non_neg_integer()) -> non_neg_integer().
+-spec compute_minimal_quorum_rtt(
+    At :: atom(),
+    Latencies :: latencies(),
+    QuorumSize :: non_neg_integer()
+) -> non_neg_integer().
 
 compute_minimal_quorum_rtt(At, Latencies, N) ->
     compute_minimal_quorum_rtt(At, Latencies, N - 1, min_half_rtt(At, Latencies, 0)).
 
--spec compute_minimal_quorum_rtt(At :: atom(),
-                                 Latencies :: latencies(),
-                                 N :: non_neg_integer(),
-                                 MinLinks :: {non_neg_integer(), non_neg_integer()}) -> non_neg_integer().
+-spec compute_minimal_quorum_rtt(
+    At :: atom(),
+    Latencies :: latencies(),
+    N :: non_neg_integer(),
+    MinLinks :: {non_neg_integer(), non_neg_integer()}
+) -> non_neg_integer().
 
 compute_minimal_quorum_rtt(At, Latencies, N, {MinCount, MinSoFar}) ->
     case N of
         1 ->
             MinSoFar * 2;
-        M when M =< MinCount->
+        M when M =< MinCount ->
             %% There's less rounds remaining than paths with the same latency, exhaust with that latency
             MinSoFar * 2;
         _ ->
             %% We can skip MinCount rounds, they all have the same latency.
             %% We know that there's at least one round left.
-            compute_minimal_quorum_rtt(At, Latencies, (N - MinCount),
-                                       min_half_rtt(At, Latencies, MinSoFar))
+            compute_minimal_quorum_rtt(
+                At,
+                Latencies,
+                (N - MinCount),
+                min_half_rtt(At, Latencies, MinSoFar)
+            )
     end.
 
 -spec compute_follower_latency(atom(), atom(), latencies(), non_neg_integer()) -> non_neg_integer().
@@ -92,12 +97,14 @@ compute_follower_latency(At, Leader, Latencies, N) ->
     ToLeader = to_leader_latency(At, Leader, Latencies),
     compute_follower_latency(At, Leader, G, N - 1, ToLeader, shortest_latency(Leader, At, G, 0)).
 
--spec compute_follower_latency(At :: atom(),
-                               Leader :: atom(),
-                               LatGraph :: latencies_graph(),
-                               QuorumSize :: non_neg_integer(),
-                               ToLeaderLatency :: non_neg_integer(),
-                               MinLinks :: {non_neg_integer(), non_neg_integer()}) -> non_neg_integer().
+-spec compute_follower_latency(
+    At :: atom(),
+    Leader :: atom(),
+    LatGraph :: latencies_graph(),
+    QuorumSize :: non_neg_integer(),
+    ToLeaderLatency :: non_neg_integer(),
+    MinLinks :: {non_neg_integer(), non_neg_integer()}
+) -> non_neg_integer().
 
 compute_follower_latency(At, Leader, G, N, ToLeader, {MinCount, MinSoFar}) ->
     case N of
@@ -106,20 +113,31 @@ compute_follower_latency(At, Leader, G, N, ToLeader, {MinCount, MinSoFar}) ->
         M when M =< MinCount ->
             MinSoFar + ToLeader;
         _ ->
-            compute_follower_latency(At, Leader, G, (N - MinCount), ToLeader,
-                                     shortest_latency(Leader, At, G, MinSoFar))
+            compute_follower_latency(
+                At,
+                Leader,
+                G,
+                (N - MinCount),
+                ToLeader,
+                shortest_latency(Leader, At, G, MinSoFar)
+            )
     end.
 
 % @doc Get the latency of the min path from `At` to any other site, but bigger than `Min`.
 %  If X paths have the same latency M, return {X, M}
--spec min_half_rtt(atom(), latencies(), non_neg_integer()) -> {non_neg_integer(), non_neg_integer()}.
+-spec min_half_rtt(atom(), latencies(), non_neg_integer()) ->
+    {non_neg_integer(), non_neg_integer()}.
 min_half_rtt(At, Latencies, Min) ->
-    lists:foldl(fun
-        ({_, RTT}, {Count, MinRTT}) when RTT =< MinRTT andalso RTT > Min ->
-            {Count + 1, RTT};
-        (_, Acc) ->
-            Acc
-    end, {0, undefined}, maps:get(At, Latencies)).
+    lists:foldl(
+        fun
+            ({_, RTT}, {Count, MinRTT}) when RTT =< MinRTT andalso RTT > Min ->
+                {Count + 1, RTT};
+            (_, Acc) ->
+                Acc
+        end,
+        {0, undefined},
+        maps:get(At, Latencies)
+    ).
 
 -spec to_leader_latency(atom(), atom(), latencies()) -> non_neg_integer().
 to_leader_latency(Leader, Leader, _) ->
@@ -136,42 +154,54 @@ to_leader_latency(Region, Leader, Latencies) ->
 -spec config_to_digraph(latencies()) -> latencies_graph().
 config_to_digraph(Latencies) ->
     G = digraph:new(),
-    _ = [ digraph:add_vertex(G, K) || K <- maps:keys(Latencies) ],
+    _ = [digraph:add_vertex(G, K) || K <- maps:keys(Latencies)],
     maps:fold(
         fun(K, Targets, Acc) ->
-            [ digraph:add_edge(G, K, T, L) || {T, L} <- Targets ],
+            [digraph:add_edge(G, K, T, L) || {T, L} <- Targets],
             Acc
         end,
         G,
         Latencies
     ).
 
--spec shortest_latency(From :: atom(),
-                       To :: atom(),
-                       Digraph :: latencies_graph(),
-                       Min :: non_neg_integer()) -> {non_neg_integer(), non_neg_integer()}.
+-spec shortest_latency(
+    From :: atom(),
+    To :: atom(),
+    Digraph :: latencies_graph(),
+    Min :: non_neg_integer()
+) -> {non_neg_integer(), non_neg_integer()}.
 
 shortest_latency(From, To, Digraph, Min) ->
     shortest_latency(From, To, Digraph, #{From => []}, 0, Min).
 
--spec shortest_latency(From :: atom(),
-                       To :: atom(),
-                       Digraph :: latencies_graph(),
-                       Visited :: #{atom() => []},
-                       Cost :: non_neg_integer(),
-                       Min :: non_neg_integer()) -> non_neg_integer().
+-spec shortest_latency(
+    From :: atom(),
+    To :: atom(),
+    Digraph :: latencies_graph(),
+    Visited :: #{atom() => []},
+    Cost :: non_neg_integer(),
+    Min :: non_neg_integer()
+) -> non_neg_integer().
 
 shortest_latency(From, To, Digraph, Visited, Cost, Min) ->
     lists:foldl(
         fun(E, {Count, Acc}) ->
-             {ChildCount, Total} = case digraph:edge(Digraph, E) of
-                {_, From, To, Lat} ->
-                    {1, Cost + Lat};
-                {_, From, Neigh, Lat} when not is_map_key(Neigh, Visited) ->
-                    shortest_latency(Neigh, To, Digraph, Visited#{Neigh => []}, Cost + Lat, Min);
-                _ ->
-                    {0, Acc}
-            end,
+            {ChildCount, Total} =
+                case digraph:edge(Digraph, E) of
+                    {_, From, To, Lat} ->
+                        {1, Cost + Lat};
+                    {_, From, Neigh, Lat} when not is_map_key(Neigh, Visited) ->
+                        shortest_latency(
+                            Neigh,
+                            To,
+                            Digraph,
+                            Visited#{Neigh => []},
+                            Cost + Lat,
+                            Min
+                        );
+                    _ ->
+                        {0, Acc}
+                end,
             if
                 Total =< Acc andalso Total > Min ->
                     {Count + ChildCount, Total};
