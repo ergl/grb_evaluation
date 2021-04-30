@@ -240,7 +240,7 @@ do_command({pull, Path}) ->
                 [NodeKey, NodeIP, ?RUBIS_PROPS, TargetPath]
             )),
 
-            %% Uncompress results (don't extract trace log, too big)
+            %% Uncompress results (don't extract trace log if it exists, too big)
             safe_cmd(io_lib:format(
                 "tar -xzf ~s/results.tar.gz -C ~s --strip-components 1 --exclude='trace.log'",
                 [TargetPath, TargetPath]
@@ -266,20 +266,20 @@ do_command({pull, Path}) ->
     %     )
     % end,
 
-    PullMeasurements = fun() ->
-        pmap(
-            fun({Region, NodeIP}) ->
-                NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
-                TargetFile = io_lib:format("~s/measurements-aws-~s.bin", [Path, Region]),
-                safe_cmd(io_lib:format(
-                    "scp -i ~s ubuntu@~s:/home/ubuntu/measurements.bin ~s",
-                    [NodeKey, NodeIP, TargetFile]
-                )),
-                ok
-            end,
-            main_region_server_nodes()
-        )
-    end,
+    % PullMeasurements = fun() ->
+    %     pmap(
+    %         fun({Region, NodeIP}) ->
+    %             NodeKey = ets:lookup_element(?CONF, {NodeIP, Region, key}, 2),
+    %             TargetFile = io_lib:format("~s/measurements-aws-~s.bin", [Path, Region]),
+    %             safe_cmd(io_lib:format(
+    %                 "scp -i ~s ubuntu@~s:/home/ubuntu/measurements.bin ~s",
+    %                 [NodeKey, NodeIP, TargetFile]
+    %             )),
+    %             ok
+    %         end,
+    %         main_region_server_nodes()
+    %     )
+    % end,
 
     % PullCaptures = fun() ->
     %     pmap(
