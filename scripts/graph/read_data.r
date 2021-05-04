@@ -67,6 +67,18 @@ sum_for_file <- function(File) {
     return(data.frame(n, err))
 }
 
+sum_for_file <- function(Op, File, ErrorCSV) {
+    n <- 0
+    err <- 0
+    if (file.exists(File)) {
+        latencies <- read.csv(File)
+        err <- sum(ErrorCSV[ErrorCSV$operation == Op, ]$count)
+        n <- sum(latencies$n) + err
+    }
+
+    return(data.frame(n, err))
+}
+
 latency_for_file <- function(File) {
     n <- 0
     mean <- 0
@@ -211,13 +223,39 @@ get_red_conflict_ratio <- function(Dir) {
     return(data.frame(abort_ratio, read_abort_ratio, update_abort_ratio, mixed_abort_ratio))
 }
 
+get_rubis_conflict_ratio <- function(Dir) {
+    summary <- read.csv(sprintf("%s/summary.csv", Dir))
+    total <- sum(summary$total)
+    total_failed <- sum(summary$failed)
+    errors <- read.csv(sprintf("%s/errors.csv", Dir))
+    total_conflict <- sum(errors[errors$error == "abort", ]$count)
+    return(total_conflict / total)
+}
+
 get_rubis_strong_conflict_ratio <- function(Dir) {
     abort_ratio <- 0
-
-    user <- sum_for_file(sprintf("%s/register-user_latencies.csv", Dir))
-    buynow <- sum_for_file(sprintf("%s/store-buy-now_latencies.csv", Dir))
-    bid <- sum_for_file(sprintf("%s/store-bid_latencies.csv", Dir))
-    auction <- sum_for_file(sprintf("%s/close-auction_latencies.csv", Dir))
+    errors <- read.csv(sprintf("%s/errors.csv", Dir))
+    errors <- errors[errors$error == "abort", ]
+    user <- sum_for_file(
+        "register_user",
+        sprintf("%s/register-user_latencies.csv", Dir),
+        errors
+    )
+    buynow <- sum_for_file(
+        "store_buy_now",
+        sprintf("%s/store-buy-now_latencies.csv", Dir),
+        errors
+    )
+    bid <- sum_for_file(
+        "store_bid",
+        sprintf("%s/store-bid_latencies.csv", Dir),
+        errors
+    )
+    auction <- sum_for_file(
+        "close_auction",
+        sprintf("%s/close-auction_latencies.csv", Dir),
+        errors
+    )
 
     total <- user$n + buynow$n + bid$n + auction$n
     total_err <- user$err + buynow$err + bid$err + auction$err
@@ -554,6 +592,7 @@ process_rubis_data_summary <- function(Dir) {
     thread_info <- get_client_threads(Dir)
     throughput_df <- get_summary_data(Dir)
     latency_df <- get_rubis_latencies(Dir)
+    conflict_ratio <- get_rubis_conflict_ratio(Dir)
     strong_df <- get_rubis_strong_conflict_ratio(Dir)
 
     headers <- c(
@@ -570,7 +609,7 @@ process_rubis_data_summary <- function(Dir) {
                         throughput_df$max_total,
                         latency_df$all_mean,
                         latency_df$all_median,
-                        throughput_df$abort_ratio,
+                        conflict_ratio,
                         strong_df$abort_ratio)
     if(print.headers) {
         cat(sprintf("%s\n", paste(headers, collapse=",")))
@@ -582,6 +621,7 @@ process_rubis_data <- function(Dir) {
     thread_info <- get_client_threads(Dir)
     throughput_df <- get_summary_data(Dir)
     latency_df <- get_rubis_latencies(Dir)
+    conflict_ratio <- get_rubis_conflict_ratio(Dir)
     strong_df <- get_rubis_strong_conflict_ratio(Dir)
 
     headers <- c("threads",
@@ -680,7 +720,7 @@ process_rubis_data <- function(Dir) {
                         latency_df$median_about_me,
                         latency_df$median_get_auctions_ready_for_close,
                         latency_df$median_close_auction,
-                        throughput_df$abort_ratio,
+                        conflict_ratio,
                         strong_df$abort_ratio)
 
     if(print.headers) {
