@@ -121,6 +121,12 @@ run () {
         exit 1
     fi
 
+    grep -qxF '* soft nofile 1048576' /etc/security/limits.conf \
+      || echo "* soft nofile 1048576" | sudo tee -a /etc/security/limits.conf
+
+    grep -qxF '* hard nofile 1048576' /etc/security/limits.conf \
+      || echo "* hard nofile 1048576" | sudo tee -a /etc/security/limits.conf
+
     local branch="bench_grb"
     local profile="default"
     local confirm_load=0

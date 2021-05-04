@@ -193,6 +193,14 @@ execute_command({visibility, Region}, Config) ->
 
 start_grb(Config) ->
     _ = os_cmd("sudo sysctl net.ipv4.ip_local_port_range=\"15000 61000\""),
+    _ = os_cmd(
+        "grep -qxF '* soft nofile 1048576' /etc/security/limits.conf"
+        ++ "|| echo \"* soft nofile 1048576\" | sudo tee -a /etc/security/limits.conf"
+    ),
+    _ = os_cmd(
+        "grep -qxF '* hard nofile 1048576' /etc/security/limits.conf"
+        ++ "|| echo \"* hard nofile 1048576\" | sudo tee -a /etc/security/limits.conf"
+    ),
     IP = get_current_ip_addres(),
     INTER_DC_IP = get_public_ip_address(IP),
 
