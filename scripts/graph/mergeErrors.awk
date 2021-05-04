@@ -5,16 +5,16 @@ BEGIN {
 }
 
 FNR >= 2 {
-    kind_a=$(NF-3)
-    kind_b=$(NF-2)
-    kind_c=$(NF-1)
-
-    # Squash the fields into a single string, so we can print it later
-    kind=sprintf("%s,%s,%s", kind_a, kind_b, kind_c)
+    error_kind=$1
+    operation_kind=$2
 
     # Remove the quotes from the last field, it never contains a string
-    gsub("\"", "", $NF)
-    n=$(NF)
+    gsub("\"", "", $3)
+    n=$3
+
+    # We concatenate the kind of error and operation together so we can
+    # add the errors across files
+    kind=sprintf("%s,%s", error_kind, operation_kind)
 
     if (kind in matrix) {
         matrix[kind] += n
@@ -24,7 +24,7 @@ FNR >= 2 {
 }
 
 END {
-    print "\"error\",\"operation\",count"
+    print "\"error\",\"operation\",\"count\""
     for (row in matrix) {
         printf("%s,%s\n", row, matrix[row])
     }
