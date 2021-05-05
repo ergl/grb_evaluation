@@ -67,7 +67,7 @@ sum_for_file <- function(File) {
     return(data.frame(n, err))
 }
 
-sum_for_file <- function(Op, File, ErrorCSV) {
+sum_for_file_ext <- function(Op, File, ErrorCSV) {
     n <- 0
     err <- 0
     if (file.exists(File)) {
@@ -236,22 +236,22 @@ get_rubis_strong_conflict_ratio <- function(Dir) {
     abort_ratio <- 0
     errors <- read.csv(sprintf("%s/errors.csv", Dir))
     errors <- errors[errors$error == "abort", ]
-    user <- sum_for_file(
+    user <- sum_for_file_ext(
         "register_user",
         sprintf("%s/register-user_latencies.csv", Dir),
         errors
     )
-    buynow <- sum_for_file(
+    buynow <- sum_for_file_ext(
         "store_buy_now",
         sprintf("%s/store-buy-now_latencies.csv", Dir),
         errors
     )
-    bid <- sum_for_file(
+    bid <- sum_for_file_ext(
         "store_bid",
         sprintf("%s/store-bid_latencies.csv", Dir),
         errors
     )
-    auction <- sum_for_file(
+    auction <- sum_for_file_ext(
         "close_auction",
         sprintf("%s/close-auction_latencies.csv", Dir),
         errors
