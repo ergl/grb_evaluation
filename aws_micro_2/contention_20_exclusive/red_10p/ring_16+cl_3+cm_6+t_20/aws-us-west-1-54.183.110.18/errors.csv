@@ -1,0 +1,4 @@
+"error","operation","count"
+"conflict","writeonly_red","12"
+"stale_committed","writeonly_red","19"
+"stale_decided","writeonly_red","8"
