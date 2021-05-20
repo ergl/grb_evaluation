@@ -4,22 +4,11 @@
 
 -export([main/1]).
 
--define(APP_NAME, grb).
+-define(APP_NAME, rb_sequencer).
 -define(DEFAULT_BRANCH, "master").
 -define(DEFAULT_PROFILE, "default").
--define(DEFAULT_TCP_ID_LEN, 16).
 -define(DEFAULT_INTER_DC_POOL, 16).
--define(DEFAULT_OP_LOG_READERS, 20).
--define(DEFAULT_LOG_SIZE, 25).
--define(DEFAULT_RING_SIZE, 32).
--define(DEFAULT_HB_INTERVAL, 5).
--define(DEFAULT_PARTITION_WAIT_MS, 5).
--define(DEFAULT_REPL_INTERVAL, 5).
--define(DEFAULT_UNI_REPL_INTERVAL, 5000).
 -define(DEFAULT_FAULT_TOLERANCE_FACTOR, 1).
--define(DEFAULT_BCAST_INTERVAL, 5).
--define(DEFAULT_PRUNE_INTERVAL, 50).
--define(DEFAULT_CLOCK_INTERVAL, 10000).
 -define(DEFAULT_RED_INTERVAL, 5).
 -define(DEFAULT_RED_FIXED_HB, 250).
 -define(DEFAULT_RED_DELIVERY, 10).
@@ -27,10 +16,8 @@
 -define(DEFAULT_RED_ABORT_DELAY_MS, 100).
 -define(DEFAULT_RED_COORD_SIZE, 50).
 -define(DEFAULT_INTER_DC_PORT, 8989).
--define(DEFAULT_VISIBILITY_RATE, 1000).
--define(DEFAULT_BLUE_STALL_MS, 0).
 -define(DEFAULT_REDBLUE_SEQUENCER_POOL_SIZE, 8).
--define(REPO_URL, "https://github.com/ergl/grb.git").
+-define(REPO_URL, "https://github.com/ergl/rb_sequencer.git").
 -define(COMMANDS, [
     {download, false},
     {compile, false},
@@ -39,10 +26,7 @@
     {recompile, false},
     {restart, false},
     {rebuild, false},
-    {join, true},
-    {connect_dcs, false},
-    {measurements, true},
-    {visibility, true}
+    {connect_dcs, false}
 ]).
 
 -define(IP_CONF, ip_configuration_table).
@@ -101,45 +85,45 @@ main(Args) ->
             ok
     end.
 
-execute_command(download, Config) ->
-    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
+execute_command(download, _Config) ->
+    Branch = ?DEFAULT_BRANCH,
     Folder = io_lib:format("sources/~s", [Branch]),
     Cmd = io_lib:format("git clone ~s --single-branch --branch ~s ~s", [?REPO_URL, Branch, Folder]),
     os_cmd(Cmd),
     ok;
-execute_command(compile, Config) ->
-    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
+execute_command(compile, _Config) ->
+    Branch = ?DEFAULT_BRANCH,
+    Profile = ?DEFAULT_PROFILE,
     os_cmd(io_lib:format("cd sources/~s && ./rebar3 as ~s compile", [Branch, Profile])),
     os_cmd(
         io_lib:format("cd sources/~s && ./rebar3 as ~s release -n ~s", [Branch, Profile, ?APP_NAME])
     ),
     ok;
 execute_command(start, Config) ->
-    ok = start_grb(Config);
+    ok = start_sequencer(Config);
 execute_command(stop, Config) ->
-    ok = stop_grb(Config);
-execute_command(recompile, Config) ->
-    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
+    ok = stop_sequencer(Config);
+execute_command(recompile, _Config) ->
+    Branch = ?DEFAULT_BRANCH,
+    Profile = ?DEFAULT_PROFILE,
     os_cmd(io_lib:format("rm -rf sources/~s/_build/~s/rel", [Branch, Profile])),
     os_cmd(
         io_lib:format("cd sources/~s && ./rebar3 as ~s release -n ~s", [Branch, Profile, ?APP_NAME])
     ),
     ok;
 execute_command(restart, Config) ->
-    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
-    ok = stop_grb(Config),
+    Branch = ?DEFAULT_BRANCH,
+    Profile = ?DEFAULT_PROFILE,
+    ok = stop_sequencer(Config),
     os_cmd(io_lib:format("rm -rf sources/~s/_build/~s/rel", [Branch, Profile])),
     os_cmd(
         io_lib:format("cd sources/~s && ./rebar3 as ~s release -n ~s", [Branch, Profile, ?APP_NAME])
     ),
-    ok = start_grb(Config),
+    ok = start_sequencer(Config),
     ok;
-execute_command(rebuild, Config) ->
-    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
+execute_command(rebuild, _Config) ->
+    Branch = ?DEFAULT_BRANCH,
+    Profile = ?DEFAULT_PROFILE,
     os_cmd(io_lib:format("rm -rf sources/~s/_build", [Branch])),
     os_cmd(io_lib:format("cd sources/~s && git fetch origin", [Branch])),
     os_cmd(io_lib:format("cd sources/~s && git reset --hard origin/~s", [Branch, Branch])),
@@ -148,42 +132,13 @@ execute_command(rebuild, Config) ->
         io_lib:format("cd sources/~s && ./rebar3 as ~s release -n ~s", [Branch, Profile, ?APP_NAME])
     ),
     ok;
-execute_command({join, Region}, Config) ->
-    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    NodeArgs = get_region_grb_nodes_str(Region),
-    Cmd = io_lib:format(
-        "./sources/~s/bin/join_cluster_script.erl -c ~s ~s",
-        [Branch, Region, NodeArgs]
-    ),
-    os_cmd(Cmd),
-    ok;
 execute_command(connect_dcs, Config) ->
     {red_leader_cluster, LeaderCluster} = lists:keyfind(red_leader_cluster, 1, Config),
-    LeaderIP = get_public_leader_grb_ip(atom_to_list(LeaderCluster)),
-    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    InterDCPort = get_config_key(inter_dc_port, Config, ?DEFAULT_INTER_DC_PORT),
-    NodeArgs = get_public_leader_grb_ips_str(),
+    Branch = ?DEFAULT_BRANCH,
+    NodeArgs = get_connect_dcs_nodes_arg(?DEFAULT_INTER_DC_PORT),
     Cmd = io_lib:format(
-        "./sources/~s/bin/connect_dcs.erl -i -p ~b -l ~s ~s",
-        [Branch, InterDCPort, LeaderIP, NodeArgs]
-    ),
-    os_cmd(Cmd),
-    ok;
-execute_command({measurements, Region}, Config) ->
-    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    NodeArgs = get_region_grb_nodes_str(Region),
-    Cmd = io_lib:format(
-        "./sources/~s/bin/get_measurements.escript -o /home/ubuntu/measurements.bin ~s",
-        [Branch, NodeArgs]
-    ),
-    os_cmd(Cmd),
-    ok;
-execute_command({visibility, Region}, Config) ->
-    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    NodeArgs = get_region_grb_nodes_str(Region),
-    Cmd = io_lib:format(
-        "./sources/~s/bin/visibility.escript -o /home/ubuntu/visibility.bin ~s",
-        [Branch, NodeArgs]
+        "./sources/~s/bin/connect_dcs.erl -l ~s ~s",
+        [Branch, atom_to_list(LeaderCluster), NodeArgs]
     ),
     os_cmd(Cmd),
     ok.
@@ -192,7 +147,7 @@ execute_command({visibility, Region}, Config) ->
 %% internal
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-start_grb(Config) ->
+start_sequencer(Config) ->
     _ = os_cmd("sudo sysctl net.ipv4.ip_local_port_range=\"15000 61000\""),
     _ = os_cmd(
         "grep -qxF '* soft nofile 1048576' /etc/security/limits.conf"
@@ -205,62 +160,18 @@ start_grb(Config) ->
     IP = get_current_ip_addres(),
     INTER_DC_IP = get_public_ip_address(IP),
 
-    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
+    Branch = ?DEFAULT_BRANCH,
+    Profile = ?DEFAULT_PROFILE,
 
-    TCP_ID_LEN = get_config_key(tcp_id_len_bits, Config, ?DEFAULT_TCP_ID_LEN),
-    OP_LOG_READERS = get_config_key(oplog_readers, Config, ?DEFAULT_OP_LOG_READERS),
-    VSN_LOG_SIZE = get_config_key(version_log_size, Config, ?DEFAULT_LOG_SIZE),
-    RIAK_RING_SIZE = get_config_key(ring_creation_size, Config, ?DEFAULT_RING_SIZE),
     INTER_DC_SENDER_POOL_SIZE = get_config_key(
         inter_dc_pool_size,
         Config,
         ?DEFAULT_INTER_DC_POOL
     ),
-    SELF_HB_INTERVAL_MS = get_config_key(
-        self_blue_heartbeat_interval,
-        Config,
-        ?DEFAULT_HB_INTERVAL
-    ),
-    PARTITION_RETRY_MS = get_config_key(
-        partition_ready_wait_ms,
-        Config,
-        ?DEFAULT_PARTITION_WAIT_MS
-    ),
-    REPLICATION_INTERVAL_MS = get_config_key(
-        basic_replication_interval,
-        Config,
-        ?DEFAULT_REPL_INTERVAL
-    ),
-    PREPARED_BLUE_STALE_MS = get_config_key(
-        prepared_blue_stale_check_ms,
-        Config,
-        ?DEFAULT_BLUE_STALL_MS
-    ),
-    UNIFORM_REPLICATION_INTERVAL_MS = get_config_key(
-        uniform_replication_interval,
-        Config,
-        ?DEFAULT_UNI_REPL_INTERVAL
-    ),
     FAULT_TOLERANCE_FACTOR = get_config_key(
         fault_tolerance_factor,
         Config,
         ?DEFAULT_FAULT_TOLERANCE_FACTOR
-    ),
-    BCAST_KNOWN_VC_INTERVAL_MS = get_config_key(
-        local_broadcast_interval,
-        Config,
-        ?DEFAULT_BCAST_INTERVAL
-    ),
-    COMMITTED_BLUE_PRUNE_INTERVAL_MS = get_config_key(
-        prune_committed_blue_interval,
-        Config,
-        ?DEFAULT_PRUNE_INTERVAL
-    ),
-    UNIFORM_CLOCK_INTERVAL_MS = get_config_key(
-        remote_clock_broadcast_interval,
-        Config,
-        ?DEFAULT_CLOCK_INTERVAL
     ),
     RED_HB_SCHEDULE_MS = get_config_key(
         red_heartbeat_schedule_ms,
@@ -272,18 +183,25 @@ start_grb(Config) ->
         Config,
         ?DEFAULT_RED_FIXED_HB
     ),
-    RED_DELIVER_INTERVAL_MS = get_config_key(red_delivery_interval, Config, ?DEFAULT_RED_DELIVERY),
-    RED_PRUNE_INTERVAL = get_config_key(red_prune_interval, Config, ?DEFAULT_RED_PRUNE),
+    RED_DELIVER_INTERVAL_MS = get_config_key(
+        red_delivery_interval,
+        Config,
+        ?DEFAULT_RED_DELIVERY
+    ),
+    RED_PRUNE_INTERVAL = get_config_key(
+        red_prune_interval,
+        Config,
+        ?DEFAULT_RED_PRUNE
+    ),
     RED_ABORT_INTERVAL_MS = get_config_key(
         red_abort_interval_ms,
         Config,
         ?DEFAULT_RED_ABORT_DELAY_MS
     ),
-    RED_COORD_SIZE = get_config_key(red_coord_pool_size, Config, ?DEFAULT_RED_COORD_SIZE),
-    VISIBILITY_RATE = get_config_key(
-        visibility_sample_rate,
+    RED_COORD_SIZE = get_config_key(
+        red_coord_pool_size,
         Config,
-        ?DEFAULT_VISIBILITY_RATE
+        ?DEFAULT_RED_COORD_SIZE
     ),
     REDBLUE_SEQUENCER_POOL_SIZE = get_config_key(
         redblue_sequencer_connection_pool,
@@ -291,29 +209,16 @@ start_grb(Config) ->
         ?DEFAULT_REDBLUE_SEQUENCER_POOL_SIZE
     ),
     EnvVarString = io_lib:format(
-        "TCP_ID_LEN=~b INTER_DC_SENDER_POOL_SIZE=~b OP_LOG_READERS=~b VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b PARTITION_RETRY_MS=~b REPLICATION_INTERVAL_MS=~b PREPARED_BLUE_STALE_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b FAULT_TOLERANCE_FACTOR=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_HB_SCHEDULE_MS=~b RED_HB_FIXED_SCHEDULE_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_ABORT_INTERVAL_MS=~b RED_COORD_POOL_SIZE=~b VISIBILITY_RATE=~b REDBLUE_SEQUENCER_POOL_SIZE=~b IP=~s INTER_DC_IP=~s",
+        "INTER_DC_SENDER_POOL_SIZE=~b FAULT_TOLERANCE_FACTOR=~b RED_HB_SCHEDULE_MS=~b RED_HB_FIXED_SCHEDULE_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_ABORT_INTERVAL_MS=~b RED_COORD_POOL_SIZE=~b REDBLUE_SEQUENCER_POOL_SIZE=~b IP=~s INTER_DC_IP=~s",
         [
-            TCP_ID_LEN,
             INTER_DC_SENDER_POOL_SIZE,
-            OP_LOG_READERS,
-            VSN_LOG_SIZE,
-            RIAK_RING_SIZE,
-            SELF_HB_INTERVAL_MS,
-            PARTITION_RETRY_MS,
-            REPLICATION_INTERVAL_MS,
-            PREPARED_BLUE_STALE_MS,
-            UNIFORM_REPLICATION_INTERVAL_MS,
             FAULT_TOLERANCE_FACTOR,
-            BCAST_KNOWN_VC_INTERVAL_MS,
-            COMMITTED_BLUE_PRUNE_INTERVAL_MS,
-            UNIFORM_CLOCK_INTERVAL_MS,
             RED_HB_SCHEDULE_MS,
             RED_HB_FIXED_SCHEDULE_MS,
             RED_DELIVER_INTERVAL_MS,
             RED_PRUNE_INTERVAL,
             RED_ABORT_INTERVAL_MS,
             RED_COORD_SIZE,
-            VISIBILITY_RATE,
             REDBLUE_SEQUENCER_POOL_SIZE,
             IP,
             INTER_DC_IP
@@ -340,10 +245,10 @@ start_grb(Config) ->
     os_cmd(PingCmd),
     ok.
 
-stop_grb(Config) ->
+stop_sequencer(_Config) ->
     IP = get_current_ip_addres(),
-    Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
-    Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
+    Branch = ?DEFAULT_BRANCH,
+    Profile = ?DEFAULT_PROFILE,
     Cmd = io_lib:format(
         "IP=~s ./sources/~s/_build/~s/rel/~s/bin/env stop",
         [IP, Branch, Profile, ?APP_NAME]
@@ -387,44 +292,23 @@ ip_for_node([$i, $p, $- | Rest]) ->
 -spec get_public_ip_address(string()) -> string().
 get_public_ip_address(PrivateIP) ->
     Region = erlang:get(current_region),
-    ets:lookup_element(?IP_CONF, {servers, public_mapping, Region, PrivateIP}, 2).
+    ets:lookup_element(?IP_CONF, {sequencers, public_mapping, Region, PrivateIP}, 2).
 
--spec get_region_grb_nodes(string()) -> [string()].
-get_region_grb_nodes(Region) ->
-    ets:lookup_element(?IP_CONF, {servers, private, Region}, 2).
+-spec get_public_main_sequencer_ips_with_region() -> [{string(), string()}].
+get_public_main_sequencer_ips_with_region() ->
+    ets:select(?IP_CONF, [{{{sequencers, public, '$1'}, ['$2' | '_']}, [], [{{'$1', '$2'}}]}]).
 
--spec get_region_grb_nodes_str(string()) -> string().
-get_region_grb_nodes_str(Region) ->
+-spec get_connect_dcs_nodes_arg(Port :: non_neg_integer()) -> string().
+get_connect_dcs_nodes_arg(InterDCPort) ->
     lists:foldl(
-        fun(NodeIP, Acc) ->
+        fun({Region, NodeIP}, Acc) ->
             unicode:characters_to_list(
-                io_lib:format("~s '~s@~s'", [Acc, atom_to_list(?APP_NAME), NodeIP])
+                io_lib:format("~s '~s:~s:~b'", [Acc, atom_to_list(Region), NodeIP, InterDCPort])
             )
         end,
         "",
-        get_region_grb_nodes(Region)
+        get_public_main_sequencer_ips_with_region()
     ).
-
--spec get_public_leader_grb_ips() -> [string()].
-get_public_leader_grb_ips() ->
-    ets:select(?IP_CONF, [{{{servers, public, '_'}, ['$1' | '_']}, [], ['$1']}]).
-
--spec get_public_leader_grb_ips_str() -> string().
-get_public_leader_grb_ips_str() ->
-    lists:foldl(
-        fun(NodeIP, Acc) ->
-            unicode:characters_to_list(
-                io_lib:format("~s '~s'", [Acc, NodeIP])
-            )
-        end,
-        "",
-        get_public_leader_grb_ips()
-    ).
-
--spec get_public_leader_grb_ip(string()) -> string().
-get_public_leader_grb_ip(Region) ->
-    [IP] = ets:select(?IP_CONF, [{{{servers, public, Region}, ['$1' | '_']}, [], ['$1']}]),
-    IP.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% config

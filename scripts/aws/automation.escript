@@ -17,9 +17,7 @@
     unicode:characters_to_list(io_lib:format("~s/configuration", [?SELF_DIR]))
 ).
 
--define(GRB_BRANCH, "master").
 -define(LASP_BENCH_BRANCH, "bench_grb").
-
 -define(JOIN_TIMEOUT, timer:minutes(5)).
 -define(CONF, configuration).
 -define(PROC_FILE_KEY, '$processed_path').
@@ -35,6 +33,7 @@
     {sync, false},
     {server, false},
     {clients, false},
+    {sequencer, false},
     {prologue, false},
 
     {start, false},
@@ -43,21 +42,29 @@
     {connect_dcs, false},
     {prepare, false},
 
+    {start_sequencer, false},
+    {stop_sequencer, false},
+    {connect_sequencer, false},
+
     {grb_load, false},
     {rubis_load, false},
     {bench, false},
     {brutal_client_kill, false},
     {brutal_server_kill, false},
+    {brutal_sequencer_kill, false},
 
     {restart, false},
     {recompile, false},
     {recompile_clients, false},
+    {recompile_sequencer, false},
     {rebuild, false},
     {rebuild_grb, false},
     {rebuild_clients, false},
+    {rebuild_sequencer, false},
     {cleanup, false},
     {cleanup_servers, false},
     {cleanup_clients, false},
+    {cleanup_sequencer, false},
     {visibility, false},
     {measurements, false},
     {pull, true},
@@ -358,6 +365,11 @@ do_command(brutal_server_kill) ->
         io:format("~p~n", [Res])
     end),
     ok;
+do_command(brutal_sequencer_kill) ->
+    NodeNames = sequencer_nodes(),
+    Res = do_in_nodes_par("pkill -9 beam.smp", NodeNames),
+    io:format("~p~n", [Res]),
+    ok;
 % Does nothing, useful to preload the ip data
 do_command(init) ->
     ok;
@@ -369,11 +381,14 @@ do_command(server) ->
     ok = prepare_server();
 do_command(clients) ->
     ok = prepare_lasp_bench();
+do_command(sequencer) ->
+    ok = prepare_sequencer();
 do_command(prologue) ->
     ok = check_nodes(),
     ok = sync_nodes(),
     ok = prepare_server(),
     ok = prepare_lasp_bench(),
+    ok = prepare_sequencer(),
     alert("Prologue finished!"),
     ok;
 do_command(start) ->
@@ -421,6 +436,26 @@ do_command(connect_dcs) ->
         [MainNode]
     ),
     io:format("~p~n", [Rep]),
+    ok;
+do_command(start_sequencer) ->
+    Rep = do_in_nodes_par(sequencer_command("start"), sequencer_nodes()),
+    io:format("~p~n", [Rep]),
+    ok;
+do_command(stop_sequencer) ->
+    do_in_nodes_par(sequencer_command("stop"), sequencer_nodes()),
+    ok;
+do_command(connect_sequencer) ->
+    case sequencer_nodes() of
+        [MainNode] ->
+            Rep = do_in_nodes_seq(
+                sequencer_command("connect_dcs"),
+                [MainNode]
+            ),
+            io:format("~p~n", [Rep]);
+        _ ->
+            %% Ignore if there's no sequencer
+            ok
+    end,
     ok;
 do_command(grb_load) ->
     pmap(
@@ -525,12 +560,16 @@ do_command(recompile) ->
 do_command(recompile_clients) ->
     do_in_nodes_par(client_command("compile"), client_nodes()),
     ok;
+do_command(recompile_sequencer) ->
+    io:format("~p~n", [do_in_nodes_par(sequencer_command("recompile"), server_nodes())]),
+    ok;
 do_command(restart) ->
     io:format("~p~n", [do_in_nodes_par(server_command("restart"), server_nodes())]),
     ok;
 do_command(rebuild) ->
     do_command(rebuild_grb),
     do_command(rebuild_clients),
+    do_command(rebuild_sequencer),
     ok;
 do_command(rebuild_grb) ->
     do_in_nodes_par(server_command("rebuild"), server_nodes()),
@@ -538,9 +577,13 @@ do_command(rebuild_grb) ->
 do_command(rebuild_clients) ->
     do_in_nodes_par(client_command("rebuild"), client_nodes()),
     ok;
+do_command(rebuild_sequencer) ->
+    do_in_nodes_par(sequencer_command("rebuild"), server_nodes()),
+    ok;
 do_command(cleanup) ->
     do_command(cleanup_servers),
     do_command(cleanup_clients),
+    do_command(cleanup_sequencer),
     ok;
 do_command(cleanup_servers) ->
     AllNodes = server_nodes(),
@@ -548,6 +591,10 @@ do_command(cleanup_servers) ->
     ok;
 do_command(cleanup_clients) ->
     AllNodes = client_nodes(),
+    io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", AllNodes)]),
+    ok;
+do_command(cleanup_sequencer) ->
+    AllNodes = sequencer_nodes(),
     io:format("~p~n", [do_in_nodes_par("rm -rf sources; mkdir -p sources", AllNodes)]),
     ok.
 
@@ -567,6 +614,7 @@ check_nodes() ->
     pmap(
         fun({Region, Node}) ->
             transfer_script(Region, Node, "server.escript"),
+            transfer_script(Region, Node, "sequencer.escript"),
             transfer_script(Region, Node, "bench.sh"),
             transfer_script(Region, Node, "my_ip"),
             transfer_script(Region, Node, "leader_ip"),
@@ -601,6 +649,13 @@ prepare_lasp_bench() ->
     NodeNames = client_nodes(),
     io:format("~p~n", [do_in_nodes_par(client_command("dl"), NodeNames)]),
     _ = do_in_nodes_par(client_command("compile"), NodeNames),
+    ok.
+
+prepare_sequencer() ->
+    NodeNames = sequencer_nodes(),
+    io:format("~p~n", [do_in_nodes_par(sequencer_command("download"), NodeNames)]),
+    _ = do_in_nodes_par(sequencer_command("compile"), NodeNames),
+    io:format("~p~n", [do_in_nodes_par(sequencer_command("start"), NodeNames)]),
     ok.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -647,6 +702,14 @@ client_command(Command, Arg1, Arg2, Arg3) ->
         )
     end.
 
+sequencer_command(Command) ->
+    fun(Region) ->
+        io_lib:format(
+            "./sequencer.escript -v -r ~s -f /home/ubuntu/cluster.config -p /home/ubuntu/pcluster.config -c ~s",
+            [Region, Command]
+        )
+    end.
+
 transfer_script(Region, IP, File) ->
     transfer_from(Region, IP, ?SELF_DIR, File).
 
@@ -686,6 +749,10 @@ main_region_server_nodes() ->
 
 client_nodes() ->
     All = ets:select(?CONF, [{{{clients, public, '$1'}, '$2'}, [], [{{'$1', '$2'}}]}]),
+    lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [{R, N} || N <- L] end, [], All)).
+
+sequencer_nodes() ->
+    All = ets:select(?CONF, [{{{sequencers, public, '$1'}, '$2'}, [], [{{'$1', '$2'}}]}]),
     lists:usort(lists:foldl(fun({R, L}, Acc) -> Acc ++ [{R, N} || N <- L] end, [], All)).
 
 main_region_client_nodes() ->
@@ -808,7 +875,12 @@ load_processed_data(Table, ConfigPath) ->
         true ->
             Servers = ordsets:from_list(server_nodes()),
             Clients = ordsets:from_list(client_nodes()),
-            case ordsets:is_disjoint(Servers, Clients) of
+            Sequencers = ordsets:from_list(sequencer_nodes()),
+            AreDisjoint =
+                ordsets:is_disjoint(Servers, Clients)
+                andalso ordsets:is_disjoint(Servers, Sequencers)
+                andalso ordsets:is_disjoint(Clients, Sequencers),
+            case AreDisjoint of
                 false ->
                     {error, cluster_overlap};
                 true ->
@@ -819,7 +891,7 @@ load_processed_data(Table, ConfigPath) ->
 preprocess_cluster_map(ClusterMap) ->
     Terms0 = [{regions, [atom_to_list(R) || R <- maps:keys(ClusterMap)]}],
     lists:foldl(
-        fun({RegionAtom, #{servers := ServerIds, clients := ClientIds}}, Acc) ->
+        fun({RegionAtom, M=#{servers := ServerIds, clients := ClientIds}}, Acc) ->
             RName = atom_to_list(RegionAtom),
             RelPrivateKeyPath = io_lib:format("./keys/kp-~s.pem", [RName]),
             PrivateKeyPath = filename:absname_join(?SELF_DIR, RelPrivateKeyPath),
@@ -827,7 +899,7 @@ preprocess_cluster_map(ClusterMap) ->
             PublicServers = [public_ip(RName, Id) || Id <- ServerIds],
             PrivateServers = [private_ip(RName, Id) || Id <- ServerIds],
             %% So we can map private to public addresses
-            PrivateMappings = lists:zipwith(
+            PrivateServerMappings = lists:zipwith(
                 fun(Priv, Pub) ->
                     {{servers, public_mapping, RName, Priv}, Pub}
                 end,
@@ -837,16 +909,33 @@ preprocess_cluster_map(ClusterMap) ->
             PublicClients = [public_ip(RName, Id) || Id <- ClientIds],
             PrivateClients = [private_ip(RName, Id) || Id <- ClientIds],
 
+            SequencerIds = maps:get(sequencer, M, []),
+            PublicSequencers = [ public_ip(RName, Id) || Id <- SequencerIds ],
+            PrivateSequencers = [ private_ip(RName, Id) || Id <- SequencerIds ],
+            %% So we can map private to public addresses
+            PrivateSequencerMappings = lists:zipwith(
+                fun(Priv, Pub) ->
+                    {{sequencers, public_mapping, RName, Priv}, Pub}
+                end,
+                PrivateSequencers,
+                PublicSequencers
+            ),
+
             ServerKeys = [{{Ip, RName, key}, PrivateKeyPath} || Ip <- PublicServers],
             ClientKeys = [{{Ip, RName, key}, PrivateKeyPath} || Ip <- PublicClients],
+            SequencerKeys = [{{Ip, RName, key}, PrivateKeyPath} || Ip <- PublicSequencers],
+
             [
                 {{key, RName}, PrivateKeyPath},
                 {{servers, public, RName}, PublicServers},
                 {{clients, public, RName}, PublicClients},
                 {{servers, private, RName}, PrivateServers},
                 {{clients, private, RName}, PrivateClients},
+                {{sequencers, public, RName}, PublicSequencers},
+                {{sequencers, private, RName}, PrivateSequencers},
                 {{instance_ids, RName}, ServerIds ++ ClientIds}
-            ] ++ ServerKeys ++ ClientKeys ++ PrivateMappings ++ Acc
+            ] ++ ServerKeys ++ ClientKeys ++ SequencerKeys ++ PrivateServerMappings ++ PrivateSequencerMappings ++ Acc
+
         end,
         Terms0,
         maps:to_list(ClusterMap)
