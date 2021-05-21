@@ -54,6 +54,7 @@
     {brutal_sequencer_kill, false},
 
     {restart, false},
+    {restart_sequencer, false},
     {recompile, false},
     {recompile_clients, false},
     {recompile_sequencer, false},
@@ -364,6 +365,7 @@ do_command(brutal_server_kill) ->
         Res = do_in_nodes_par("pkill -9 beam.smp", NodeNames),
         io:format("~p~n", [Res])
     end),
+    ok = do_command(brutal_sequencer_kill),
     ok;
 do_command(brutal_sequencer_kill) ->
     NodeNames = sequencer_nodes(),
@@ -388,19 +390,22 @@ do_command(prologue) ->
     ok = sync_nodes(),
     ok = prepare_server(),
     ok = prepare_lasp_bench(),
-    ok = prepare_sequencer(),
+    % ok = prepare_sequencer(),
     alert("Prologue finished!"),
     ok;
 do_command(start) ->
+    % do_command(start_sequencer),
     Rep = do_in_nodes_par(server_command("start"), server_nodes()),
     io:format("~p~n", [Rep]),
     ok;
 do_command(stop) ->
+    % do_command(stop_sequencer),
     do_in_nodes_par(server_command("stop"), server_nodes()),
     ok;
 do_command(prepare) ->
     ok = do_command(join),
     ok = do_command(connect_dcs),
+    % ok = do_command(connect_sequencer),
     alert("Prepare finished!"),
     ok;
 do_command(join) ->
@@ -446,7 +451,7 @@ do_command(stop_sequencer) ->
     ok;
 do_command(connect_sequencer) ->
     case sequencer_nodes() of
-        [MainNode] ->
+        [MainNode | _] ->
             Rep = do_in_nodes_seq(
                 sequencer_command("connect_dcs"),
                 [MainNode]
@@ -564,12 +569,16 @@ do_command(recompile_sequencer) ->
     io:format("~p~n", [do_in_nodes_par(sequencer_command("recompile"), server_nodes())]),
     ok;
 do_command(restart) ->
+    % do_command(restart_sequencer),
     io:format("~p~n", [do_in_nodes_par(server_command("restart"), server_nodes())]),
+    ok;
+do_command(restart_sequencer) ->
+    do_in_nodes_seq(sequencer_command("restart"), sequencer_nodes()),
     ok;
 do_command(rebuild) ->
     do_command(rebuild_grb),
     do_command(rebuild_clients),
-    do_command(rebuild_sequencer),
+    % do_command(rebuild_sequencer),
     ok;
 do_command(rebuild_grb) ->
     do_in_nodes_par(server_command("rebuild"), server_nodes()),
@@ -583,7 +592,7 @@ do_command(rebuild_sequencer) ->
 do_command(cleanup) ->
     do_command(cleanup_servers),
     do_command(cleanup_clients),
-    do_command(cleanup_sequencer),
+    % do_command(cleanup_sequencer),
     ok;
 do_command(cleanup_servers) ->
     AllNodes = server_nodes(),
@@ -933,7 +942,7 @@ preprocess_cluster_map(ClusterMap) ->
                 {{clients, private, RName}, PrivateClients},
                 {{sequencers, public, RName}, PublicSequencers},
                 {{sequencers, private, RName}, PrivateSequencers},
-                {{instance_ids, RName}, ServerIds ++ ClientIds}
+                {{instance_ids, RName}, ServerIds ++ ClientIds ++ ServerIds}
             ] ++ ServerKeys ++ ClientKeys ++ SequencerKeys ++ PrivateServerMappings ++ PrivateSequencerMappings ++ Acc
 
         end,

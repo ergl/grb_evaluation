@@ -303,7 +303,7 @@ get_connect_dcs_nodes_arg(InterDCPort) ->
     lists:foldl(
         fun({Region, NodeIP}, Acc) ->
             unicode:characters_to_list(
-                io_lib:format("~s '~s:~s:~b'", [Acc, atom_to_list(Region), NodeIP, InterDCPort])
+                io_lib:format("~s '~s:~s:~b'", [Acc, Region, NodeIP, InterDCPort])
             )
         end,
         "",

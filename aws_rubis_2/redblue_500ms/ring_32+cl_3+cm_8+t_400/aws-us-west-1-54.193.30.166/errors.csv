@@ -1,0 +1,7 @@
+"error","operation","count"
+"abort","close_auction","3"
+"abort","store_bid","215"
+"abort","store_buy_now","21"
+"precondition","close_auction","159"
+"precondition","store_bid","25972"
+"precondition","store_buy_now","63"

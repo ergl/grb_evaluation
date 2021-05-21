@@ -204,6 +204,7 @@ start_grb(Config) ->
     ),
     IP = get_current_ip_addres(),
     INTER_DC_IP = get_public_ip_address(IP),
+    REDBLUE_SEQUENCER_IP = get_sequencer_private_ip(),
 
     Branch = get_config_key(grb_branch, Config, ?DEFAULT_BRANCH),
     Profile = get_config_key(grb_rebar_profile, Config, ?DEFAULT_PROFILE),
@@ -291,7 +292,7 @@ start_grb(Config) ->
         ?DEFAULT_REDBLUE_SEQUENCER_POOL_SIZE
     ),
     EnvVarString = io_lib:format(
-        "TCP_ID_LEN=~b INTER_DC_SENDER_POOL_SIZE=~b OP_LOG_READERS=~b VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b PARTITION_RETRY_MS=~b REPLICATION_INTERVAL_MS=~b PREPARED_BLUE_STALE_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b FAULT_TOLERANCE_FACTOR=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_HB_SCHEDULE_MS=~b RED_HB_FIXED_SCHEDULE_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_ABORT_INTERVAL_MS=~b RED_COORD_POOL_SIZE=~b VISIBILITY_RATE=~b REDBLUE_SEQUENCER_POOL_SIZE=~b IP=~s INTER_DC_IP=~s",
+        "TCP_ID_LEN=~b INTER_DC_SENDER_POOL_SIZE=~b OP_LOG_READERS=~b VSN_LOG_SIZE=~b RIAK_RING_SIZE=~b SELF_HB_INTERVAL_MS=~b PARTITION_RETRY_MS=~b REPLICATION_INTERVAL_MS=~b PREPARED_BLUE_STALE_MS=~b UNIFORM_REPLICATION_INTERVAL_MS=~b FAULT_TOLERANCE_FACTOR=~b BCAST_KNOWN_VC_INTERVAL_MS=~b COMMITTED_BLUE_PRUNE_INTERVAL_MS=~b UNIFORM_CLOCK_INTERVAL_MS=~b RED_HB_SCHEDULE_MS=~b RED_HB_FIXED_SCHEDULE_MS=~b RED_DELIVER_INTERVAL_MS=~b RED_PRUNE_INTERVAL=~b RED_ABORT_INTERVAL_MS=~b RED_COORD_POOL_SIZE=~b VISIBILITY_RATE=~b REDBLUE_SEQUENCER_POOL_SIZE=~b REDBLUE_SEQUENCER_IP=~s IP=~s INTER_DC_IP=~s",
         [
             TCP_ID_LEN,
             INTER_DC_SENDER_POOL_SIZE,
@@ -315,6 +316,7 @@ start_grb(Config) ->
             RED_COORD_SIZE,
             VISIBILITY_RATE,
             REDBLUE_SEQUENCER_POOL_SIZE,
+            REDBLUE_SEQUENCER_IP,
             IP,
             INTER_DC_IP
         ]
@@ -388,6 +390,16 @@ ip_for_node([$i, $p, $- | Rest]) ->
 get_public_ip_address(PrivateIP) ->
     Region = erlang:get(current_region),
     ets:lookup_element(?IP_CONF, {servers, public_mapping, Region, PrivateIP}, 2).
+
+-spec get_sequencer_private_ip() -> string().
+get_sequencer_private_ip() ->
+    Region = erlang:get(current_region),
+    case
+        ets:select(?IP_CONF, [{ {{sequencers, private, Region}, ['$1' | '_']}, [], ['$1'] }])
+    of
+        [IP] -> IP;
+        [] -> ""
+    end.
 
 -spec get_region_grb_nodes(string()) -> [string()].
 get_region_grb_nodes(Region) ->

@@ -1,0 +1,11 @@
+"error","operation","count"
+"abort","store_comment",29
+"precondition","close_auction",21732
+"abort","store_bid",96403
+"abort","register_item",27959
+"precondition","store_bid",2708718
+"precondition","register_user",2
+"precondition","store_buy_now",9355
+"abort","store_buy_now",9544
+"abort","close_auction",1663
+
