@@ -858,6 +858,8 @@ load_processed_data(Table, ConfigPath) ->
     {red_leader_cluster, LeaderCluster} = lists:keyfind(red_leader_cluster, 1, Terms0),
     {lasp_bench_rebar_profile, ClientProfile} = lists:keyfind(lasp_bench_rebar_profile, 1, Terms0),
 
+    %% TODO: Make this more resistant to reorder, etc, parsing take a long time
+    %% otherwise
     Digest = erlang:phash2(ClusterMap, ?DIGEST_RANGE),
     ProcessedPath = filename:join(ConfigDir, io_lib:format("pcluster-~b.config", [Digest])),
     ProcTerms =

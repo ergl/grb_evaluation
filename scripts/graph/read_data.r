@@ -388,9 +388,37 @@ get_rubis_latencies <- function(Dir) {
                          median_get_auctions_ready_for_close,
                          median_close_auction))
 
+    causal_mean <- mean(c(
+        mean_browse_categories,
+        mean_search_items_in_category,
+        mean_browse_regions,
+        mean_browse_categories_in_region,
+        mean_search_items_in_region,
+        mean_view_item,
+        mean_view_user_info,
+        mean_view_bid_history,
+        mean_buy_now,
+        mean_put_bid,
+        mean_put_comment,
+        mean_store_comment,
+        mean_select_category_to_sell_item,
+        mean_register_item,
+        mean_about_me,
+        mean_get_auctions_ready_for_close
+    ))
+
+    strong_mean <- mean(c(
+        mean_register_user,
+        mean_store_buy_now,
+        mean_store_bid,
+        mean_close_auction
+    ))
+
     return(data.frame(
         all_mean,
         all_median,
+        causal_mean,
+        strong_mean,
         mean_register_user,
         mean_browse_categories,
         mean_search_items_in_category,
@@ -630,6 +658,8 @@ process_rubis_data <- function(Dir) {
                  "throughput_med",
                  "all_mean",
                  "all_median",
+                 "causal_mean",
+                 "strong_mean",
                  "register_user_mean",
                  "browse_categories_mean",
                  "search_items_in_category_mean",
@@ -672,7 +702,7 @@ process_rubis_data <- function(Dir) {
                  "close_auction_median",
                  "overall_abort_ratio",
                  "strong_abort_ratio")
-    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n"
+    row_format <- "%s,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f,%f\n"
     row_data <- sprintf(row_format,
                         thread_info$per_machine,
                         throughput_df$max_total,
@@ -680,6 +710,8 @@ process_rubis_data <- function(Dir) {
                         throughput_df$median_commit,
                         latency_df$all_mean,
                         latency_df$all_median,
+                        latency_df$causal_mean,
+                        latency_df$strong_mean,
                         latency_df$mean_register_user,
                         latency_df$mean_browse_categories,
                         latency_df$mean_search_items_in_category,
