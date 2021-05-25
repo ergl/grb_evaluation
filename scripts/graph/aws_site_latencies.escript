@@ -151,7 +151,7 @@ maybe_print_visibility(ClusterMap, ResultPath, _Opt = #{visibility := true}) ->
     lists:foreach(
         fun({ClusterStr, Values}) ->
             Content = lists:foldl(FoldFun, "", Values),
-            Header = "remote,min,max,avg,med",
+            Header = "from,data",
             io:format("~s~n~s~n~s~n", [string:to_upper(ClusterStr), Header, Content])
         end,
         VisibilityReports
